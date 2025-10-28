@@ -34,29 +34,51 @@ def "main import" [
   $"file '($file)' imported successfull!"
 }
 
-const db_path = '/home/spencer/.envr/data.db'
+const db_path = '/home/spencer/.envr/data.age'
 
 # Create or load the database
 def "open db" [] {
   if (not ($db_path | path exists)) {
-    init-db
+    create-db
+  } else {
+    # Open the db
+    let dec = mktemp -p ~/.envr;
+    age -d -i ((main config show).priv_key | path expand) $db_path | save -f $dec
+    stor import -f $dec
+    rm $dec
   }
-  stor import -f $db_path
+
+  stor open
 }
 
-def "init-db" []: nothing -> table {
-  sqlite3 $db_path 'create table envr_env_files (
+def "create-db" []: nothing -> any {
+  let dec = mktemp -p ~/.envr;
+
+  sqlite3 $dec 'create table envr_env_files (
       path text primary key not null
     , dir text not null
     , remotes text -- JSON
     , sha256 text not null
     , contents text not null
   );'
+
+  let pub_key = ((main config show).pub_key | path expand);
+  age -R $pub_key $dec | save -f $db_path
+
+  stor import -f $dec
+  rm $dec;
 }
 
 def "close db" [] {
-  stor export --file-name $'($db_path).new'
-  mv $'($db_path).new' $db_path
+  let dec = mktemp -p ~/.envr;
+
+  stor export --file-name $dec;
+
+  # Encrypt the file
+  let pub_key = ((main config show).pub_key | path expand);
+  age -R $pub_key $dec | save -f $db_path
+
+  rm $dec
 }
 
 # Supported config formats
