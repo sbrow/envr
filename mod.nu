@@ -84,7 +84,7 @@ def "close db" [] {
   rm $dec
 }
 
-# Restore a .env file from backup.
+# Restore a .env file from backup
 export def "envr restore" [
   path?: path # The path of the file to restore. Will be prompted if left blank.
 ]: nothing -> string {
@@ -143,27 +143,38 @@ const available_formats = [
 ]
 
 # Create your initial config
-export def "envr config init" [
+export def "envr init" [
   format?: string
   #identity?: path
 ] {
   mkdir ~/.envr
 
-  let format = if ($format | is-empty) {
-    $available_formats | input list 'Please select the desired format for your config file'
-  }
+  if (ls ~/.envr/config.* | length | $in > 0) {
+    error make {
+      msg: "A config file already exists"
+      label: {
+        text: "butts"
+        span: (metadata $format).span
+      }
+    }
+  } else {
+    let format = if ($format | is-empty) {
+      $available_formats | input list 'Please select the desired format for your config file'
+    }
 
-  let identity = '~/.ssh/id_ed25519';
+    let identity = '~/.ssh/id_ed25519';
   
-  # The path to the config file.
-  let source = $'~/.envr/config.($format)'
+    # The path to the config file.
+    let source = $'~/.envr/config.($format)'
 
-  {
-    source: $source
-    priv_key: $identity
-    pub_key: $'($identity).pub'
-  } | tee {
-    save $source
+    {
+      source: $source
+      priv_key: $identity
+      pub_key: $'($identity).pub'
+    } | tee {
+      save $source;
+      open db
+    }
   }
 }
 
@@ -187,7 +198,7 @@ export def "envr sync" [] {
 }
 
 # Edit your config
-export def "envr config edit" [] {
+export def "envr edit config" [] {
   ^$env.EDITOR (config-file)
 }
 
@@ -196,6 +207,6 @@ def "config-file" []: [nothing -> path nothing -> nothing] {
 }
 
 # show your current config
-export def "envr config show" []: nothing -> record<source: path, priv_key: path, pub_key: path> {
+def "envr config show" []: nothing -> record<source: path, priv_key: path, pub_key: path> {
   open (config-file)
 }
