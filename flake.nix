@@ -70,6 +70,7 @@
             {
               buildInputs = with pkgs; [
                 age
+                fd
                 nushell
                 sqlite
 

@@ -178,11 +178,11 @@ export def "envr init" [
       priv_key: $identity
       pub_key: $'($identity).pub'
       # TODO: scan settings
-      # scan: {
-      #   matcher: '\.env'
-      #   exclude: '*.envrc'
-      #   include: '~'
-      # }
+      scan: {
+        matcher: '\.env'
+        exclude: '*.envrc'
+        include: '~'
+      }
     } | tee {
       save $source;
       open db
@@ -217,9 +217,42 @@ export def "envr sync" [] {
   'TODO: Need to implement'
 }
 
-# Search for .env files
+# Search for .env files and select ones to back up.
 export def "envr scan" [] {
-  'TODO:' 
+  let config = (envr config show).scan;
+
+  let ignored_env_files = (
+    find env-files $config.matcher $config.exclude $config.include
+  );
+
+  let tracked_file_paths = (files).path;
+
+  let scanned = $ignored_env_files | where { |it|
+    not ($it in $tracked_file_paths)
+  }
+
+  (
+    $scanned
+    | input list -m "Select files to back up"
+    | each { envr backup $in }
+  )
+}
+
+# Search for hidden env files 
+def "find env-files" [
+  match: string = '\.env'
+  exclude: string = '*.envrc'
+  search: string = '~/'
+]: nothing -> list<path> {
+  let search = ($search | path expand);
+
+  let unignored = (fd -a $match -E $exclude -H $search | lines)
+  let all = (fd -a $match -E $exclude -HI $search | lines)
+  let ignored = $all | where { |it|
+    not ($it in $unignored)
+  }
+
+  $ignored | sort
 }
 
 # Edit your config
