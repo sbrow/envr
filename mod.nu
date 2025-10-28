@@ -43,7 +43,8 @@ def "open db" [] {
   } else {
     # Open the db
     let dec = mktemp -p ~/.envr;
-    age -d -i ((envr config show).priv_key | path expand) $db_path | save -f $dec
+    let priv_key = ((envr config show).priv_key | path expand);
+    age -d -i $priv_key ($db_path | path expand) | save -f $dec
     stor import -f $dec
     rm $dec
   }
