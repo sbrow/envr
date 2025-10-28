@@ -192,7 +192,12 @@ export def "envr init" [
 
 # View your tracked files
 export def "envr list" [] {
-  (files | reject contents)
+  (
+    files
+    | reject contents
+    | update path { $in | path relative-to ~/ | $'~/($in)' }
+    | update dir { $in | path relative-to ~/ | $'~/($in)' }
+  )
 }
 
 # List all the files in the database
