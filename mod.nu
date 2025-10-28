@@ -34,7 +34,7 @@ export def "envr import" [
   $"file '($file)' imported successfull!"
 }
 
-const db_path = '/home/spencer/.envr/data.age'
+const db_path = '~/.envr/data.age'
 
 # Create or load the database
 def "open db" [] {
@@ -133,7 +133,7 @@ export def "envr sync" [] {
 
 # Edit your config
 export def "envr config edit" [] {
-  'TODO:'
+  ^$env.EDITOR (config-file)
 }
 
 def "config-file" []: [nothing -> path nothing -> nothing] {
