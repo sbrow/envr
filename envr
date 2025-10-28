@@ -1,12 +1,12 @@
 #!/usr/bin/env nu
 
 # Manage your .env files with ease
-def main [] {
+export def main [] {
   help main
 }
 
 # Import a .env file into envr
-def "main import" [
+export def "main import" [
   file: path
 ] {
   cd (dirname $file);
@@ -92,7 +92,7 @@ const available_formats = [
 ]
 
 # Create your initial config
-def "main config init" [
+export def "main config init" [
   format?: string
   #identity?: path
 ] {
@@ -117,7 +117,7 @@ def "main config init" [
 }
 
 # View your tracked files
-def "main list" [] {
+export def "main list" [] {
   (
     open db
     | query db 'select * from envr_env_files'
@@ -127,12 +127,12 @@ def "main list" [] {
 }
 
 # Update your env backups
-def "main sync" [] {
+export def "main sync" [] {
   'TODO:' 
 }
 
 # Edit your config
-def "main config edit" [] {
+export def "main config edit" [] {
   'TODO:'
 }
 
@@ -141,6 +141,6 @@ def "config-file" []: [nothing -> path nothing -> nothing] {
 }
 
 # show your current config
-def "main config show" []: nothing -> record<source: path, priv_key: path, pub_key: path> {
+export def "main config show" []: nothing -> record<source: path, priv_key: path, pub_key: path> {
   open (config-file)
 }
