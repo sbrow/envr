@@ -165,15 +165,24 @@ export def "envr init" [
       $available_formats | input list 'Please select the desired format for your config file'
     }
 
+    # TODO: Let user select identity.
     let identity = '~/.ssh/id_ed25519';
   
     # The path to the config file.
     let source = $'~/.envr/config.($format)'
 
+    # TODO: Let user select file types to scan for.
+
     {
       source: $source
       priv_key: $identity
       pub_key: $'($identity).pub'
+      # TODO: scan settings
+      # scan: {
+      #   matcher: '\.env'
+      #   exclude: '*.envrc'
+      #   include: '~'
+      # }
     } | tee {
       save $source;
       open db
@@ -197,7 +206,15 @@ def files [] {
 
 # Update your env backups
 export def "envr sync" [] {
-  'TODO:' 
+  let $files = (files);
+
+  $files | each { |it|
+    # TODO: Check for file existence
+    # TODO: If file exists and sha changed: `envr backup $it.path`
+    # TODO: If file doesn't exist: `envr restore $it.path`
+  }
+
+  'TODO: Need to implement'
 }
 
 # Search for .env files
