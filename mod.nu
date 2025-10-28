@@ -177,7 +177,6 @@ export def "envr init" [
       source: $source
       priv_key: $identity
       pub_key: $'($identity).pub'
-      # TODO: scan settings
       scan: {
         matcher: '\.env'
         exclude: '*.envrc'
@@ -209,17 +208,21 @@ def files [] {
   )
 }
 
-# Update your env backups
+# Update or restore your env backups
 export def "envr sync" [] {
   let $files = (files);
 
   $files | each { |it|
-    # TODO: Check for file existence
-    # TODO: If file exists and sha changed: `envr backup $it.path`
-    # TODO: If file doesn't exist: `envr restore $it.path`
+    if ($it.path | path type | $in == 'file') {
+      if (open $it.path | hash sha256 | $in != $it.sha256) {
+        envr backup $it.path
+      } else {
+        'Nothing to do!'
+      }
+    } else {
+      envr restore $it.path
+    }
   }
-
-  'TODO: Need to implement'
 }
 
 # Search for .env files and select ones to back up.
