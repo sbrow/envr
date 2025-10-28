@@ -69,8 +69,9 @@
           devShells.default = pkgs.mkShell
             {
               buildInputs = with pkgs; [
-                # TODO: Packages go here.
-                unstable.nushell
+                age
+                nushell
+                sqlite
 
                 # IDE
                 unstable.helix

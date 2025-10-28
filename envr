@@ -1,0 +1,124 @@
+#!/usr/bin/env nu
+
+# Manage your .env files with ease
+def main [] {
+  help main
+}
+
+# Import a .env file into envr
+def "main import" [
+  file: path
+] {
+  cd (dirname $file);
+
+  let contents = (open $file --raw)
+
+  open db
+
+  let row = {
+    path: $file
+    dir: (pwd)
+    remotes: (git remote | lines | each { git remote get-url $in } | to json)
+    sha256: ($contents | hash sha256)
+    contents: $contents
+  };
+
+  try {
+    $row | stor insert -t envr_env_files
+  } catch {
+    $row | stor update -t envr_env_files -w $'path == "($row.path)"'
+  }
+
+  close db
+
+  $"file '($file)' imported successfull!"
+}
+
+const db_path = '/home/spencer/.envr/data.db'
+
+# Create or load the database
+def "open db" [] {
+  if (not ($db_path | path exists)) {
+    init-db
+  }
+  stor import -f $db_path
+}
+
+def "init-db" []: nothing -> table {
+  sqlite3 $db_path 'create table envr_env_files (
+      path text primary key not null
+    , dir text not null
+    , remotes text -- JSON
+    , sha256 text not null
+    , contents text not null
+  );'
+}
+
+def "close db" [] {
+  stor export --file-name $'($db_path).new'
+  mv $'($db_path).new' $db_path
+}
+
+# Supported config formats
+const available_formats = [
+  json
+  toml
+  yaml
+  ini
+  xml
+  nuon
+]
+
+# Create your initial config
+def "main config init" [
+  format?: string
+  #identity?: path
+] {
+  mkdir ~/.envr
+
+  let format = if ($format | is-empty) {
+    $available_formats | input list 'Please select the desired format for your config file'
+  }
+
+  let identity = '~/.ssh/id_ed25519';
+  
+  # The path to the config file.
+  let source = $'~/.envr/config.($format)'
+
+  {
+    source: $source
+    priv_key: $identity
+    pub_key: $'($identity).pub'
+  } | tee {
+    save $source
+  }
+}
+
+# View your tracked files
+def "main list" [] {
+  (
+    open db
+    | query db 'select * from envr_env_files'
+    | update remotes { from json }
+    | reject contents
+  )
+}
+
+# Update your env backups
+def "main sync" [] {
+  'TODO:' 
+}
+
+# Edit your config
+def "main config edit" [] {
+  'TODO:'
+}
+
+def "config-file" []: [nothing -> path nothing -> nothing] {
+  ls ~/.envr/config.* | get 0.name -o
+}
+
+# show your current config
+def "main config show" []: nothing -> record<source: path, priv_key: path, pub_key: path> {
+  open (config-file)
+}
