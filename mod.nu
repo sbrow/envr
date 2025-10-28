@@ -1,8 +1,11 @@
 #!/usr/bin/env nu
+#
+# TODO: Wrap blocks that use tmp files in try so we can clean them up.
 
 use std assert;
 
 # Manage your .env files with ease
+@example "Set up envr" { envr init }
 export def envr [] {
   help envr
 }
@@ -146,14 +149,14 @@ const available_formats = [
 export def "envr init" [
   format?: string
   #identity?: path
-] {
+]: nothing -> record {
   mkdir ~/.envr
 
-  if (ls ~/.envr/config.* | length | $in > 0) {
+  if (glob ~/.envr/config.* | length | $in > 0) {
     error make {
       msg: "A config file already exists"
       label: {
-        text: "butts"
+        text: ""
         span: (metadata $format).span
       }
     }
@@ -194,6 +197,11 @@ def files [] {
 
 # Update your env backups
 export def "envr sync" [] {
+  'TODO:' 
+}
+
+# Search for .env files
+export def "envr scan" [] {
   'TODO:' 
 }
 
