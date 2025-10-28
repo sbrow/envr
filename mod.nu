@@ -1,5 +1,7 @@
 #!/usr/bin/env nu
 
+use std assert;
+
 # Manage your .env files with ease
 export def envr [] {
   help envr
@@ -31,7 +33,7 @@ export def "envr backup" [
 
   close db
 
-  $"file '($file)' imported successfull!"
+  $"file '($file)' backed up!"
 }
 
 const db_path = '~/.envr/data.age'
@@ -82,6 +84,54 @@ def "close db" [] {
   rm $dec
 }
 
+# Restore a .env file from backup.
+export def "envr restore" [
+  path?: path # The path of the file to restore. Will be prompted if left blank.
+]: nothing -> string {
+  let files = (files)
+  let $path = if ($path | is-empty) {
+    (
+      $files
+      | select path dir remotes
+      | input list -f "Please select a file to restore"
+      | get path
+    )
+  } else {
+    $path
+  }
+
+  let file = ($files | where path == $path | first);
+  assert ($file | is-not-empty) "File must be found"
+
+  let response = if (($path | path type) == 'file') {
+    if (open --raw $file.path | hash sha256 | $in == $file.sha256) {
+      # File matches
+      $'(ansi yellow)file is already up to date.(ansi reset)';
+    } else {
+      # File exists, but doesn't match
+      let continue = (
+        [No Yes]
+        | input list $"File '($path)' already exists, are you sure you want to overwrite it?"
+        | $in == 'Yes'
+      );
+
+      if ($continue) {
+        null
+      } else {
+        $'(ansi yellow)No action was taken(ansi reset)'
+      }
+    }
+  };
+
+  if ($response | is-empty) {
+    # File should be restored
+    $file.contents | save -f $path
+    return $'(ansi green)($path) restored!(ansi reset)'
+  } else {
+    return $response
+  }
+}
+
 # Supported config formats
 const available_formats = [
   json
@@ -119,11 +169,15 @@ export def "envr config init" [
 
 # View your tracked files
 export def "envr list" [] {
+  (files | reject contents)
+}
+
+# List all the files in the database
+def files [] {
   (
     open db
     | query db 'select * from envr_env_files'
     | update remotes { from json }
-    | reject contents
   )
 }
 
