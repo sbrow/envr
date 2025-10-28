@@ -6,7 +6,7 @@ export def envr [] {
 }
 
 # Import a .env file into envr
-export def "envr import" [
+export def "envr backup" [
   file: path
 ] {
   cd (dirname $file);
