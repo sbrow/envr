@@ -189,6 +189,45 @@ export def "envr init" [
   }
 }
 
+# Remove a .env file from your backups.
+export def "envr remove" [
+  ...paths: path
+] {
+  let $paths = if ($paths | is-empty) {
+    (envr list | get path) | input list -m "Select path(s) to remove"
+  } else {
+    $paths
+  };
+
+  print -e $paths;
+
+  let confirmed = (
+    ['No' 'Yes']
+    | input list 'Are you sure you want to delete these backups?'
+    | $in == 'Yes'
+  );
+
+  if ($confirmed) {
+    let $q = (
+      $paths
+      | each { path expand }
+      | to json -r
+      | str replace '[' '('
+      | str replace ']' ')'
+      | str replace -a '"' "'");
+    (
+      open db
+      | stor delete -t envr_env_files -w $'path in ($q)'
+    );
+
+    close db
+
+    $'(ansi green)Paths removed!'
+  } else {
+    $'(ansi yellow)Operation aborted.(ansi reset)'
+  }
+}
+
 # View your tracked files
 export def "envr list" [] {
   (
