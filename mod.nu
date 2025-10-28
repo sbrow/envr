@@ -1,12 +1,12 @@
 #!/usr/bin/env nu
 
 # Manage your .env files with ease
-export def main [] {
-  help main
+export def envr [] {
+  help envr
 }
 
 # Import a .env file into envr
-export def "main import" [
+export def "envr import" [
   file: path
 ] {
   cd (dirname $file);
@@ -43,7 +43,7 @@ def "open db" [] {
   } else {
     # Open the db
     let dec = mktemp -p ~/.envr;
-    age -d -i ((main config show).priv_key | path expand) $db_path | save -f $dec
+    age -d -i ((envr config show).priv_key | path expand) $db_path | save -f $dec
     stor import -f $dec
     rm $dec
   }
@@ -62,7 +62,7 @@ def "create-db" []: nothing -> any {
     , contents text not null
   );'
 
-  let pub_key = ((main config show).pub_key | path expand);
+  let pub_key = ((envr config show).pub_key | path expand);
   age -R $pub_key $dec | save -f $db_path
 
   stor import -f $dec
@@ -75,7 +75,7 @@ def "close db" [] {
   stor export --file-name $dec;
 
   # Encrypt the file
-  let pub_key = ((main config show).pub_key | path expand);
+  let pub_key = ((envr config show).pub_key | path expand);
   age -R $pub_key $dec | save -f $db_path
 
   rm $dec
@@ -92,7 +92,7 @@ const available_formats = [
 ]
 
 # Create your initial config
-export def "main config init" [
+export def "envr config init" [
   format?: string
   #identity?: path
 ] {
@@ -117,7 +117,7 @@ export def "main config init" [
 }
 
 # View your tracked files
-export def "main list" [] {
+export def "envr list" [] {
   (
     open db
     | query db 'select * from envr_env_files'
@@ -127,12 +127,12 @@ export def "main list" [] {
 }
 
 # Update your env backups
-export def "main sync" [] {
+export def "envr sync" [] {
   'TODO:' 
 }
 
 # Edit your config
-export def "main config edit" [] {
+export def "envr config edit" [] {
   'TODO:'
 }
 
@@ -141,6 +141,6 @@ def "config-file" []: [nothing -> path nothing -> nothing] {
 }
 
 # show your current config
-export def "main config show" []: nothing -> record<source: path, priv_key: path, pub_key: path> {
+export def "envr config show" []: nothing -> record<source: path, priv_key: path, pub_key: path> {
   open (config-file)
 }
