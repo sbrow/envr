@@ -52,24 +52,24 @@ thanks to [nushell](https://www.nushell.sh/)
 
 1. **Initialize envr**:
    ```bash
-   nu mod.nu envr init
+   envr init
    ```
    This will create your configuration file and set up encrypted storage.
 
 2. **Scan for existing .env files**:
    ```bash
-   nu mod.nu envr scan
+   envr scan
    ```
    Select files you want to back up from the interactive list.
 
 3. **List tracked files**:
    ```bash
-   nu mod.nu envr list
+   envr list
    ```
 
 4. **Sync your environment files**:
    ```bash
-   nu mod.nu envr sync
+   envr sync
    ```
 
 ## Disclaimers
