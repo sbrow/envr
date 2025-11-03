@@ -3,7 +3,7 @@
 Have you ever wanted to back up all your .env files in case your hard drive gets
 nuked? `envr` makes it easier.
 
-`envr` is a [Nushell](https://www.nushell.sh) script that tracks your `.env` files
+`envr` is a binary applicate that tracks your `.env` files
 in an encyrpted sqlite database. Changes can be effortlessly synced with
 `envr sync`, and restored with `envr restore`.
 

@@ -1,3 +1,9 @@
+# dev env
 .direnv
-node_modules
-vendor
+
+# docs
+man 
+
+# build artifacts
+envr
+result
