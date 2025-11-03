@@ -48,7 +48,7 @@ def "open db" [] {
   } else {
     # Open the db
     let dec = mktemp -p ~/.envr;
-    let priv_key = ((envr config show).priv_key | path expand);
+    let priv_key = ((envr config show).keys.0.private | path expand);
     age -d -i $priv_key ($db_path | path expand) | save -f $dec
     stor import -f $dec
     rm $dec
@@ -68,7 +68,7 @@ def "create-db" []: nothing -> any {
     , contents text not null
   );'
 
-  let pub_key = ((envr config show).pub_key | path expand);
+  let pub_key = ((envr config show).keys.0.public | path expand);
   age -R $pub_key $dec | save -f $db_path
 
   stor import -f $dec
@@ -81,7 +81,7 @@ def "close db" [] {
   stor export --file-name $dec;
 
   # Encrypt the file
-  let pub_key = ((envr config show).pub_key | path expand);
+  let pub_key = ((envr config show).keys.0.public | path expand);
   age -R $pub_key $dec | save -f $db_path
 
   rm $dec
