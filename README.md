@@ -88,8 +88,8 @@ The configuration file is created during initialization:
 {
   "keys": [
     {
-      "private": "/home/spencer/.ssh/id_ed25519",
-      "public": "/home/spencer/.ssh/id_ed25519.pub"
+      "private": "/home/ubuntu/.ssh/id_ed25519",
+      "public": "/home/ubuntu/.ssh/id_ed25519.pub"
     }
   ],
   "scan": {
