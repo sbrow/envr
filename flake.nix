@@ -21,7 +21,12 @@
       imports = [
         inputs.treefmt-nix.flakeModule
       ];
-      systems = [ "x86_64-linux" ];
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+
+        "aarch64-darwin"
+      ];
 
       perSystem =
         { pkgs, system, inputs', ... }: {
@@ -91,6 +96,9 @@
 
                 gotools
                 cobra-cli
+
+                # Build tools
+                zip
 
                 # IDE
                 unstable.helix
