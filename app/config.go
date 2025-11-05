@@ -24,9 +24,9 @@ type SshKeyPair struct {
 }
 
 type scanConfig struct {
-	Matcher string `json:"matcher"`
-	Exclude string `json:"exclude"`
-	Include string `json:"include"`
+	Matcher string   `json:"matcher"`
+	Exclude string   `json:"exclude"`
+	Include []string `json:"include"`
 }
 
 // Create a fresh config with sensible defaults.
@@ -47,7 +47,7 @@ func NewConfig(privateKeyPaths []string) Config {
 		ScanConfig: scanConfig{
 			Matcher: "\\.env",
 			Exclude: "*.envrc",
-			Include: "~",
+			Include: []string{"~"},
 		},
 	}
 }
@@ -109,71 +109,77 @@ func (c *Config) Save() error {
 
 // Use fd to find all ignored .env files that match the config's parameters
 func (c Config) scan() (paths []string, err error) {
-	searchPath, err := c.searchPath()
+	searchPaths, err := c.searchPaths()
 	if err != nil {
 		return []string{}, err
 	}
 
-	// Find all files (including ignored ones)
-	fmt.Printf("Searching for all files in \"%s\"...\n", searchPath)
-	allCmd := exec.Command("fd", "-a", c.ScanConfig.Matcher, "-E", c.ScanConfig.Exclude, "-HI", searchPath)
-	allOutput, err := allCmd.Output()
-	if err != nil {
-		return []string{}, err
-	}
-
-	allFiles := strings.Split(strings.TrimSpace(string(allOutput)), "\n")
-	if len(allFiles) == 1 && allFiles[0] == "" {
-		allFiles = []string{}
-	}
-
-	// Find unignored files
-	fmt.Printf("Search for unignored fies in \"%s\"...\n", searchPath)
-	unignoredCmd := exec.Command("fd", "-a", c.ScanConfig.Matcher, "-E", c.ScanConfig.Exclude, "-H", searchPath)
-	unignoredOutput, err := unignoredCmd.Output()
-	if err != nil {
-		return []string{}, err
-	}
-
-	unignoredFiles := strings.Split(strings.TrimSpace(string(unignoredOutput)), "\n")
-	if len(unignoredFiles) == 1 && unignoredFiles[0] == "" {
-		unignoredFiles = []string{}
-	}
-
-	// Create a map for faster lookup
-	unignoredMap := make(map[string]bool)
-	for _, file := range unignoredFiles {
-		unignoredMap[file] = true
-	}
-
-	// Filter to get only ignored files
-	var ignoredFiles []string
-	for _, file := range allFiles {
-		if !unignoredMap[file] {
-			ignoredFiles = append(ignoredFiles, file)
+	for _, searchPath := range searchPaths {
+		// Find all files (including ignored ones)
+		fmt.Printf("Searching for all files in \"%s\"...\n", searchPath)
+		allCmd := exec.Command("fd", "-a", c.ScanConfig.Matcher, "-E", c.ScanConfig.Exclude, "-HI", searchPath)
+		allOutput, err := allCmd.Output()
+		if err != nil {
+			return paths, err
 		}
+
+		allFiles := strings.Split(strings.TrimSpace(string(allOutput)), "\n")
+		if len(allFiles) == 1 && allFiles[0] == "" {
+			allFiles = []string{}
+		}
+
+		// Find unignored files
+		fmt.Printf("Search for unignored fies in \"%s\"...\n", searchPath)
+		unignoredCmd := exec.Command("fd", "-a", c.ScanConfig.Matcher, "-E", c.ScanConfig.Exclude, "-H", searchPath)
+		unignoredOutput, err := unignoredCmd.Output()
+		if err != nil {
+			return []string{}, err
+		}
+
+		unignoredFiles := strings.Split(strings.TrimSpace(string(unignoredOutput)), "\n")
+		if len(unignoredFiles) == 1 && unignoredFiles[0] == "" {
+			unignoredFiles = []string{}
+		}
+
+		// Create a map for faster lookup
+		unignoredMap := make(map[string]bool)
+		for _, file := range unignoredFiles {
+			unignoredMap[file] = true
+		}
+
+		// Filter to get only ignored files
+		var ignoredFiles []string
+		for _, file := range allFiles {
+			if !unignoredMap[file] {
+				ignoredFiles = append(ignoredFiles, file)
+			}
+		}
+
+		paths = append(paths, ignoredFiles...)
 	}
 
-	return ignoredFiles, nil
+	return paths, nil
 }
 
-func (c Config) searchPath() (path string, err error) {
-	include := c.ScanConfig.Include
-
-	if include == "~" {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		return homeDir, nil
-	}
-
-	absPath, err := filepath.Abs(include)
+func (c Config) searchPaths() (paths []string, err error) {
+	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return "", err
+		return paths, err
 	}
 
-	return absPath, nil
+	includes := c.ScanConfig.Include
+
+	for _, include := range includes {
+		path := strings.Replace(include, "~", homeDir, 1)
+		absPath, err := filepath.Abs(path)
+		if err != nil {
+			return paths, err
+		}
+
+		paths = append(paths, absPath)
+	}
+
+	return paths, nil
 }
 
 // TODO: Should this be private?
