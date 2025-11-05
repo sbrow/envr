@@ -99,8 +99,8 @@ func getGitRemotes(dir string) []string {
 func (file EnvFile) Restore() error {
 	// TODO: Handle restores more cleanly
 	// Ensure the directory exists
-	if err := os.MkdirAll(filepath.Dir(file.Path), 0755); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
+	if _, err := os.Stat(file.Dir); err != nil {
+		return fmt.Errorf("directory missing")
 	}
 
 	// Check if file already exists
