@@ -24,7 +24,9 @@ type SshKeyPair struct {
 }
 
 type scanConfig struct {
-	Matcher string   `json:"matcher"`
+	// TODO: Support multiple matchers
+	Matcher string `json:"matcher"`
+	// TODO: Support multiple excludes
 	Exclude string   `json:"exclude"`
 	Include []string `json:"include"`
 }
