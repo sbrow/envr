@@ -1,8 +1,11 @@
 package cmd
 
 import (
-	"fmt"
+	"encoding/json"
+	"os"
 
+	"github.com/mattn/go-isatty"
+	"github.com/olekukonko/tablewriter"
 	"github.com/sbrow/envr/app"
 	"github.com/spf13/cobra"
 )
@@ -22,33 +25,53 @@ var syncCmd = &cobra.Command{
 			if err != nil {
 				return err
 			} else {
-				for _, file := range files {
-					fmt.Printf("%s\n", file.Path)
+				type syncResult struct {
+					Path   string `json:"path"`
+					Status string `json:"status"`
+				}
+				var results []syncResult
 
+				for _, file := range files {
 					// Syncronize the filesystem with the database.
 					changed, err := file.Sync()
 
+					var status string
 					switch changed {
 					case app.Updated:
-						fmt.Printf("File updated - changes saved\n")
+						status = "Backed Up"
 						if err := db.Insert(file); err != nil {
 							return err
 						}
 					case app.Restored:
-						fmt.Printf("File missing - restored backup\n")
+						status = "Restored"
 					case app.Error:
 						if err == nil {
 							panic("err cannot be nil when Sync returns Error")
-						} else {
-							fmt.Printf("%s\n", err)
 						}
+						status = err.Error()
 					case app.Noop:
-						fmt.Println("Nothing to do")
+						status = "OK"
 					default:
 						panic("Unknown result")
 					}
 
-					fmt.Println("")
+					results = append(results, syncResult{
+						Path:   file.Path,
+						Status: status,
+					})
+				}
+
+				if isatty.IsTerminal(os.Stdout.Fd()) {
+					table := tablewriter.NewWriter(os.Stdout)
+					table.Header([]string{"File", "Status"})
+
+					for _, result := range results {
+						table.Append([]string{result.Path, result.Status})
+					}
+					table.Render()
+				} else {
+					encoder := json.NewEncoder(os.Stdout)
+					return encoder.Encode(results)
 				}
 
 				return nil
