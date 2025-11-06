@@ -33,7 +33,7 @@ The check command reports on which binaries are available and which are not.`,
 			}
 
 			// Check fd
-			if features&app.Fd == 1 {
+			if features&app.Fd == app.Fd {
 				table.Append([]string{"fd", "✓ Available"})
 			} else {
 				table.Append([]string{"fd", "✗ Missing"})

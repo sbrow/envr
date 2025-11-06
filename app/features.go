@@ -13,7 +13,7 @@ const (
 	// fd
 	Fd AvailableFeatures = 2
 	// All features are present
-	All AvailableFeatures = Git & Fd
+	All AvailableFeatures = Git | Fd
 )
 
 // Checks for available features.
