@@ -44,7 +44,7 @@ at before, restore your backup with:
 ### SEE ALSO
 
 * [envr backup](envr_backup.md)	 - Import a .env file into envr
-* [envr check](envr_check.md)	 - Check for missing binaries
+* [envr deps](envr_deps.md)	 - Check for missing binaries
 * [envr edit-config](envr_edit-config.md)	 - Edit your config with your default editor
 * [envr init](envr_init.md)	 - Set up envr
 * [envr list](envr_list.md)	 - View your tracked files

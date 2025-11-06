@@ -8,8 +8,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var checkCmd = &cobra.Command{
-	Use:   "check",
+var depsCmd = &cobra.Command{
+	Use:   "deps",
 	Short: "Check for missing binaries",
 	Long: `envr relies on external binaries for certain functionality.
 
@@ -47,5 +47,5 @@ The check command reports on which binaries are available and which are not.`,
 }
 
 func init() {
-	rootCmd.AddCommand(checkCmd)
+	rootCmd.AddCommand(depsCmd)
 }
