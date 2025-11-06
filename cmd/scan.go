@@ -28,7 +28,7 @@ var scanCmd = &cobra.Command{
 			return err
 		}
 
-		files, err := db.Scan()
+		files, err := db.Scan(nil)
 		if err != nil {
 			return err
 		}

@@ -326,8 +326,15 @@ func (db *Db) Delete(path string) error {
 }
 
 // Finds .env files in the filesystem that aren't present in the database.
-func (db *Db) Scan() ([]string, error) {
-	all_paths, err := db.cfg.scan()
+// path overrides the already configured
+func (db *Db) Scan(paths []string) ([]string, error) {
+	cfg := db.cfg
+
+	if paths != nil {
+		cfg.ScanConfig.Include = paths
+	}
+
+	all_paths, err := cfg.scan()
 	if err != nil {
 		return []string{}, err
 	}
