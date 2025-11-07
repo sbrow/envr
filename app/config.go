@@ -25,9 +25,8 @@ type SshKeyPair struct {
 
 type scanConfig struct {
 	// TODO: Support multiple matchers
-	Matcher string `json:"matcher"`
-	// TODO: Support multiple excludes
-	Exclude string   `json:"exclude"`
+	Matcher string   `json:"matcher"`
+	Exclude []string `json:"exclude"`
 	Include []string `json:"include"`
 }
 
@@ -48,7 +47,7 @@ func NewConfig(privateKeyPaths []string) Config {
 		Keys: keys,
 		ScanConfig: scanConfig{
 			Matcher: "\\.env",
-			Exclude: "*.envrc",
+			Exclude: []string{"*.envrc"},
 			Include: []string{"~"},
 		},
 	}
@@ -109,6 +108,25 @@ func (c *Config) Save() error {
 	return os.WriteFile(configPath, data, 0644)
 }
 
+// buildFdArgs builds the fd command arguments with multiple exclude patterns
+func (c Config) buildFdArgs(searchPath string, includeIgnored bool) []string {
+	args := []string{"-a", c.ScanConfig.Matcher}
+
+	// Add exclude patterns
+	for _, exclude := range c.ScanConfig.Exclude {
+		args = append(args, "-E", exclude)
+	}
+
+	if includeIgnored {
+		args = append(args, "-HI")
+	} else {
+		args = append(args, "-H")
+	}
+
+	args = append(args, searchPath)
+	return args
+}
+
 // Use fd to find all ignored .env files that match the config's parameters
 func (c Config) scan() (paths []string, err error) {
 	searchPaths, err := c.searchPaths()
@@ -119,7 +137,7 @@ func (c Config) scan() (paths []string, err error) {
 	for _, searchPath := range searchPaths {
 		// Find all files (including ignored ones)
 		fmt.Printf("Searching for all files in \"%s\"...\n", searchPath)
-		allCmd := exec.Command("fd", "-a", c.ScanConfig.Matcher, "-E", c.ScanConfig.Exclude, "-HI", searchPath)
+		allCmd := exec.Command("fd", c.buildFdArgs(searchPath, true)...)
 		allOutput, err := allCmd.Output()
 		if err != nil {
 			return paths, err
@@ -132,7 +150,7 @@ func (c Config) scan() (paths []string, err error) {
 
 		// Find unignored files
 		fmt.Printf("Search for unignored fies in \"%s\"...\n", searchPath)
-		unignoredCmd := exec.Command("fd", "-a", c.ScanConfig.Matcher, "-E", c.ScanConfig.Exclude, "-H", searchPath)
+		unignoredCmd := exec.Command("fd", c.buildFdArgs(searchPath, false)...)
 		unignoredOutput, err := unignoredCmd.Output()
 		if err != nil {
 			return []string{}, err
