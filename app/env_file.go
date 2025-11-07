@@ -96,25 +96,47 @@ func getGitRemotes(dir string) []string {
 	return remotes
 }
 
-// Install the file into the file system
+// Install the file into the file system. If the file already exists,
+// it will be overwritten.
 func (file EnvFile) Restore() error {
-	// TODO: Handle restores more cleanly
-	// Ensure the directory exists
-	if _, err := os.Stat(file.Dir); err != nil {
-		return fmt.Errorf("directory missing")
-	}
-
-	// Check if file already exists
+	// TODO: Duplicate work is being done when called from the Sync function.
 	if _, err := os.Stat(file.Path); err == nil {
-		return fmt.Errorf("file already exists: %s", file.Path)
+		// file already exists
+
+		// Read existing file and calculate its hash
+		existingContents, err := os.ReadFile(file.Path)
+		if err != nil {
+			return fmt.Errorf("failed to read existing file for hash comparison: %w", err)
+		}
+
+		hash := sha256.Sum256(existingContents)
+		existingSha := fmt.Sprintf("%x", hash)
+
+		if existingSha == file.Sha256 {
+			return fmt.Errorf("file already exists: %s", file.Path)
+		} else {
+			if err := os.WriteFile(file.Path, []byte(file.contents), 0644); err != nil {
+				return fmt.Errorf("failed to write file: %w", err)
+			}
+
+			return nil
+		}
+	} else {
+		// file doesn't exist
+
+		// Ensure the directory exists
+		if _, err := os.Stat(file.Dir); err != nil {
+			return fmt.Errorf("directory missing")
+		}
+
+		// Write the contents to the file
+		if err := os.WriteFile(file.Path, []byte(file.contents), 0644); err != nil {
+			return fmt.Errorf("failed to write file: %w", err)
+		}
+
+		return nil
 	}
 
-	// Write the contents to the file
-	if err := os.WriteFile(file.Path, []byte(file.contents), 0644); err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
-	}
-
-	return nil
 }
 
 // Try to reconcile the EnvFile with the filesystem.
@@ -151,7 +173,7 @@ func (file *EnvFile) Sync() (result EnvFileSyncResult, err error) {
 	}
 }
 
-// Update the EnvFile using the file system
+// Update the EnvFile using the file system.
 func (file *EnvFile) Backup() error {
 	// Read the contents of the file
 	contents, err := os.ReadFile(file.Path)
