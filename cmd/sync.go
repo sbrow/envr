@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// TODO: Detect when file paths have moved and update accordingly.
 var syncCmd = &cobra.Command{
 	Use:   "sync",
 	Short: "Update or restore your env backups",
