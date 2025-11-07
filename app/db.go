@@ -157,16 +157,17 @@ func (db *Db) List() (results []EnvFile, err error) {
 	}
 	defer rows.Close()
 
+	var envFile EnvFile
+	var remotesJson []byte
 	for rows.Next() {
-		var envFile EnvFile
-		var remotesJSON string
-
-		err := rows.Scan(&envFile.Path, &envFile.Dir, &remotesJSON, &envFile.Sha256, &envFile.contents)
+		err := rows.Scan(&envFile.Path, &envFile.Dir, &remotesJson, &envFile.Sha256, &envFile.contents)
 		if err != nil {
 			return nil, err
 		}
 
-		// TODO: unmarshal remotesJSON into envFile.remotes
+		if err := json.Unmarshal(remotesJson, &envFile.Remotes); err != nil {
+			return nil, err
+		}
 
 		results = append(results, envFile)
 	}
