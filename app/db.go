@@ -107,7 +107,7 @@ func decryptDb(tmpFilePath string, keys []SshKeyPair) error {
 	identities := make([]age.Identity, 0, len(keys))
 
 	for _, key := range keys {
-		id, err := key.Identity()
+		id, err := key.identity()
 
 		if err != nil {
 			return err
@@ -245,7 +245,7 @@ func encryptDb(tmpFilePath string, keys []SshKeyPair) error {
 
 	recipients := make([]age.Recipient, 0, len(keys))
 	for _, key := range keys {
-		recipient, err := key.Recipient()
+		recipient, err := key.recipient()
 
 		if err != nil {
 			return err

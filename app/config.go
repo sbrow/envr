@@ -207,8 +207,7 @@ func (c Config) searchPaths() (paths []string, err error) {
 	return paths, nil
 }
 
-// TODO: Should this be private?
-func (s SshKeyPair) Identity() (age.Identity, error) {
+func (s SshKeyPair) identity() (age.Identity, error) {
 	sshKey, err := os.ReadFile(s.Private)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read SSH key: %w", err)
@@ -222,8 +221,7 @@ func (s SshKeyPair) Identity() (age.Identity, error) {
 	return id, nil
 }
 
-// TODO: Should this be private?
-func (s SshKeyPair) Recipient() (age.Recipient, error) {
+func (s SshKeyPair) recipient() (age.Recipient, error) {
 	sshKey, err := os.ReadFile(s.Public)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read SSH key: %w", err)
