@@ -72,7 +72,6 @@ func newDb() (*sql.DB, error) {
 	} else {
 		_, err := db.Exec(`create table envr_env_files (
       path text primary key not null
-    , dir text not null
     , remotes text -- JSON
     , sha256 text not null
     , contents text not null
@@ -150,7 +149,7 @@ func restoreDB(path string, destDB *sql.DB) error {
 
 // Returns all the EnvFiles present in the database.
 func (db *Db) List() (results []EnvFile, err error) {
-	rows, err := db.db.Query("select * from envr_env_files")
+	rows, err := db.db.Query("select path, remotes, sha256, contents from envr_env_files")
 
 	if err != nil {
 		return nil, err
@@ -160,10 +159,13 @@ func (db *Db) List() (results []EnvFile, err error) {
 	var envFile EnvFile
 	var remotesJson []byte
 	for rows.Next() {
-		err := rows.Scan(&envFile.Path, &envFile.Dir, &remotesJson, &envFile.Sha256, &envFile.contents)
+		err := rows.Scan(&envFile.Path, &remotesJson, &envFile.Sha256, &envFile.contents)
 		if err != nil {
 			return nil, err
 		}
+
+		// Populate Dir from Path
+		envFile.Dir = filepath.Dir(envFile.Path)
 
 		if err := json.Unmarshal(remotesJson, &envFile.Remotes); err != nil {
 			return nil, err
@@ -279,9 +281,9 @@ func (db *Db) Insert(file EnvFile) error {
 
 	// Insert into database
 	_, err = db.db.Exec(`
-		INSERT OR REPLACE INTO envr_env_files (path, dir, remotes, sha256, contents)
-		VALUES (?, ?, ?, ?, ?)
-	`, file.Path, file.Dir, string(remotesJSON), file.Sha256, file.contents)
+		INSERT OR REPLACE INTO envr_env_files (path, remotes, sha256, contents)
+		VALUES (?, ?, ?, ?)
+	`, file.Path, string(remotesJSON), file.Sha256, file.contents)
 
 	if err != nil {
 		return fmt.Errorf("failed to insert env file: %w", err)
@@ -294,11 +296,14 @@ func (db *Db) Insert(file EnvFile) error {
 func (db *Db) Fetch(path string) (envFile EnvFile, err error) {
 	var remotesJSON string
 
-	row := db.db.QueryRow("SELECT path, dir, remotes, sha256, contents FROM envr_env_files WHERE path = ?", path)
-	err = row.Scan(&envFile.Path, &envFile.Dir, &remotesJSON, &envFile.Sha256, &envFile.contents)
+	row := db.db.QueryRow("SELECT path, remotes, sha256, contents FROM envr_env_files WHERE path = ?", path)
+	err = row.Scan(&envFile.Path, &remotesJSON, &envFile.Sha256, &envFile.contents)
 	if err != nil {
 		return EnvFile{}, fmt.Errorf("failed to fetch env file: %w", err)
 	}
+
+	// Populate Dir from Path
+	envFile.Dir = filepath.Dir(envFile.Path)
 
 	if err = json.Unmarshal([]byte(remotesJSON), &envFile.Remotes); err != nil {
 		return EnvFile{}, fmt.Errorf("failed to unmarshal remotes: %w", err)

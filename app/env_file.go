@@ -10,7 +10,8 @@ import (
 )
 
 type EnvFile struct {
-	Path     string
+	Path string
+	// Dir is derived from Path, and is not stored in the database.
 	Dir      string
 	Remotes  []string // []string
 	Sha256   string
