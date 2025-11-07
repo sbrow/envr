@@ -36,7 +36,7 @@ var syncCmd = &cobra.Command{
 
 					var status string
 					switch changed {
-					case app.Updated:
+					case app.BackedUp:
 						status = "Backed Up"
 						if err := db.Insert(file); err != nil {
 							return err
