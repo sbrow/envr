@@ -12,13 +12,14 @@ encrypt your databse. **Make 100% sure** that you have **a remote copy** of this
 key somewhere, otherwise your data could be lost forever.
 
 ```
-envr init
+envr init [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for init
+  -f, --force   Overwrite an existing config
+  -h, --help    help for init
 ```
 
 ### SEE ALSO

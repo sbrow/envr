@@ -11,11 +11,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// TODO: Add --force (-f) flag.
 var initCmd = &cobra.Command{
-	Use:                   "init",
-	DisableFlagsInUseLine: true,
-	Short:                 "Set up envr",
+	Use:   "init",
+	Short: "Set up envr",
 	Long: `The init command generates your initial config and saves it to
 ~/.envr/config in JSON format.
 
@@ -23,11 +21,10 @@ During setup, you will be prompted to select one or more ssh keys with which to
 encrypt your databse. **Make 100% sure** that you have **a remote copy** of this
 key somewhere, otherwise your data could be lost forever.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		force, _ := cmd.Flags().GetBool("force")
 		config, _ := app.LoadConfig()
 
-		if config != nil {
-			return fmt.Errorf("You have already initialized envr")
-		} else {
+		if config == nil || force {
 			keys, err := selectSSHKeys()
 			if err != nil {
 				return fmt.Errorf("Error selecting SSH keys: %v", err)
@@ -43,13 +40,17 @@ key somewhere, otherwise your data could be lost forever.`,
 			}
 
 			fmt.Printf("Config initialized with %d SSH key(s). You are ready to use envr.\n", len(keys))
+			return nil
+		} else {
+			return fmt.Errorf(`You have already initialized envr.
+Run again with the --force flag if you want to reinitialize.
+`)
 		}
-
-		return nil
 	},
 }
 
 func init() {
+	initCmd.Flags().BoolP("force", "f", false, "Overwrite an existing config")
 	rootCmd.AddCommand(initCmd)
 }
 
