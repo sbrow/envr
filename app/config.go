@@ -47,7 +47,12 @@ func NewConfig(privateKeyPaths []string) Config {
 		Keys: keys,
 		ScanConfig: scanConfig{
 			Matcher: "\\.env",
-			Exclude: []string{"*.envrc"},
+			Exclude: []string{
+				"*\\.envrc",
+				"\\.local/",
+				"node_modules",
+				"vendor",
+			},
 			Include: []string{"~"},
 		},
 	}
