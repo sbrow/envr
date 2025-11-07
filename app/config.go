@@ -18,6 +18,7 @@ type Config struct {
 	ScanConfig scanConfig   `json:"scan"`
 }
 
+// Used by age to encrypt and decrypt the database.
 type SshKeyPair struct {
 	Private string `json:"private"` // Path to the private key file
 	Public  string `json:"public"`  // Path to the public key file
