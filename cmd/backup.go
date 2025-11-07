@@ -27,7 +27,7 @@ var backupCmd = &cobra.Command{
 		if err != nil {
 			return err
 		} else {
-			defer db.Close(app.Write)
+			defer db.Close()
 			record := app.NewEnvFile(path)
 
 			if err := db.Insert(record); err != nil {

@@ -27,7 +27,7 @@ var restoreCmd = &cobra.Command{
 		if err != nil {
 			return err
 		} else {
-			defer db.Close(app.ReadOnly)
+			defer db.Close()
 			record, err := db.Fetch(path)
 
 			if err != nil {

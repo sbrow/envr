@@ -25,7 +25,7 @@ var removeCmd = &cobra.Command{
 		if err != nil {
 			return err
 		} else {
-			defer db.Close(app.Write)
+			defer db.Close()
 			if err := db.Delete(path); err != nil {
 				return err
 			} else {

@@ -24,7 +24,7 @@ var listCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		defer db.Close(app.ReadOnly)
+		defer db.Close()
 
 		rows, err := db.List()
 		if err != nil {

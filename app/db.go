@@ -13,19 +13,12 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// CloseMode determines whether or not the in-memory DB should be saved to disk
-// before closing the connection.
-type CloseMode int
-
-const (
-	ReadOnly CloseMode = iota
-	Write
-)
-
 type Db struct {
 	db       *sql.DB
 	cfg      Config
 	features *AvailableFeatures
+	// If true, the database will be saved to disk before closing
+	changed bool
 }
 
 func Open() (*Db, error) {
@@ -37,7 +30,7 @@ func Open() (*Db, error) {
 	if _, err := os.Stat("/home/spencer/.envr/data.age"); err != nil {
 		// Create a new DB
 		db, err := newDb()
-		return &Db{db, *cfg, nil}, err
+		return &Db{db, *cfg, nil, true}, err
 	} else {
 		// Open the existing DB
 		tmpFile, err := os.CreateTemp("", "envr-*.db")
@@ -59,7 +52,7 @@ func Open() (*Db, error) {
 
 		restoreDB(tmpFile.Name(), memDb)
 
-		return &Db{memDb, *cfg, nil}, nil
+		return &Db{memDb, *cfg, nil, false}, nil
 	}
 }
 
@@ -181,10 +174,10 @@ func (db *Db) List() (results []EnvFile, err error) {
 	return results, nil
 }
 
-func (db *Db) Close(mode CloseMode) error {
+func (db *Db) Close() error {
 	defer db.db.Close()
 
-	if mode == Write {
+	if db.changed {
 		// Create tmp file
 		tmpFile, err := os.CreateTemp("", "envr-*.db")
 		if err != nil {
@@ -200,6 +193,8 @@ func (db *Db) Close(mode CloseMode) error {
 		if err := encryptDb(tmpFile.Name(), db.cfg.Keys); err != nil {
 			return err
 		}
+
+		db.changed = false
 	}
 
 	return nil
@@ -289,6 +284,8 @@ func (db *Db) Insert(file EnvFile) error {
 		return fmt.Errorf("failed to insert env file: %w", err)
 	}
 
+	db.changed = true
+
 	return nil
 }
 
@@ -327,6 +324,8 @@ func (db *Db) Delete(path string) error {
 	if rowsAffected == 0 {
 		return fmt.Errorf("no file found with path: %s", path)
 	}
+
+	db.changed = true
 
 	return nil
 }

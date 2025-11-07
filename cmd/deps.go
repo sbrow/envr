@@ -19,7 +19,7 @@ The check command reports on which binaries are available and which are not.`,
 		if err != nil {
 			return err
 		} else {
-			defer db.Close(app.ReadOnly)
+			defer db.Close()
 			features := db.Features()
 
 			table := tablewriter.NewWriter(os.Stdout)

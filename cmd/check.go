@@ -38,7 +38,7 @@ var checkCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to open database: %w", err)
 		}
-		defer db.Close(app.ReadOnly)
+		defer db.Close()
 
 		// Check if the path is a file or directory
 		info, err := os.Stat(absPath)

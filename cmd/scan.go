@@ -57,7 +57,7 @@ var scanCmd = &cobra.Command{
 
 			// Close database with write mode to persist changes
 			if addedCount > 0 {
-				err = db.Close(app.Write)
+				err = db.Close()
 				if err != nil {
 					return fmt.Errorf("Error saving changes: %v\n", err)
 				} else {
@@ -65,7 +65,7 @@ var scanCmd = &cobra.Command{
 					return nil
 				}
 			} else {
-				err = db.Close(app.ReadOnly)
+				err = db.Close()
 				if err != nil {
 					return fmt.Errorf("Error closing database: %v\n", err)
 				}

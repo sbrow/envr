@@ -19,7 +19,7 @@ var syncCmd = &cobra.Command{
 		if err != nil {
 			return err
 		} else {
-			defer db.Close(app.Write)
+			defer db.Close()
 			files, err := db.List()
 
 			if err != nil {
