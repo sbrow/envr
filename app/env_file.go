@@ -2,6 +2,7 @@ package app
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -24,7 +25,7 @@ type EnvFileSyncResult int
 const (
 	// The struct has been updated from the filesystem
 	// and should be updated in the database.
-	Updated EnvFileSyncResult = iota
+	BackedUp EnvFileSyncResult = iota
 	// The filesystem has been restored to match the struct
 	// no further action is required.
 	Restored
@@ -32,6 +33,13 @@ const (
 	// The filesystem contents matches the struct
 	// no further action is required.
 	Noop
+)
+
+type syncDirection int
+
+const (
+	TrustDatabase syncDirection = iota
+	TrustFilesystem
 )
 
 func NewEnvFile(path string) EnvFile {
@@ -96,85 +104,78 @@ func getGitRemotes(dir string) []string {
 	return remotes
 }
 
-// Try to reconcile the EnvFile with the filesystem.
-//
-// If Updated is returned, [Db.Insert] should be called on file.
-func (file *EnvFile) Sync() (result EnvFileSyncResult, err error) {
-	// TODO: If the directory doesn't exist, look for other directories with the same remote(s)
-	// TODO: If one is found, update file.Dir and File.Path
-	// TODO: If nothing if found, return an error
-	// TODO: If more than one is found, return a different error
+// Reconcile the state of the database with the state of the filesystem, using
+// dir to determine which side to use a the source of truth
+func (f *EnvFile) sync(dir syncDirection) (result EnvFileSyncResult, err error) {
+	// How Sync should work
+	//
+	// If the directory doesn't exist, look for other directories with the same remote(s)
+	// -> If one is found, update file.Dir and File.Path, then continue with "changed" flag
+	// -> If multiple are found, return an error
+	// -> If none are found, return a different error
 
-	// Check if the path exists in the file system
-	_, err = os.Stat(file.Path)
-	if err == nil {
-		contents, err := os.ReadFile(file.Path)
+	// Ensure the directory exists
+	if _, err := os.Stat(f.Dir); err != nil {
+		return Error, fmt.Errorf("directory missing")
+	}
+
+	if _, err := os.Stat(f.Path); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			if err := os.WriteFile(f.Path, []byte(f.contents), 0644); err != nil {
+				return Error, fmt.Errorf("failed to write file: %w", err)
+			}
+
+			return Restored, err
+		} else {
+			return Error, err
+		}
+	} else {
+		// File exists, check its hash
+		contents, err := os.ReadFile(f.Path)
 		if err != nil {
 			return Error, fmt.Errorf("failed to read file for SHA comparison: %w", err)
 		}
 
-		// Check if sha matches by reading the current file and calculating its hash
 		hash := sha256.Sum256(contents)
 		currentSha := fmt.Sprintf("%x", hash)
-		if file.Sha256 == currentSha {
-			// Nothing to do
+
+		// Compare the hashes
+		if currentSha == f.Sha256 {
 			return Noop, nil
 		} else {
-			if err = file.Backup(); err != nil {
-				return Error, err
-			} else {
-				return Updated, nil
+			switch dir {
+			case TrustDatabase:
+				if err := os.WriteFile(f.Path, []byte(f.contents), 0644); err != nil {
+					return Error, fmt.Errorf("failed to write file: %w", err)
+				}
+				return Restored, nil
+			case TrustFilesystem:
+				// Overwrite the database
+				if err = f.Backup(); err != nil {
+					return Error, err
+				} else {
+					return BackedUp, nil
+				}
+			default:
+				panic("unknown sync direction")
 			}
 		}
-	} else {
-		if err = file.Restore(); err != nil {
-			return Error, err
-		} else {
-			return Restored, nil
-		}
 	}
+}
+
+// Try to reconcile the EnvFile with the filesystem.
+//
+// If Updated is returned, [Db.Insert] should be called on file.
+func (file *EnvFile) Sync() (result EnvFileSyncResult, err error) {
+	return file.sync(TrustFilesystem)
 }
 
 // Install the file into the file system. If the file already exists,
 // it will be overwritten.
 func (file EnvFile) Restore() error {
-	// TODO: Duplicate work is being done when called from the Sync function.
-	if _, err := os.Stat(file.Path); err == nil {
-		// file already exists
+	_, err := file.sync(TrustDatabase)
 
-		// Read existing file and calculate its hash
-		existingContents, err := os.ReadFile(file.Path)
-		if err != nil {
-			return fmt.Errorf("failed to read existing file for hash comparison: %w", err)
-		}
-
-		hash := sha256.Sum256(existingContents)
-		existingSha := fmt.Sprintf("%x", hash)
-
-		if existingSha == file.Sha256 {
-			return fmt.Errorf("file already exists: %s", file.Path)
-		} else {
-			if err := os.WriteFile(file.Path, []byte(file.contents), 0644); err != nil {
-				return fmt.Errorf("failed to write file: %w", err)
-			}
-
-			return nil
-		}
-	} else {
-		// file doesn't exist
-
-		// Ensure the directory exists
-		if _, err := os.Stat(file.Dir); err != nil {
-			return fmt.Errorf("directory missing")
-		}
-
-		// Write the contents to the file
-		if err := os.WriteFile(file.Path, []byte(file.contents), 0644); err != nil {
-			return fmt.Errorf("failed to write file: %w", err)
-		}
-
-		return nil
-	}
+	return err
 }
 
 // Update the EnvFile using the file system.
