@@ -96,6 +96,45 @@ func getGitRemotes(dir string) []string {
 	return remotes
 }
 
+// Try to reconcile the EnvFile with the filesystem.
+//
+// If Updated is returned, [Db.Insert] should be called on file.
+func (file *EnvFile) Sync() (result EnvFileSyncResult, err error) {
+	// TODO: If the directory doesn't exist, look for other directories with the same remote(s)
+	// TODO: If one is found, update file.Dir and File.Path
+	// TODO: If nothing if found, return an error
+	// TODO: If more than one is found, return a different error
+
+	// Check if the path exists in the file system
+	_, err = os.Stat(file.Path)
+	if err == nil {
+		contents, err := os.ReadFile(file.Path)
+		if err != nil {
+			return Error, fmt.Errorf("failed to read file for SHA comparison: %w", err)
+		}
+
+		// Check if sha matches by reading the current file and calculating its hash
+		hash := sha256.Sum256(contents)
+		currentSha := fmt.Sprintf("%x", hash)
+		if file.Sha256 == currentSha {
+			// Nothing to do
+			return Noop, nil
+		} else {
+			if err = file.Backup(); err != nil {
+				return Error, err
+			} else {
+				return Updated, nil
+			}
+		}
+	} else {
+		if err = file.Restore(); err != nil {
+			return Error, err
+		} else {
+			return Restored, nil
+		}
+	}
+}
+
 // Install the file into the file system. If the file already exists,
 // it will be overwritten.
 func (file EnvFile) Restore() error {
@@ -135,41 +174,6 @@ func (file EnvFile) Restore() error {
 		}
 
 		return nil
-	}
-
-}
-
-// Try to reconcile the EnvFile with the filesystem.
-//
-// If Updated is returned, [Db.Insert] should be called on file.
-func (file *EnvFile) Sync() (result EnvFileSyncResult, err error) {
-	// Check if the path exists in the file system
-	_, err = os.Stat(file.Path)
-	if err == nil {
-		contents, err := os.ReadFile(file.Path)
-		if err != nil {
-			return Error, fmt.Errorf("failed to read file for SHA comparison: %w", err)
-		}
-
-		// Check if sha matches by reading the current file and calculating its hash
-		hash := sha256.Sum256(contents)
-		currentSha := fmt.Sprintf("%x", hash)
-		if file.Sha256 == currentSha {
-			// Nothing to do
-			return Noop, nil
-		} else {
-			if err = file.Backup(); err != nil {
-				return Error, err
-			} else {
-				return Updated, nil
-			}
-		}
-	} else {
-		if err = file.Restore(); err != nil {
-			return Error, err
-		} else {
-			return Restored, nil
-		}
 	}
 }
 
