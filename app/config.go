@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -234,4 +235,33 @@ func (s SshKeyPair) recipient() (age.Recipient, error) {
 	}
 
 	return id, nil
+}
+
+// Use fd to find all git roots in the config's search paths
+func (c Config) findGitRoots() (paths []string, err error) {
+	searchPaths, err := c.searchPaths()
+	if err != nil {
+		return []string{}, err
+	}
+
+	for _, searchPath := range searchPaths {
+		allCmd := exec.Command("fd", "-H", "-t", "d", "^\\.git$", searchPath)
+		allOutput, err := allCmd.Output()
+		if err != nil {
+			return paths, err
+		}
+
+		allFiles := strings.Split(strings.TrimSpace(string(allOutput)), "\n")
+		if len(allFiles) == 1 && allFiles[0] == "" {
+			allFiles = []string{}
+		}
+
+		for i, file := range allFiles {
+			allFiles[i] = path.Dir(path.Clean(file))
+		}
+
+		paths = append(paths, allFiles...)
+	}
+
+	return paths, nil
 }

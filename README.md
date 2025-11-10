@@ -19,10 +19,11 @@ be run on a cron.
 - 🔍 **Smart Scanning**: Automatically discover and import `.env` files in your
 home directory.
 - ✨ **Interactive CLI**: User-friendly prompts for file selection and management.
+- 🗂️ **Rename Detection**: Automatically finds and updates renamed/moved
+repositories.
 
 ## TODOS
-
-- [ ] 🗂️ **Rename Detection**: Automatically handle renamed repositories.
+- [x] Rename Detection: automatically update moved files.
 - [ ] Allow use of keys from `ssh-agent`
 - [x] Allow configuration of ssh key.
 - [x] Allow multiple ssh keys.
