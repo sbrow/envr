@@ -61,7 +61,7 @@
 
           packages.default = pkgs.buildGoModule rec {
             pname = "envr";
-            version = "0.1.1";
+            version = "0.2.0";
             src = ./.;
             # If the build complains, uncomment this line
             # vendorHash = "sha256:0000000000000000000000000000000000000000000000000000";

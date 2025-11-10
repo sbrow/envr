@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 )
 
 type EnvFile struct {
+	// TODO: Should use FileName in the struct and derive from the path.
 	Path string
 	// Dir is derived from Path, and is not stored in the database.
 	Dir      string
@@ -23,18 +25,25 @@ type EnvFile struct {
 type EnvFileSyncResult int
 
 const (
-	// The struct has been updated from the filesystem
-	// and should be updated in the database.
-	BackedUp EnvFileSyncResult = iota
-	// The filesystem has been restored to match the struct
-	// no further action is required.
-	Restored
-	Error
 	// The filesystem contents matches the struct
 	// no further action is required.
-	Noop
+	Noop EnvFileSyncResult = 0
+	// The directory changed, but the file contents matched.
+	// The database must be updated.
+	DirUpdated EnvFileSyncResult = 1
+	// The filesystem has been restored to match the struct
+	// no further action is required.
+	Restored EnvFileSyncResult = 1 << 1
+	// The filesystem has been restored to match the struct.
+	// The directory changed, so the database must be updated
+	RestoredAndDirUpdated EnvFileSyncResult = Restored | DirUpdated
+	// The struct has been updated from the filesystem
+	// and should be updated in the database.
+	BackedUp EnvFileSyncResult = 1 << 2
+	Error    EnvFileSyncResult = 1 << 3
 )
 
+// Determines the source of truth when calling [EnvFile.Sync] or [EnvFile.Restore]
 type syncDirection int
 
 const (
@@ -105,18 +114,33 @@ func getGitRemotes(dir string) []string {
 }
 
 // Reconcile the state of the database with the state of the filesystem, using
-// dir to determine which side to use a the source of truth
-func (f *EnvFile) sync(dir syncDirection) (result EnvFileSyncResult, err error) {
-	// How Sync should work
-	//
-	// If the directory doesn't exist, look for other directories with the same remote(s)
-	// -> If one is found, update file.Dir and File.Path, then continue with "changed" flag
-	// -> If multiple are found, return an error
-	// -> If none are found, return a different error
+// dir to determine which side to use a the source of truth.
+func (f *EnvFile) sync(dir syncDirection, db *Db) (result EnvFileSyncResult, err error) {
+	if result != Noop {
+		panic("Invalid state")
+	}
 
-	// Ensure the directory exists
 	if _, err := os.Stat(f.Dir); err != nil {
-		return Error, fmt.Errorf("directory missing")
+		// Directory doesn't exist
+
+		var movedDirs []string
+
+		if db != nil {
+			movedDirs, err = db.findMovedDirs(f)
+		}
+		if err != nil {
+			return Error, err
+		} else {
+			switch len(movedDirs) {
+			case 0:
+				return Error, fmt.Errorf("directory missing")
+			case 1:
+				f.updateDir(movedDirs[0])
+				result |= DirUpdated
+			default:
+				return Error, fmt.Errorf("multiple directories found")
+			}
+		}
 	}
 
 	if _, err := os.Stat(f.Path); err != nil {
@@ -125,7 +149,7 @@ func (f *EnvFile) sync(dir syncDirection) (result EnvFileSyncResult, err error) 
 				return Error, fmt.Errorf("failed to write file: %w", err)
 			}
 
-			return Restored, err
+			return result | Restored, nil
 		} else {
 			return Error, err
 		}
@@ -141,14 +165,16 @@ func (f *EnvFile) sync(dir syncDirection) (result EnvFileSyncResult, err error) 
 
 		// Compare the hashes
 		if currentSha == f.Sha256 {
-			return Noop, nil
+			// No op, or DirUpdated
+			return result, nil
 		} else {
 			switch dir {
 			case TrustDatabase:
 				if err := os.WriteFile(f.Path, []byte(f.contents), 0644); err != nil {
 					return Error, fmt.Errorf("failed to write file: %w", err)
 				}
-				return Restored, nil
+
+				return result | Restored, nil
 			case TrustFilesystem:
 				// Overwrite the database
 				if err = f.Backup(); err != nil {
@@ -163,17 +189,38 @@ func (f *EnvFile) sync(dir syncDirection) (result EnvFileSyncResult, err error) 
 	}
 }
 
+func (f *EnvFile) sharesRemote(remotes []string) bool {
+	rMap := make(map[string]bool)
+	for _, remote := range f.Remotes {
+		rMap[remote] = true
+	}
+
+	for _, remote := range remotes {
+		if rMap[remote] {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (f *EnvFile) updateDir(newDir string) {
+	f.Dir = newDir
+	f.Path = path.Join(newDir, path.Base(f.Path))
+	f.Remotes = getGitRemotes(newDir)
+}
+
 // Try to reconcile the EnvFile with the filesystem.
 //
 // If Updated is returned, [Db.Insert] should be called on file.
 func (file *EnvFile) Sync() (result EnvFileSyncResult, err error) {
-	return file.sync(TrustFilesystem)
+	return file.sync(TrustFilesystem, nil)
 }
 
 // Install the file into the file system. If the file already exists,
 // it will be overwritten.
 func (file EnvFile) Restore() error {
-	_, err := file.sync(TrustDatabase)
+	_, err := file.sync(TrustDatabase, nil)
 
 	return err
 }

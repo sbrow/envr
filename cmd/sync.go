@@ -15,6 +15,7 @@ var syncCmd = &cobra.Command{
 	Short: "Update or restore your env backups",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		db, err := app.Open()
+
 		if err != nil {
 			return err
 		} else {
@@ -32,7 +33,8 @@ var syncCmd = &cobra.Command{
 
 				for _, file := range files {
 					// Syncronize the filesystem with the database.
-					changed, err := file.Sync()
+					oldPath := file.Path
+					changed, err := db.Sync(&file)
 
 					var status string
 					switch changed {
@@ -42,6 +44,8 @@ var syncCmd = &cobra.Command{
 							return err
 						}
 					case app.Restored:
+						fallthrough
+					case app.RestoredAndDirUpdated:
 						status = "Restored"
 					case app.Error:
 						if err == nil {
@@ -50,8 +54,21 @@ var syncCmd = &cobra.Command{
 						status = err.Error()
 					case app.Noop:
 						status = "OK"
+					case app.DirUpdated:
+						status = "Moved"
 					default:
 						panic("Unknown result")
+					}
+
+					if changed&app.DirUpdated == app.DirUpdated {
+						if err := db.Delete(oldPath); err != nil {
+							return err
+						}
+					}
+					if db.UpdateRequired(changed) {
+						if err := db.Insert(file); err != nil {
+							return err
+						}
 					}
 
 					results = append(results, syncResult{

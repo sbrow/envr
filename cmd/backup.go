@@ -31,7 +31,7 @@ var backupCmd = &cobra.Command{
 			record := app.NewEnvFile(path)
 
 			if err := db.Insert(record); err != nil {
-				panic(err)
+				return err
 			} else {
 				fmt.Printf("Saved %s into the database", path)
 				return nil

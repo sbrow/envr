@@ -1,5 +1,6 @@
 package app
 
+// TODO: app/db.go should be reviewed.
 import (
 	"database/sql"
 	"encoding/json"
@@ -149,9 +150,9 @@ func (db *Db) List() (results []EnvFile, err error) {
 	}
 	defer rows.Close()
 
-	var envFile EnvFile
-	var remotesJson []byte
 	for rows.Next() {
+		var envFile EnvFile
+		var remotesJson []byte
 		err := rows.Scan(&envFile.Path, &remotesJson, &envFile.Sha256, &envFile.contents)
 		if err != nil {
 			return nil, err
@@ -384,5 +385,37 @@ func (db *Db) CanScan() error {
 		)
 	} else {
 		return nil
+	}
+}
+
+// If true, [Db.Insert] should be called on the [EnvFile] that generated
+// the given result
+func (db Db) UpdateRequired(status EnvFileSyncResult) bool {
+	return status&(BackedUp|DirUpdated) != 0
+}
+
+func (db *Db) Sync(file *EnvFile) (result EnvFileSyncResult, err error) {
+	// TODO: This results in findMovedDirs being called multiple times.
+	return file.sync(TrustFilesystem, db)
+}
+
+// Looks for git directories that share one or more git remotes with
+// the given file.
+func (db Db) findMovedDirs(file *EnvFile) (movedDirs []string, err error) {
+	if err = db.Features().validateFeatures(Fd, Git); err != nil {
+		return movedDirs, err
+	}
+
+	gitRoots, err := db.cfg.findGitRoots()
+	if err != nil {
+		return movedDirs, err
+	} else {
+		for _, dir := range gitRoots {
+			if file.sharesRemote(getGitRemotes(dir)) {
+				movedDirs = append(movedDirs, dir)
+			}
+		}
+
+		return movedDirs, nil
 	}
 }
