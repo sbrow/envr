@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/sbrow/envr/compare/v0.2.0...v0.2.1) (2026-01-12)
+
+
+### Bug Fixes
+
+* Added `add` as an alias for backup. ([cf363ab](https://github.com/sbrow/envr/commit/cf363abc4d8cec208d23c6acedbb7e0dd6900332))
+
 ## [0.2.0](https://github.com/sbrow/envr/compare/v0.1.1...v0.2.0) (2025-11-10)
 
 
