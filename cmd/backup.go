@@ -13,9 +13,10 @@ import (
 
 // backupCmd represents the backup command
 var backupCmd = &cobra.Command{
-	Use:   "backup <path>",
-	Short: "Import a .env file into envr",
-	Args:  cobra.ExactArgs(1),
+	Use:     "backup <path>",
+	Short:   "Import a .env file into envr",
+	Aliases: []string{"add"},
+	Args:    cobra.ExactArgs(1),
 	// Long: `Long desc`
 	RunE: func(cmd *cobra.Command, args []string) error {
 		path := args[0]
