@@ -12,4 +12,5 @@ man
 .zig-cache
 builds
 envr
+envr-go
 result

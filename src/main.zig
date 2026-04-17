@@ -1,6 +1,8 @@
 const std = @import("std");
 const Io = std.Io;
 
+const config = @import("config");
+
 const envr = @import("envr");
 
 const goBinary = "envr-go";
@@ -11,27 +13,25 @@ pub fn main(init: std.process.Init) !void {
 
     const args = try init.minimal.args.toSlice(arena);
 
-    // if (std.mem.eql(u8, args[1], "version")) {
-    //     version(args[1..]);
-    // } else {
-    return fallbackToGo(init.io, args, arena);
-    // }
+    if (args.len > 1 and std.mem.eql(u8, args[1], "version")) {
+        return version(init.io);
+    } else {
+        return fallback_to_go(init.io, args, arena);
+    }
 }
 
-fn version(args: []const [:0]const u8) void {
+fn version(io: Io) !void {
     // std.debug.print("hello from Zig!\n", .{});
 
-    // for (args[1..]) |arg| {
-    //     std.debug.print("arg: {s}\n", .{arg});
-    // }
-    //
+    var stdout_buffer: [1024]u8 = undefined;
+    var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
+    const stdout_writer = &stdout_file_writer.interface;
 
-    _ = args;
-
-    std.debug.print("TODO: Implement\n", .{});
+    try stdout_writer.print("{s}\n", .{config.version});
+    try stdout_writer.flush();
 }
 
-fn fallbackToGo(
+fn fallback_to_go(
     io: Io,
     args: []const [:0]const u8,
     arena: std.mem.Allocator,
