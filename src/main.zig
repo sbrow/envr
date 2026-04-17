@@ -3,32 +3,48 @@ const Io = std.Io;
 
 const envr = @import("envr");
 
-pub fn main(init: std.process.Init) !void {
-    // Prints to stderr, unbuffered, ignoring potential errors.
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+const goBinary = "envr-go";
 
+pub fn main(init: std.process.Init) !void {
     // This is appropriate for anything that lives as long as the process.
     const arena: std.mem.Allocator = init.arena.allocator();
 
-    // Accessing command line arguments:
     const args = try init.minimal.args.toSlice(arena);
-    for (args) |arg| {
-        std.log.info("arg: {s}", .{arg});
+
+    // if (std.mem.eql(u8, args[1], "version")) {
+    //     version(args[1..]);
+    // } else {
+    return fallbackToGo(init.io, args, arena);
+    // }
+}
+
+fn version(args: []const [:0]const u8) void {
+    // std.debug.print("hello from Zig!\n", .{});
+
+    // for (args[1..]) |arg| {
+    //     std.debug.print("arg: {s}\n", .{arg});
+    // }
+    //
+
+    _ = args;
+
+    std.debug.print("TODO: Implement\n", .{});
+}
+
+fn fallbackToGo(
+    io: Io,
+    args: []const [:0]const u8,
+    arena: std.mem.Allocator,
+) std.process.ReplaceError {
+    // Remap args
+    var childArgs = try std.ArrayList([]const u8).initCapacity(arena, args.len);
+    childArgs.appendAssumeCapacity(goBinary);
+
+    for (args[1..]) |arg| {
+        childArgs.appendAssumeCapacity(arg);
     }
 
-    // In order to do I/O operations need an `Io` instance.
-    const io = init.io;
-
-    // Stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    var stdout_buffer: [1024]u8 = undefined;
-    var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
-    const stdout_writer = &stdout_file_writer.interface;
-
-    try envr.printAnotherMessage(stdout_writer);
-
-    try stdout_writer.flush(); // Don't forget to flush!
+    return std.process.replace(io, .{ .argv = childArgs.items });
 }
 
 test "simple test" {

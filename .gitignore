@@ -2,6 +2,7 @@
 .direnv
 
 # dependencies
+deps
 vendor
 
 # docs
