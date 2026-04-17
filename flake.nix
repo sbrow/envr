@@ -100,6 +100,8 @@
                 # Build tools
                 zip
 
+                opencode
+
                 # IDE
                 unstable.helix
                 typescript-language-server

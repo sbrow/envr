@@ -1,10 +1,14 @@
 # dev env
 .direnv
 
+# dependencies
+vendor
+
 # docs
 man 
 
 # build artifacts
+.zig-cache
 builds
 envr
 result
