@@ -13,28 +13,36 @@ pub fn main(init: std.process.Init) !void {
 
     const args = try init.minimal.args.toSlice(arena);
 
-    if (args.len > 1 and std.mem.eql(u8, args[1], "version")) {
-        return version(init.io);
-    } else {
-        return fallback_to_go(init.io, args, arena);
+    run(init.io, args) catch return fallback_to_go(init.io, arena, args);
+}
+
+/// Attempt to run the requested command.
+fn run(io: Io, args: []const [:0]const u8) !void {
+    const cmd = try envr.root.parse(args[1..]);
+    switch (cmd) {
+        .envr => {
+            // TODO: Print help
+            return envr.ParseError.InvalidType;
+        },
+        .version => {
+            var stdout_buffer: [1024]u8 = undefined;
+            var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
+            const stdout_writer = &stdout_file_writer.interface;
+
+            return version(stdout_writer);
+        },
     }
 }
 
-fn version(io: Io) !void {
-    // std.debug.print("hello from Zig!\n", .{});
-
-    var stdout_buffer: [1024]u8 = undefined;
-    var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
-    const stdout_writer = &stdout_file_writer.interface;
-
-    try stdout_writer.print("{s}\n", .{config.version});
-    try stdout_writer.flush();
+fn version(writer: *Io.Writer) !void {
+    try writer.print("{s}\n", .{config.version});
+    try writer.flush();
 }
 
 fn fallback_to_go(
     io: Io,
-    args: []const [:0]const u8,
     arena: std.mem.Allocator,
+    args: []const [:0]const u8,
 ) std.process.ReplaceError {
     // Remap args
     var childArgs = try std.ArrayList([]const u8).initCapacity(arena, args.len);
