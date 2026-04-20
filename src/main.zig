@@ -3,6 +3,7 @@ const Io = std.Io;
 
 const config = @import("config");
 
+const comma = @import("comma");
 const envr = @import("envr");
 
 const goBinary = "envr-go";
@@ -22,7 +23,7 @@ fn run(io: Io, args: []const [:0]const u8) !void {
     switch (cmd) {
         .envr => {
             // TODO: Print help
-            return envr.ParseError.InvalidType;
+            return comma.ParseError.InvalidType;
         },
         .version => {
             var stdout_buffer: [1024]u8 = undefined;
