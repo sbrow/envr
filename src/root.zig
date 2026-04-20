@@ -7,7 +7,16 @@ const Command = comma.Command;
 
 pub const root: Command = .new(.{
     .name = "envr",
-    .subcommands = &.{.{ .name = "version" }},
+    .subcommands = &.{
+        .{
+            .name = "deps",
+            .short = "Check for missing binaries",
+            .long = \\envr relies on external binaries for certain functionality.
+                    \\
+                    \\ The deps command reports which binaries are available and which are not.",
+        },
+        .{ .name = "version" },
+    },
 });
 
 test "enum type" {
