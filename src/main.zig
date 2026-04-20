@@ -14,11 +14,15 @@ pub fn main(init: std.process.Init) !void {
 
     const args = try init.minimal.args.toSlice(arena);
 
-    run(init.io, args) catch return fallback_to_go(init.io, arena, args);
+    try run(init.io, init.environ_map, args); //catch return fallback_to_go(init.io, arena, args);
 }
 
 /// Attempt to run the requested command.
-fn run(io: Io, args: []const [:0]const u8) !void {
+fn run(
+    io: Io,
+    environ_map: *std.process.Environ.Map,
+    args: []const [:0]const u8,
+) !void {
     const cmd = try envr.root.parse(args[1..]);
     switch (cmd) {
         .envr => {
@@ -32,6 +36,17 @@ fn run(io: Io, args: []const [:0]const u8) !void {
 
             return version(stdout_writer);
         },
+        .deps => {
+            var stdout_buffer: [1024]u8 = undefined;
+            var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
+            const stdout_writer = &stdout_file_writer.interface;
+
+            return deps(
+                io,
+                stdout_writer,
+                environ_map.get("PATH").?,
+            );
+        },
     }
 }
 
@@ -39,6 +54,63 @@ fn version(writer: *Io.Writer) !void {
     try writer.print("{s}\n", .{config.version});
     try writer.flush();
 }
+
+// Display dependency statuses
+fn deps(
+    io: Io,
+    writer: *Io.Writer,
+    path: []const u8,
+) !void {
+    const feats: Features = try .scan(io, path);
+
+    // FIXME: Draw as a table
+    try writer.print("features: {}", .{feats});
+    try writer.flush();
+}
+
+const Features = packed struct {
+    git: bool = false,
+    fd: bool = false,
+    const all_features: Features = .{
+        .git = true,
+        .fd = true,
+    };
+
+    /// Scans your PATH variable for programs.
+    pub fn scan(io: Io, path: []const u8) !@This() {
+        var feats: Features = .{};
+
+        var dirs = std.mem.splitScalar(u8, path, std.fs.path.delimiter);
+
+        loop: while (dirs.next()) |dir| {
+            const dirt = Io.Dir.openDir(Io.Dir.cwd(), io, dir, .{ .follow_symlinks = true, .iterate = true }) catch continue;
+            defer dirt.close(io);
+
+            var dir_paths = dirt.iterate();
+
+            while (try dir_paths.next(io)) |file| {
+                // FIXME: Check if executable
+                if (std.mem.eql(u8, std.fs.path.basename(file.name), "git")) {
+                    feats.git = true;
+
+                    if (feats == Features.all_features) {
+                        break :loop;
+                    }
+                }
+
+                if (std.mem.eql(u8, std.fs.path.basename(file.name), "fd")) {
+                    feats.fd = true;
+
+                    if (feats == Features.all_features) {
+                        break :loop;
+                    }
+                }
+            }
+        }
+
+        return feats;
+    }
+};
 
 fn fallback_to_go(
     io: Io,
