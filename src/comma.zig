@@ -6,7 +6,8 @@ pub const Command = struct {
     name: []const u8,
     short: ?[]const u8 = null,
     long: ?[]const u8 = null,
-    subcommands: []const Command = &[0]Command{},
+    subcommands: []const Command = &.{},
+    examples: [][]const u8 = &.{},
     Type: type,
 
     pub fn new(cmd: CommandOptions) Command {
