@@ -14,20 +14,20 @@ pub fn main(init: std.process.Init) !void {
 
     const args = try init.minimal.args.toSlice(arena);
 
-    try run(init.io, init.environ_map, args); //catch return fallback_to_go(init.io, arena, args);
+    try run(init.environ_map, init.io, arena, args);
 }
 
 /// Attempt to run the requested command.
 fn run(
-    io: Io,
     environ_map: *std.process.Environ.Map,
+    io: Io,
+    arena: std.mem.Allocator,
     args: []const [:0]const u8,
 ) !void {
-    const cmd = try envr.root.parse(args[1..]);
+    const cmd = envr.root.parse(args[1..]);
     switch (cmd) {
-        .envr => {
-            // TODO: Print help
-            return comma.ParseError.InvalidType;
+        .envr, .unknown => {
+            return fallback_to_go(io, arena, args);
         },
         .version => {
             var stdout_buffer: [1024]u8 = undefined;

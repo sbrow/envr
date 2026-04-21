@@ -27,10 +27,11 @@ pub const Command = struct {
         };
     }
 
-    pub fn parse(comptime self: @This(), args: []const []const u8) ParseError!self.Type {
+    pub fn parse(comptime self: @This(), args: []const []const u8) self.Type {
         if (args.len == 0) {
-            return ParseError.InvalidType;
+            return @enumFromInt(0);
         }
+
         const target = args[0];
 
         inline for (self.subcommands, 1..) |cmd, idx| {
@@ -39,7 +40,7 @@ pub const Command = struct {
             }
         }
 
-        return @enumFromInt(0);
+        return @enumFromInt(self.subcommands.len + 1);
     }
 };
 
@@ -54,8 +55,8 @@ const CommandOptions = struct {
     subcommands: []const CommandOptions = &[0]CommandOptions{},
 
     fn as_enum(self: @This()) type {
-        var field_names: [self.subcommands.len + 1][]const u8 = undefined;
-        var field_values: [self.subcommands.len + 1]u32 = undefined;
+        var field_names: [self.subcommands.len + 2][]const u8 = undefined;
+        var field_values: [self.subcommands.len + 2]u32 = undefined;
 
         field_names[0] = self.name;
         field_values[0] = 0;
@@ -64,6 +65,9 @@ const CommandOptions = struct {
             field_names[idx] = cmd.name;
             field_values[idx] = idx;
         }
+
+        field_names[self.subcommands.len + 1] = "unknown";
+        field_values[self.subcommands.len + 1] = self.subcommands.len + 1;
 
         return @Enum(
             u32,
