@@ -26,8 +26,12 @@ fn run(
 ) !void {
     const cmd = envr.root.parse(args[1..]);
     switch (cmd) {
-        .envr, .unknown => {
-            return fallback_to_go(io, arena, args);
+        .envr => {
+            var stdout_buffer: [4096]u8 = undefined;
+            var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
+            const stdout_writer = &stdout_file_writer.interface;
+
+            return envr.root.help(stdout_writer);
         },
         .version => {
             var stdout_buffer: [1024]u8 = undefined;
@@ -46,6 +50,9 @@ fn run(
                 stdout_writer,
                 environ_map.get("PATH").?,
             );
+        },
+        .unknown => {
+            return fallback_to_go(io, arena, args);
         },
     }
 }
