@@ -1,6 +1,6 @@
 //! By convention, root.zig is the root source file when making a package.
 const std = @import("std");
-// const Io = std.Io;
+const Io = std.Io;
 
 pub const Command = struct {
     name: []const u8,
@@ -8,7 +8,10 @@ pub const Command = struct {
     long: ?[]const u8 = null,
     subcommands: []const Command = &.{},
     examples: [][]const u8 = &.{},
+    /// The enum type of the command
     Type: type,
+    /// The type of struct that holds the Commands's flags and arguments
+    // Params: type,
 
     pub fn new(cmd: CommandOptions) Command {
         const subcommands: [cmd.subcommands.len]Command = blk: {
@@ -42,6 +45,65 @@ pub const Command = struct {
         }
 
         return @enumFromInt(self.subcommands.len + 1);
+    }
+
+    /// Used for indentation when printing command help
+    const tab = "  ";
+
+    /// Print usage information to the console.
+    pub fn help(self: @This(), w: *Io.Writer) !void {
+        defer w.flush() catch {};
+
+        if (self.long) |long| {
+            try w.print("{s}\n\n", .{long});
+        }
+
+        try w.print("Usage:\n{s}{s}\n", .{ tab, self.name });
+
+        if (self.subcommands.len > 0) {
+            try w.print("\nAvailable Commands:\n", .{});
+
+            var max_width: u8 = 0;
+
+            inline for (self.subcommands) |cmd| {
+                max_width = @max(max_width, cmd.name.len);
+            }
+
+            // Print short command description
+            inline for (self.subcommands) |cmd| {
+                try w.print(
+                    "{s}{s}",
+                    .{
+                        tab,
+                        cmd.name,
+                    },
+                );
+
+                for (0..(max_width - cmd.name.len)) |_| {
+                    try w.print(" ", .{});
+                }
+
+                try w.print(
+                    " {s}\n",
+                    .{
+                        cmd.short orelse "",
+                    },
+                );
+            }
+
+            try w.print("\n", .{});
+        }
+
+        // TODO: Print flags
+
+        // TODO: Print arguments
+
+        if (self.subcommands.len > 0) {
+            try w.print(
+                "Use \"{s} [command] --help\" for more information about a command.",
+                .{self.name},
+            );
+        }
     }
 };
 
@@ -78,3 +140,7 @@ const CommandOptions = struct {
         );
     }
 };
+
+// /// parses the args into params
+// pub fn params(cmd: Command, args: [][]const u8) cmd.Params {
+// }
