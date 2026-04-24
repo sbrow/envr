@@ -56,6 +56,10 @@ pub const root: Command = .new(.{
     },
 });
 
+test {
+    std.testing.refAllDecls(@import("db.zig"));
+}
+
 test "enum type" {
     const got: root.Type = @enumFromInt(2);
 

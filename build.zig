@@ -26,6 +26,11 @@ pub fn build(b: *std.Build) void {
         .target = target,
     });
 
+    const sqlite = b.dependency("sqlite", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     // This creates a module, which represents a collection of source files alongside
     // some compilation options, such as optimization mode and linked system libraries.
     // Zig modules are the preferred way of making Zig code available to consumers.
@@ -48,6 +53,8 @@ pub fn build(b: *std.Build) void {
             .{ .name = "comma", .module = comma },
         },
     });
+
+    mod.addImport("sqlite", sqlite.module("sqlite"));
 
     // Here we define an executable. An executable needs to have a root module
     // which needs to expose a `main` function. While we could add a main function
