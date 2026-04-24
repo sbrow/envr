@@ -93,6 +93,7 @@
                 nushell
                 go
                 gopls
+                sqlite
 
                 gotools
                 cobra-cli
