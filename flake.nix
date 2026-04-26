@@ -100,6 +100,7 @@
 
                 # Build tools
                 zip
+                unstable.cargo
 
                 opencode
 
