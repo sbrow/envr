@@ -25,9 +25,8 @@ pub fn build(b: *std.Build) void {
     // Link the Rust static library
     // Assumes the library has been built with: cargo build --release
     example.root_module.addLibraryPath(b.path("../target/release"));
-    example.root_module.linkSystemLibrary("age_ffi", .{});
-
-    // example.root_module.linkLibC();
+    example.root_module.linkSystemLibrary("age_ffi", .{ .needed = true });
+    // example.linkLibC();
 
     // Install the example
     b.installArtifact(example);
@@ -80,7 +79,7 @@ pub fn build(b: *std.Build) void {
 
     tests.root_module.addImport("age", age_module);
     tests.root_module.addLibraryPath(b.path("../target/release"));
-    tests.root_module.linkSystemLibrary("age_ffi", .{});
+    tests.root_module.linkSystemLibrary("age_ffi", .{ .needed = true });
     // tests.linkLibC();
     tests.step.dependOn(&cargo_build.step);
 

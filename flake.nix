@@ -99,8 +99,9 @@
                 cobra-cli
 
                 # Build tools
-                zip
+                age
                 unstable.cargo
+                zip
 
                 opencode
 
