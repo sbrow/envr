@@ -57,7 +57,8 @@ pub const root: Command = .new(.{
 });
 
 test {
-    std.testing.refAllDecls(@import("db.zig"));
+    std.testing.refAllDecls(@import("Config.zig"));
+    std.testing.refAllDecls(@import("Db.zig"));
 }
 
 test "enum type" {
