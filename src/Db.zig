@@ -4,6 +4,10 @@ const std = @import("std");
 const sqlite = @import("sqlite");
 
 const age = @import("age.zig");
+const Config = @import("Config.zig");
+
+/// controls the keys and filepaths used for saving
+config: Config,
 
 /// The underlying data store.
 sql_db: sqlite.Db,
@@ -17,25 +21,33 @@ changed: bool = false,
 pub fn open(
     io: std.Io,
     gpa: std.mem.Allocator,
-    /// The path to the home directory
-    home: []const u8,
-    /// The path to the /tmp directory
-    tmp: []const u8,
+    opts: OpenOptions,
 ) !@This() {
-    const db_path = try std.fs.path.join(gpa, &.{ home, ".envr", "data.age" });
+    // TODO: Read from config?
+    const db_path = try std.fs.path.join(gpa, &.{ opts.home, ".envr", "data.age" });
     defer gpa.free(db_path);
 
-    var db = try new();
+    var db = try new(opts.config);
 
     if (db_exists(io, db_path)) {
         // const tmp_dir = try std.Io.Dir.cwd().openDir(io, tmp, .{});
         // defer tmp_dir.deleteFile(io, "envr.db");
 
-        const tmp_db_path = try std.fs.path.join(gpa, &.{ tmp, "envr.db" });
+        const tmp_db_path = try std.fs.path.join(gpa, &.{ opts.tmp, "envr.db" });
         defer gpa.free(tmp_db_path);
 
+        // TODO: Use std.MultiArrayList? Had json issues
+        var private_keys: std.ArrayList([]const u8) = try .initCapacity(
+            gpa,
+            opts.config.keys.len,
+        );
+
+        for (opts.config.keys) |key| {
+            private_keys.appendAssumeCapacity(key.private);
+        }
+
         // TODO: Pass key(s) from Config
-        try age.decrypt(io, gpa, &.{"~/.ssh/id_ed25519"}, db_path, tmp_db_path);
+        try age.decrypt(io, gpa, private_keys.items, db_path, tmp_db_path);
 
         try db.restore(tmp_db_path);
         try std.Io.Dir.cwd().deleteFile(io, tmp_db_path);
@@ -46,8 +58,18 @@ pub fn open(
     }
 }
 
+const OpenOptions = struct {
+    config: Config = .{},
+
+    /// The path to the home directory
+    home: []const u8 = "~/",
+    /// The path to the /tmp directory
+    // FIXME: Support windows
+    tmp: []const u8 = "/tmp",
+};
+
 /// Create a new instance of the database in-memory
-fn new() !@This() {
+fn new(config: Config) !@This() {
     var db = try sqlite.Db.init(.{
         .mode = .Memory,
         .open_flags = .{ .write = true, .create = true },
@@ -63,7 +85,10 @@ fn new() !@This() {
         \\)
     , .{}, .{});
 
-    return .{ .sql_db = db };
+    return .{
+        .sql_db = db,
+        .config = config,
+    };
 }
 
 /// Returns true if a file exists at ~/.envr/data.age
@@ -112,22 +137,30 @@ pub fn close(
     self: *@This(),
     io: std.Io,
     gpa: std.mem.Allocator,
-    home: []const u8,
-    tmp: []const u8,
+    opts: OpenOptions,
 ) !void {
     defer self.sql_db.deinit();
 
     if (self.changed) {
-        const tmp_db_path = try std.fs.path.join(gpa, &.{ tmp, "envr.db" });
+        const tmp_db_path = try std.fs.path.join(gpa, &.{ opts.tmp, "envr.db" });
         defer gpa.free(tmp_db_path);
 
         try self.sql_db.exec("VACUUM INTO ?", .{}, .{tmp_db_path});
 
-        const db_path = try std.fs.path.join(gpa, &.{ home, ".envr", "data.age" });
+        const db_path = try std.fs.path.join(gpa, &.{ opts.home, ".envr", "data.age" });
         defer gpa.free(db_path);
 
-        // FIXME: Use real key
-        try age.encrypt(io, gpa, &.{"~/.ssh/id_ed25519.pub"}, tmp_db_path, db_path);
+        // TODO: Use std.MultiArrayList? Had json issues
+        var public_keys: std.ArrayList([]const u8) = try .initCapacity(
+            gpa,
+            opts.config.keys.len,
+        );
+
+        for (opts.config.keys) |key| {
+            public_keys.appendAssumeCapacity(key.private);
+        }
+
+        try age.encrypt(io, gpa, public_keys.items, tmp_db_path, db_path);
 
         self.changed = false;
     }
@@ -224,7 +257,7 @@ test "Closing a fresh database does not create a file" {
     const tmp = try std.fs.path.join(gpa, &.{ tmp_dir_path, "tmp" });
     defer gpa.free(tmp);
 
-    var db: @This() = try .open(io, gpa, home, tmp);
+    var db: @This() = try .open(io, gpa, .{ .home = home, .tmp = tmp });
 
     const db_path = try std.fs.path.join(gpa, &.{ home, ".envr", "data.age" });
     defer gpa.free(db_path);
@@ -234,7 +267,7 @@ test "Closing a fresh database does not create a file" {
         tmp_dir.dir.access(io, db_path, .{ .read = true }),
     );
 
-    try db.close(io, gpa, home, tmp);
+    try db.close(io, gpa, .{ .home = home, .tmp = tmp });
 
     try std.testing.expectError(
         error.FileNotFound,
@@ -242,6 +275,6 @@ test "Closing a fresh database does not create a file" {
     );
 }
 
-// test "Closing an unmodified database does not create a file" {}
+// test "Closing an unmodified database does not update the file" {}
 
 // test "Closing a modified database does create a file" {}

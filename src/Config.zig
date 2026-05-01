@@ -1,22 +1,25 @@
 const std = @import("std");
 
 /// Keys that are available for encryption
-keys: []const SSHKeyPair,
+keys: []const SSHKeyPair = &.{
+    .from_pub_path("~/.ssh/id_ed25519.pub"),
+},
 
 /// Rules for how to match the scan command
 scan: ScanConfig = .default,
 
+// TODO: Allow incomplete pairs
 pub const SSHKeyPair = struct {
     private: []const u8,
     public: []const u8,
 
     /// Caller owns the returned memory
     pub fn from_path(gpa: std.mem.Allocator, path: []const u8) !SSHKeyPair {
-        if (std.mem.eql(u8, std.fs.path.extension(path), ".pub")){
+        if (std.mem.eql(u8, std.fs.path.extension(path), ".pub")) {
             return from_pub_path(path);
         } else {
             return .{
-                .public = try std.mem.concat(gpa, u8, &.{path, ".pub"}),
+                .public = try std.mem.concat(gpa, u8, &.{ path, ".pub" }),
                 .private = path,
             };
         }
@@ -27,7 +30,7 @@ pub const SSHKeyPair = struct {
 
         return .{
             .public = path,
-            .private = path[0..path.len - 4],
+            .private = path[0 .. path.len - 4],
         };
     }
 };
@@ -119,7 +122,7 @@ test "saving to a new file upserts the file" {
 
     var cfg: @This() = .{
         .keys = &.{
-          .from_pub_path("~/.ssh/id_ed25519.pub"),
+            .from_pub_path("~/.ssh/id_ed25519.pub"),
         },
     };
 
