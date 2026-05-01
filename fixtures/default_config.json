@@ -1,8 +1,9 @@
 {
+  "db_path": "~/.envr/data.age",
   "keys": [
     {
-      "private": "/home/spencer/.ssh/id_ed25519",
-      "public": "/home/spencer/.ssh/id_ed25519.pub"
+      "private": "~/.ssh/id_ed25519",
+      "public": "~/.ssh/id_ed25519.pub"
     }
   ],
   "scan": {
