@@ -23,8 +23,11 @@ pub fn open(
     gpa: std.mem.Allocator,
     opts: OpenOptions,
 ) !@This() {
-    // TODO: Read from config?
-    const db_path = try std.fs.path.join(gpa, &.{ opts.home, ".envr", "data.age" });
+    // FIXME: cheating here
+    const db_path = try std.fs.path.join(gpa, &.{
+        opts.home,
+        opts.config.db_path[2..],
+    });
     defer gpa.free(db_path);
 
     var db = try new(opts.config);
@@ -166,6 +169,27 @@ pub fn close(
     }
 }
 
+/// Returns a list of all the .env files present in the database.
+/// The caller is responsible for freeing memory
+fn list(self: @This(), gpa: std.mem.Allocator) ![]EnvFile {
+    var stmt = self.sql_db.prepare(
+        "select path, remotes, sha256, contents from envr_env_files",
+    );
+    defer stmt.deinit();
+
+    return stmt.all([]const EnvFile, gpa, .{}, .{});
+}
+
+const EnvFile = struct {
+    // TODO: Should use file_name in the struct and derive from the path.
+    path: []const u8,
+    /// dir is derived from Path, and is not stored in the database.
+    dir: []const u8,
+    remotes: [][]const u8,
+    sha256: []const u8,
+    contents: []const u8,
+};
+
 test {
     std.testing.refAllDecls(@import("age.zig"));
 }
@@ -257,8 +281,10 @@ test "Closing a fresh database does not create a file" {
     const tmp = try std.fs.path.join(gpa, &.{ tmp_dir_path, "tmp" });
     defer gpa.free(tmp);
 
+    // TODO: Pass testing keys
     var db: @This() = try .open(io, gpa, .{ .home = home, .tmp = tmp });
 
+    // TODO: Get rid of direct access
     const db_path = try std.fs.path.join(gpa, &.{ home, ".envr", "data.age" });
     defer gpa.free(db_path);
 

@@ -1,5 +1,7 @@
 const std = @import("std");
 
+db_path: []const u8 = "~/.envr/data.age",
+
 /// Keys that are available for encryption
 keys: []const SSHKeyPair = &.{
     .from_pub_path("~/.ssh/id_ed25519.pub"),
@@ -120,11 +122,7 @@ test "loading the default config from disk matches expected values" {
 test "saving to a new file upserts the file" {
     const io = std.testing.io;
 
-    var cfg: @This() = .{
-        .keys = &.{
-            .from_pub_path("~/.ssh/id_ed25519.pub"),
-        },
-    };
+    var cfg: @This() = .{};
 
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
@@ -148,6 +146,7 @@ test "saving to a new file upserts the file" {
 
     const want =
         \\{
+        \\  "db_path": "~/.envr/data.age",
         \\  "keys": [
         \\    {
         \\      "private": "~/.ssh/id_ed25519",
@@ -175,11 +174,7 @@ test "saving to a new file upserts the file" {
 test "saving to an existing file updates the file" {
     const io = std.testing.io;
 
-    var cfg: @This() = .{
-        .keys = &.{
-            .from_pub_path("~/.ssh/id_ed25519.pub"),
-        },
-    };
+    var cfg: @This() = .{};
 
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
@@ -201,6 +196,7 @@ test "saving to an existing file updates the file" {
 
     const want =
         \\{
+        \\  "db_path": "~/.envr/data.age",
         \\  "keys": [
         \\    {
         \\      "private": "~/.ssh/id_ed25519",
