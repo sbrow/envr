@@ -1,24 +1,32 @@
 const std = @import("std");
 
-/// Returns the decrypted contents of the file.
-/// Caller is responsible for freeing the memory.
+/// Decrypts the file into output path
 pub fn decrypt(
     io: std.Io,
     gpa: std.mem.Allocator,
-    private_key: []const u8,
+    private_keys: []const []const u8,
     input_path: []const u8,
     output_path: []const u8,
 ) !void {
+    // TODO: use raw array?
+    var argv: std.ArrayList([]const u8) = try .initCapacity(gpa, 2 + (2 * private_keys.len) + 3);
+    defer argv.deinit(gpa);
+
+    argv.appendAssumeCapacity("age");
+    argv.appendAssumeCapacity("-d");
+
+    for (private_keys) |key| {
+        argv.appendAssumeCapacity("-i");
+        argv.appendAssumeCapacity(key);
+    }
+
+    argv.appendAssumeCapacity("-o");
+    argv.appendAssumeCapacity(output_path);
+
+    argv.appendAssumeCapacity(input_path);
+
     const result = try std.process.run(gpa, io, .{
-        .argv = &.{
-            "age",
-            "-d",
-            "-i",
-            private_key,
-            "-o",
-            output_path,
-            input_path,
-        },
+        .argv = argv.items,
     });
     defer gpa.free(result.stderr);
     defer gpa.free(result.stdout);
@@ -34,25 +42,33 @@ pub fn decrypt(
     }
 }
 
-/// Returns the encrypted contents of the file.
-/// Caller is responsible for freeing the memory.
+/// Encrypts the file into output path
 pub fn encrypt(
     io: std.Io,
     gpa: std.mem.Allocator,
-    public_key: []const u8,
+    // TODO: Accept multiple keys
+    public_keys: []const []const u8,
     input_path: []const u8,
     output_path: []const u8,
 ) !void {
+    var argv: std.ArrayList([]const u8) = try .initCapacity(gpa, 2 + (2 * public_keys.len) + 3);
+    defer argv.deinit(gpa);
+
+    argv.appendAssumeCapacity("age");
+    argv.appendAssumeCapacity("-e");
+
+    for (public_keys) |key| {
+        argv.appendAssumeCapacity("-R");
+        argv.appendAssumeCapacity(key);
+    }
+
+    argv.appendAssumeCapacity("-o");
+    argv.appendAssumeCapacity(output_path);
+
+    argv.appendAssumeCapacity(input_path);
+
     const result = try std.process.run(gpa, io, .{
-        .argv = &.{
-            "age",
-            "-e",
-            "-R",
-            public_key,
-            "-o",
-            output_path,
-            input_path,
-        },
+        .argv = argv.items,
     });
     defer gpa.free(result.stderr);
     defer gpa.free(result.stdout);
@@ -84,7 +100,7 @@ test "sample file can be decrypted" {
     try decrypt(
         io,
         gpa,
-        "./fixtures/insecure-test-key",
+        &.{"./fixtures/insecure-test-key"},
         "./fixtures/hello-world.age",
         output_path,
     );
@@ -111,7 +127,7 @@ test "sample file can be encrypted" {
     try encrypt(
         io,
         gpa,
-        "./fixtures/insecure-test-key.pub",
+        &.{"./fixtures/insecure-test-key.pub"},
         "./fixtures/hello-world.txt",
         output_path,
     );

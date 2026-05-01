@@ -35,7 +35,7 @@ pub fn open(
         defer gpa.free(tmp_db_path);
 
         // TODO: Pass key(s) from Config
-        try age.decrypt(io, gpa, "~/.ssh/id_ed25519", db_path, tmp_db_path);
+        try age.decrypt(io, gpa, &.{"~/.ssh/id_ed25519"}, db_path, tmp_db_path);
 
         try db.restore(tmp_db_path);
         try std.Io.Dir.cwd().deleteFile(io, tmp_db_path);
@@ -127,7 +127,7 @@ pub fn close(
         defer gpa.free(db_path);
 
         // FIXME: Use real key
-        try age.encrypt(io, gpa, "~/.ssh/id_ed25519.pub", tmp_db_path, db_path);
+        try age.encrypt(io, gpa, &.{"~/.ssh/id_ed25519.pub"}, tmp_db_path, db_path);
 
         self.changed = false;
     }
@@ -177,7 +177,7 @@ test "encrypted database can be opened" {
     try age.decrypt(
         io,
         gpa,
-        "./fixtures/insecure-test-key",
+        &.{"./fixtures/insecure-test-key"},
         "./fixtures/encrypted-example.db.age",
         decrypted_path,
     );
