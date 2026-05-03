@@ -226,6 +226,7 @@ fn ParseType(comptime type_info: []const u8) type {
         const signedness = switch (type_info[0]) {
             'u' => .unsigned,
             'i' => .signed,
+            else => unreachable,
         };
         return @Int(signedness, std.fmt.parseInt(usize, type_info[1..type_info.len], 10) catch {
             @compileError("invalid type info " ++ type_info);
