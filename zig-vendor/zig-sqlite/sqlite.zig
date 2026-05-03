@@ -3,7 +3,7 @@ const builtin = @import("builtin");
 const build_options = @import("build_options");
 const debug = std.debug;
 const heap = std.heap;
-const io = std.io;
+const io = std.Io;
 const mem = std.mem;
 const testing = std.testing;
 
@@ -1967,7 +1967,7 @@ pub const DynamicStatement = struct {
     pub fn all(self: *Self, comptime Type: type, allocator: mem.Allocator, options: QueryOptions, values: anytype) ![]Type {
         var iter = try self.iteratorAlloc(Type, allocator, values);
 
-        var rows: std.ArrayList(Type) = .{};
+        var rows: std.ArrayList(Type) = .empty;
         while (try iter.nextAlloc(allocator, options)) |row| {
             try rows.append(allocator, row);
         }
@@ -2257,7 +2257,7 @@ pub fn Statement(comptime opts: StatementOptions, comptime query: anytype) type 
         pub fn all(self: *Self, comptime Type: type, allocator: mem.Allocator, options: QueryOptions, values: anytype) ![]Type {
             var iter = try self.iteratorAlloc(Type, allocator, values);
 
-            var rows: std.ArrayList(Type) = .{};
+            var rows: std.ArrayList(Type) = .empty;
             while (try iter.nextAlloc(allocator, options)) |row| {
                 try rows.append(allocator, row);
             }
@@ -3020,7 +3020,7 @@ test "sqlite: statement iterator" {
     var stmt = try db.prepare("INSERT INTO user(name, id, age, weight, favorite_color) VALUES(?{[]const u8}, ?{usize}, ?{usize}, ?{f32}, ?{[]const u8})");
     defer stmt.deinit();
 
-    var expected_rows: std.ArrayList(TestUser) = .{};
+    var expected_rows: std.ArrayList(TestUser) = .empty;
     var i: usize = 0;
     while (i < 20) : (i += 1) {
         const name = try std.fmt.allocPrint(allocator, "Vincent {d}", .{i});
@@ -3047,7 +3047,7 @@ test "sqlite: statement iterator" {
 
         var iter = try stmt2.iterator(RowType, .{});
 
-        var rows: std.ArrayList(RowType) = .{};
+        var rows: std.ArrayList(RowType) = .empty;
         while (try iter.next(.{})) |row| {
             try rows.append(allocator, row);
         }
@@ -3074,7 +3074,7 @@ test "sqlite: statement iterator" {
 
         var iter = try stmt2.iterator(RowType, .{});
 
-        var rows: std.ArrayList(RowType) = .{};
+        var rows: std.ArrayList(RowType) = .empty;
         while (try iter.nextAlloc(allocator, .{})) |row| {
             try rows.append(allocator, row);
         }
@@ -3459,7 +3459,7 @@ test "sqlite: bind runtime slice" {
     const allocator = arena.allocator();
 
     // creating array list on heap so that it's deemed runtime size
-    var list: std.ArrayList([]const u8) = .{};
+    var list: std.ArrayList([]const u8) = .empty;
     defer list.deinit(allocator);
     try list.append(allocator, "this is some data");
     const args = try list.toOwnedSlice(allocator);
@@ -3749,7 +3749,11 @@ test "sqlite: create aggregate function with no aggregate context" {
     var db = try getTestDb();
     defer db.deinit();
 
-    var rand = std.Random.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
+    const test_io = testing.io;
+
+    var rand = std.Random.DefaultPrng.init(@intCast(
+        std.Io.Timestamp.now(test_io, .real).toMilliseconds(),
+    ));
 
     // Create an aggregate function working with a MyContext
 
@@ -3810,7 +3814,11 @@ test "sqlite: create aggregate function with an aggregate context" {
     var db = try getTestDb();
     defer db.deinit();
 
-    var rand = std.Random.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
+    const test_io = std.testing.io;
+
+    var rand = std.Random.DefaultPrng.init(
+        @intCast(std.Io.Timestamp.now(test_io, .real).toMilliseconds()),
+    );
 
     try db.createAggregateFunction(
         "mySum",
@@ -3877,7 +3885,7 @@ test "sqlite: empty slice" {
     defer db.deinit();
     try addTestData(&db);
 
-    var list: std.ArrayList(u8) = .{};
+    var list: std.ArrayList(u8) = .empty;
     const ptr = try list.toOwnedSlice(allocator);
 
     try db.exec("INSERT INTO article(author_id, data) VALUES(?, ?)", .{}, .{ 1, ptr });
@@ -4054,7 +4062,7 @@ test "reuse same field twice in query string" {
 
 test "fuzzing" {
     const Context = struct {
-        fn testOne(_: @This(), input: []const u8) anyerror!void {
+        fn testOne(_: @This(), input: *testing.Smith) anyerror!void {
             var db = try Db.init(.{
                 .mode = .Memory,
                 .open_flags = .{
@@ -4066,7 +4074,7 @@ test "fuzzing" {
 
             try db.exec("CREATE TABLE test(id integer primary key, name text, data blob)", .{}, .{});
 
-            db.execDynamic(input, .{}, .{}) catch |err| switch (err) {
+            db.execDynamic(input.value([]const u8), .{}, .{}) catch |err| switch (err) {
                 error.SQLiteError => return,
                 error.ExecReturnedData => return,
                 error.EmptyQuery => return,
