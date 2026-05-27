@@ -5,6 +5,9 @@ const Io = std.Io;
 const comma = @import("comma");
 const Command = comma.Command;
 
+const Config = @import("Config.zig");
+const Db = @import("Db.zig");
+
 pub const root: Command = .new(.{
     .name = "envr",
     .short = "Manage your .env files.",
@@ -50,11 +53,43 @@ pub const root: Command = .new(.{
             ,
         },
         .{
+            .name = "list",
+            .short = "View your tracked files",
+        },
+        .{
             .name = "version",
             .short = "Show envr's version",
         },
     },
 });
+
+pub fn list(
+    io: Io,
+    arena: std.mem.Allocator,
+    out: *std.Io.Writer,
+    home: []const u8,
+    tmp: []const u8,
+) !void {
+    // TODO: Don't hardcode
+    const cfgPath = try std.fs.path.join(arena, &.{ home, ".envr", "config.json" });
+    const cfg: Config = (try Config.load(io, arena, cfgPath)).value;
+
+    var db: Db = try .open(io, arena, .{
+        .config = cfg,
+        .home = home,
+        .tmp = tmp,
+    });
+
+    _ = try out.write("Path\n");
+    const files = try db.list(arena);
+    for (files) |file| {
+        // TODO: Table printer
+        try out.print("{s}\n", .{file.path});
+    }
+    try out.flush();
+
+    return db.close(io, arena); // TODO: Defer this
+}
 
 test {
     std.testing.refAllDecls(@import("Config.zig"));
@@ -62,9 +97,23 @@ test {
 }
 
 test "enum type" {
-    const got: root.Type = @enumFromInt(2);
+    const got: root.Type = @enumFromInt(3);
 
     try std.testing.expectEqual(.version, got);
+}
+
+test "parse deps" {
+    const args = &[_][]const u8{"deps"};
+    const cmd = root.parse(args);
+
+    try std.testing.expectEqual(.deps, cmd);
+}
+
+test "parse list" {
+    const args = &[_][]const u8{"list"};
+    const cmd = root.parse(args);
+
+    try std.testing.expectEqual(.list, cmd);
 }
 
 test "parse version" {
