@@ -7,7 +7,7 @@ const age = @import("age.zig");
 const Config = @import("Config.zig");
 
 /// controls the keys and filepaths used for saving
-config: Config,
+opts: OpenOptions,
 
 /// The underlying data store.
 sql_db: sqlite.Db,
@@ -54,7 +54,7 @@ pub fn open(
         }
     }
 
-    return open_decrypted(opts.config, tmp_db_path);
+    return open_decrypted(opts, tmp_db_path);
 }
 
 const OpenOptions = struct {
@@ -68,7 +68,7 @@ const OpenOptions = struct {
 };
 
 /// Create a new instance of the database
-fn open_decrypted(config: Config, tmp_db_path: [:0]const u8) !@This() {
+fn open_decrypted(opts: OpenOptions, tmp_db_path: [:0]const u8) !@This() {
     var db = try sqlite.Db.init(.{
         .mode = .{ .File = tmp_db_path },
         .open_flags = .{
@@ -89,7 +89,7 @@ fn open_decrypted(config: Config, tmp_db_path: [:0]const u8) !@This() {
 
     return .{
         .sql_db = db,
-        .config = config,
+        .opts = opts,
     };
 }
 
@@ -119,28 +119,27 @@ pub fn close(
     self: *@This(),
     io: std.Io,
     gpa: std.mem.Allocator,
-    opts: OpenOptions,
 ) !void {
     defer self.sql_db.deinit();
 
     if (self.changed) {
-        const tmp_db_path = try std.fs.path.join(gpa, &.{ opts.tmp, "envr.db" });
+        const tmp_db_path = try std.fs.path.join(gpa, &.{ self.opts.tmp, "envr.db" });
         defer gpa.free(tmp_db_path);
 
         try self.sql_db.exec("VACUUM INTO ?", .{}, .{tmp_db_path});
 
-        const db_path = try std.fs.path.join(gpa, &.{ opts.home, ".envr", "data.age" });
+        const db_path = try std.fs.path.join(gpa, &.{ self.opts.home, ".envr", "data.age" });
         defer gpa.free(db_path);
 
         {
             // TODO: Use std.MultiArrayList? Had json issues
             var public_keys: std.ArrayList([]const u8) = try .initCapacity(
                 gpa,
-                opts.config.keys.len,
+                self.opts.config.keys.len,
             );
             defer public_keys.deinit(gpa);
 
-            for (opts.config.keys) |key| {
+            for (self.opts.config.keys) |key| {
                 public_keys.appendAssumeCapacity(key.private);
             }
 
@@ -153,7 +152,7 @@ pub fn close(
 
 /// Returns a list of all the .env files present in the database.
 /// The caller is responsible for freeing memory
-fn list(self: *@This(), gpa: std.mem.Allocator) ![]EnvFile {
+pub fn list(self: *@This(), gpa: std.mem.Allocator) ![]EnvFile {
     var stmt = try self.sql_db.prepare(
         "select path, remotes, sha256, contents from envr_env_files",
     );
@@ -284,7 +283,7 @@ test "Closing a fresh database does not create a file" {
         tmp_dir.dir.access(io, db_path, .{ .read = true }),
     );
 
-    try db.close(io, gpa, .{ .home = home, .tmp = tmp });
+    try db.close(io, gpa);
 
     try std.testing.expectError(
         error.FileNotFound,
@@ -469,5 +468,5 @@ test "list displays the database's keys" {
         try std.testing.expectEqualStrings(&std.fmt.bytesToHex(&hash, .lower), file.sha256);
     }
 
-    try db.close(io, gpa, .{ .home = home, .tmp = tmp });
+    try db.close(io, gpa);
 }

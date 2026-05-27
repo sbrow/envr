@@ -2,7 +2,6 @@ const std = @import("std");
 const Io = std.Io;
 
 const config = @import("config");
-
 const comma = @import("comma");
 const envr = @import("envr");
 
@@ -49,6 +48,20 @@ fn run(
                 io,
                 stdout_writer,
                 environ_map.get("PATH").?,
+            );
+        },
+        .list => {
+            var stdout_buffer: [1024]u8 = undefined;
+            var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
+            const stdout_writer = &stdout_file_writer.interface;
+
+            return envr.list(
+                io,
+                arena,
+                stdout_writer,
+                environ_map.get("HOME").?,
+                // TODO: Don't hardcode this?
+                "/tmp",
             );
         },
         .unknown => {
@@ -137,10 +150,10 @@ fn fallback_to_go(
 
 test "simple test" {
     const gpa = std.testing.allocator;
-    var list: std.ArrayList(i32) = .empty;
-    defer list.deinit(gpa); // Try commenting this out and see if zig detects the memory leak!
-    try list.append(gpa, 42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
+    var alist: std.ArrayList(i32) = .empty;
+    defer alist.deinit(gpa); // Try commenting this out and see if zig detects the memory leak!
+    try alist.append(gpa, 42);
+    try std.testing.expectEqual(@as(i32, 42), alist.pop());
 }
 
 test "fuzz example" {
@@ -152,23 +165,23 @@ fn testOne(context: void, smith: *std.testing.Smith) !void {
     // Try passing `--fuzz` to `zig build test` and see if it manages to fail this test case!
 
     const gpa = std.testing.allocator;
-    var list: std.ArrayList(u8) = .empty;
-    defer list.deinit(gpa);
+    var alist: std.ArrayList(u8) = .empty;
+    defer alist.deinit(gpa);
     while (!smith.eos()) switch (smith.value(enum { add_data, dup_data })) {
         .add_data => {
-            const slice = try list.addManyAsSlice(gpa, smith.value(u4));
+            const slice = try alist.addManyAsSlice(gpa, smith.value(u4));
             smith.bytes(slice);
         },
         .dup_data => {
-            if (list.items.len == 0) continue;
-            if (list.items.len > std.math.maxInt(u32)) return error.SkipZigTest;
-            const len = smith.valueRangeAtMost(u32, 1, @min(32, list.items.len));
-            const off = smith.valueRangeAtMost(u32, 0, @intCast(list.items.len - len));
-            try list.appendSlice(gpa, list.items[off..][0..len]);
+            if (alist.items.len == 0) continue;
+            if (alist.items.len > std.math.maxInt(u32)) return error.SkipZigTest;
+            const len = smith.valueRangeAtMost(u32, 1, @min(32, alist.items.len));
+            const off = smith.valueRangeAtMost(u32, 0, @intCast(alist.items.len - len));
+            try alist.appendSlice(gpa, alist.items[off..][0..len]);
             try std.testing.expectEqualSlices(
                 u8,
-                list.items[off..][0..len],
-                list.items[list.items.len - len ..],
+                alist.items[off..][0..len],
+                alist.items[alist.items.len - len ..],
             );
         },
     };
