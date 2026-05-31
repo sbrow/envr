@@ -46,11 +46,27 @@ pub fn open(
             defer private_keys.deinit(gpa);
 
             for (opts.config.keys) |key| {
-                private_keys.appendAssumeCapacity(key.private);
+                // FIXME: cheating here
+                if (std.mem.startsWith(u8, key.private, "~/")) {
+                    const key_path = try std.fs.path.join(gpa, &.{
+                        opts.home,
+                        key.private[2..],
+                    });
+                    private_keys.appendAssumeCapacity(key_path);
+                    // defer gpa.free(key_path);
+                } else {
+                    private_keys.appendAssumeCapacity(key.private);
+                }
             }
 
             // TODO: Pass key(s) from Config
             try age.decrypt(io, gpa, private_keys.items, db_path, tmp_db_path);
+
+            for (opts.config.keys, 0..) |key, i| {
+                if (std.mem.startsWith(u8, key.private, "~/")) {
+                    gpa.free(private_keys.items[i]);
+                }
+            }
         }
     }
 
@@ -161,7 +177,7 @@ pub fn list(self: *@This(), gpa: std.mem.Allocator) ![]EnvFile {
     return stmt.all(EnvFile, gpa, .{}, .{});
 }
 
-const EnvFile = struct {
+pub const EnvFile = struct {
     // TODO: Should use file_name in the struct and derive from the path.
     path: []const u8,
 
@@ -173,7 +189,7 @@ const EnvFile = struct {
     sha256: []const u8,
     contents: []const u8,
 
-    fn deinit(self: *EnvFile, alloc: std.mem.Allocator) void {
+    pub fn deinit(self: *EnvFile, alloc: std.mem.Allocator) void {
         alloc.free(self.path);
         alloc.free(self.remotes);
         alloc.free(self.sha256);
