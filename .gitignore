@@ -1,5 +1,6 @@
 # dev env
 .direnv
+/.env
 
 # dependencies
 deps
