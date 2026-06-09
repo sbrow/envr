@@ -63,6 +63,63 @@ pub const root: Command = .new(.{
     },
 });
 
+// Display dependency statuses
+pub fn deps(
+    io: Io,
+    writer: *Io.Writer,
+    path: []const u8,
+) !void {
+    const feats: Features = try .scan(io, path);
+
+    // FIXME: Draw as a table
+    try writer.print("features: {}", .{feats});
+    try writer.flush();
+}
+
+const Features = packed struct {
+    git: bool = false,
+    fd: bool = false,
+    const all_features: Features = .{
+        .git = true,
+        .fd = true,
+    };
+
+    /// Scans your PATH variable for programs.
+    pub fn scan(io: Io, path: []const u8) !@This() {
+        var feats: Features = .{};
+
+        var dirs = std.mem.splitScalar(u8, path, std.fs.path.delimiter);
+
+        loop: while (dirs.next()) |dir| {
+            const dirt = Io.Dir.openDir(Io.Dir.cwd(), io, dir, .{ .follow_symlinks = true, .iterate = true }) catch continue;
+            defer dirt.close(io);
+
+            var dir_paths = dirt.iterate();
+
+            while (try dir_paths.next(io)) |file| {
+                // FIXME: Check if executable
+                if (std.mem.eql(u8, std.fs.path.basename(file.name), "git")) {
+                    feats.git = true;
+
+                    if (feats == Features.all_features) {
+                        break :loop;
+                    }
+                }
+
+                if (std.mem.eql(u8, std.fs.path.basename(file.name), "fd")) {
+                    feats.fd = true;
+
+                    if (feats == Features.all_features) {
+                        break :loop;
+                    }
+                }
+            }
+        }
+
+        return feats;
+    }
+};
+
 pub fn list(
     io: Io,
     arena: std.mem.Allocator,
