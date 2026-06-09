@@ -23,10 +23,12 @@ fn run(
     arena: std.mem.Allocator,
     args: []const [:0]const u8,
 ) !void {
+    const page_size = std.heap.pageSize();
+
     const cmd = envr.root.parse(args[1..]);
     switch (cmd) {
         .envr => {
-            var stdout_buffer: [4096]u8 = undefined;
+            var stdout_buffer: [page_size]u8 = undefined;
             var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
             const stdout_writer = &stdout_file_writer.interface;
 
@@ -51,7 +53,7 @@ fn run(
             );
         },
         .list => {
-            var stdout_buffer: [1024]u8 = undefined;
+            var stdout_buffer: [page_size]u8 = undefined;
             var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
             const stdout_writer = &stdout_file_writer.interface;
 
