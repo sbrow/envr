@@ -27,38 +27,37 @@ pub fn Table(
 
             // Print body
             for (self.items) |item| {
-                _ = try writer.write(sep);
+                try writer.writeAll(sep);
 
                 comptime var itr = fields.iterator();
                 comptime var i: usize = 0;
                 inline while (comptime itr.next()) |c| : (i += 1) {
-                    _ = try writer.write(" ");
+                    try writer.writeByte(' ');
                     try write_aligned(writer, @field(item, @tagName(c)), max_column_widths[i], .left);
                     try writer.print(" {s}", .{sep});
                 }
 
-                _ = try writer.write("\n");
+                try writer.writeAll("\n");
             }
 
             // Print post-body
             {
-                _ = try writer.write(bl);
+                try writer.writeAll(bl);
 
                 var itr = fields.iterator();
                 var i: usize = 0;
                 while (itr.next()) |_| : (i += 1) {
                     if (i > 0) {
-                        _ = try writer.write(bm);
+                        try writer.writeAll(bm);
                     }
 
                     const padding = max_column_widths[i] + 2;
                     for (0..padding) |_| {
-                        _ = try writer.write(hor);
+                        try writer.writeAll(hor);
                     }
                 }
 
-                _ = try writer.write(br);
-                _ = try writer.write("\n");
+                try writer.writeAll(br ++ "\n");
             }
         }
     };
@@ -96,29 +95,29 @@ fn header(
 
     // Print Pre-Header
     {
-        _ = try writer.write(tl);
+        try writer.writeAll(tl);
 
         inline for (0..comptime fields.count()) |i| {
             if (i > 0) {
-                _ = try writer.write(tm);
+                try writer.writeAll(tm);
             }
             const padding = max_column_widths[i] + 2;
             for (0..padding) |_| {
-                _ = try writer.write(hor);
+                try writer.writeAll(hor);
             }
         }
 
-        _ = try writer.write(tr ++ "\n");
+        try writer.writeAll(tr ++ "\n");
     }
 
     // Main Header
     {
-        _ = try writer.write(sep);
+        try writer.writeAll(sep);
 
         comptime var itr = fields.iterator();
         comptime var i: usize = 0;
         inline while (comptime itr.next()) |field| : (i += 1) {
-            _ = try writer.write(" ");
+            try writer.writeByte(' ');
             try write_aligned(
                 writer,
                 @tagName(field),
@@ -128,24 +127,24 @@ fn header(
             try writer.print(" {s}", .{sep});
         }
 
-        try writer.print("\n", .{});
+        try writer.writeByte('\n');
     }
 
     // Print post-header
     {
-        _ = try writer.write(ml);
+        try writer.writeAll(ml);
 
         inline for (0..comptime fields.count()) |i| {
             if (i > 0) {
-                _ = try writer.write(mm);
+                try writer.writeAll(mm);
             }
             const padding = max_column_widths[i] + 2;
             for (0..padding) |_| {
-                _ = try writer.write(hor);
+                try writer.writeAll(hor);
             }
         }
 
-        _ = try writer.write(mr ++ "\n");
+      try writer.writeAll(mr ++ "\n");
     }
 }
 
@@ -155,6 +154,9 @@ fn write_aligned(
     max_width: usize,
     alignment: Alignment,
 ) !void {
+    std.debug.assert(data.len > 0);
+    std.debug.assert(max_width >= data.len);
+
     const padding: [2]usize = switch (alignment) {
         .left => .{ 0, max_width - data.len },
         .right => .{ max_width - data.len, 0 },
@@ -166,13 +168,13 @@ fn write_aligned(
     };
 
     for (0..padding[0]) |_| {
-        _ = try writer.write(" ");
+        try writer.writeByte(' ');
     }
 
-    _ = try writer.write(data);
+    try writer.writeAll(data);
 
     for (0..padding[1]) |_| {
-        _ = try writer.write(" ");
+        try writer.writeByte(' ');
     }
 }
 
