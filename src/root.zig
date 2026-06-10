@@ -53,6 +53,19 @@ pub const root: Command = .new(.{
             ,
         },
         .{
+            .name = "init",
+            .short = "Set up envr",
+            .long =
+            \\The init command generates your initial config and saves it to
+            \\~/.envr/config in JSON format.
+            \\
+            \\During setup, you will be prompted to select one or more ssh keys with which to
+            \\encrypt your databse. **Make 100% sure** that you have **a remote copy** of this
+            \\key somewhere, otherwise your data could be lost forever.
+            ,
+            //.flags =  struct { force: bool }
+        },
+        .{
             .name = "list",
             .short = "View your tracked files",
         },
@@ -119,6 +132,144 @@ const Features = packed struct {
         return feats;
     }
 };
+
+pub fn init_cmd(
+    io: Io,
+    arena: std.mem.Allocator,
+    out: *std.Io.Writer,
+    home: []const u8,
+    flags: struct { force: bool },
+) !void {
+    defer out.flush() catch unreachable;
+
+    // TODO: Don't hardcode
+    const cfgPath = try std.fs.path.join(arena, &.{ home, ".envr", "config.json" });
+    defer arena.free(cfgPath);
+
+    if (flags.force or !file_exists(io, cfgPath)) {
+        const keys = try select_ssh_keys(io, arena, home, out);
+
+        // defer {
+        // for (keys) |*key| {
+        // arena.destroy(key);
+        // }
+        // arena.free(&keys);
+        // }
+
+        // const cfg: Config = .{ .keys = keys };
+        // TODO: How to handle this error?
+        // try cfg.save(io, cfgPath);
+
+        try out.print(
+            "Config initialized with {} SSH key(s). You are ready to use envr.\n",
+            .{keys.len},
+        );
+    } else {
+        try out.writeAll(
+            \\You have already initialized envr.
+            \\Run again with the --force flag if you want to reinitialize.
+            \\
+            ,
+        );
+    }
+}
+
+/// Returns true if the file exists
+fn file_exists(io: std.Io, path: []const u8) bool {
+    if (std.Io.Dir.cwd().access(io, path, .{ .read = true })) {
+        return true;
+    } else |_| {
+        return false;
+    }
+}
+
+/// Returns a list of keys that the user has selected to add to their config.
+/// Caller owns the returned memory
+// TODO: Write a test for this
+fn select_ssh_keys(
+    io: std.Io,
+    alloc: std.mem.Allocator,
+    home_path: []const u8,
+    out: *std.Io.Writer,
+) ![]Config.SSHKeyPair {
+    const ssh_path = try std.fs.path.join(alloc, &.{ home_path, ".ssh" });
+    defer alloc.free(ssh_path);
+
+    // TODO: Arbitrary capacity chosen
+    var keys: std.ArrayList(Config.SSHKeyPair) = try .initCapacity(alloc, 3);
+
+    {
+        const ssh_dir = try std.Io.Dir.cwd().openDir(io, ssh_path, .{ .iterate = true });
+        defer ssh_dir.close(io);
+
+        var itr = ssh_dir.iterate();
+
+        const expect1 =
+            \\-----BEGIN OPENSSH PRIVATE KEY-----
+            \\
+        ;
+
+        const expect2 =
+            \\-----BEGIN RSA PRIVATE KEY-----
+            \\
+        ;
+
+        var buf: [expect1.len]u8 = undefined;
+
+        while (try itr.next(io)) |entry| {
+            switch (entry.kind) {
+                .file => {
+                    var file = try ssh_dir.openFile(io, entry.name, .{});
+                    _ = try file.readPositionalAll(io, &buf, 0);
+
+                    // TODO: Faster to use hash or something?
+                    if ( // zig fmt: off
+                        std.mem.eql(u8, expect1, &buf) or 
+                        std.mem.eql(u8, expect2, buf[0..expect2.len])
+                       ) { // zig fmt: on
+                        // File is a private ssh key
+
+                        const full_path = try ssh_dir.realPathFileAlloc(
+                            io,
+                            entry.name,
+                            alloc,
+                        );
+
+                        try keys.append(alloc, try .from_path(alloc, full_path));
+                    }
+                },
+                .sym_link => {
+                    // TODO: Handle symlinks
+                },
+                .block_device,
+                .character_device,
+                .directory,
+                .named_pipe,
+                .unix_domain_socket,
+                .whiteout,
+                .door,
+                .event_port,
+                .unknown,
+                => continue,
+            }
+        }
+    }
+
+    for (keys.items, 1..) |key, n| {
+        try out.print("{d}. {s}\n", .{ n, key.private });
+    }
+    try out.writeAll(
+        "\nPlease enter the number(s) of SSH keys you'd like to use for encryption:\n> ",
+    );
+    try out.flush();
+    defer out.writeAll("\n\n") catch unreachable;
+
+    // TODO: ask user for number(s) to use.
+    // TODO: confirm with a y/n prompt
+    // TODO: only return selected keys
+
+    return keys.toOwnedSlice(alloc);
+}
 
 pub fn list(
     io: Io,
