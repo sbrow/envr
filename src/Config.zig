@@ -16,7 +16,10 @@ pub const SSHKeyPair = struct {
     public: []const u8,
 
     /// Caller owns the returned memory
-    pub fn from_path(gpa: std.mem.Allocator, path: []const u8) !SSHKeyPair {
+    pub fn from_path(
+        gpa: std.mem.Allocator,
+        path: []const u8,
+    ) error{OutOfMemory}!SSHKeyPair {
         if (std.mem.eql(u8, std.fs.path.extension(path), ".pub")) {
             return from_pub_path(path);
         } else {
@@ -61,6 +64,7 @@ pub const ScanConfig = struct {
 };
 
 /// Load the Config from the file at path
+/// TODO: Use a concrete error set
 pub fn load(
     io: std.Io,
     gpa: std.mem.Allocator,

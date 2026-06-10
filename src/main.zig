@@ -34,13 +34,6 @@ fn run(
 
             return envr.root.help(stdout_writer);
         },
-        .version => {
-            var stdout_buffer: [1024]u8 = undefined;
-            var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
-            const stdout_writer = &stdout_file_writer.interface;
-
-            return version(stdout_writer);
-        },
         .deps => {
             var stdout_buffer: [1024]u8 = undefined;
             var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
@@ -50,6 +43,22 @@ fn run(
                 io,
                 stdout_writer,
                 environ_map.get("PATH").?,
+            );
+        },
+        .init => {
+            var stdout_buffer: [1024]u8 = undefined;
+            var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
+            const stdout_writer = &stdout_file_writer.interface;
+
+            try envr.init_cmd(
+                io,
+                arena,
+                stdout_writer,
+                environ_map.get("HOME").?,
+                .{
+                    // TODO: Actually parse this
+                    .force = true,
+                },
             );
         },
         .list => {
@@ -65,6 +74,13 @@ fn run(
                 // TODO: Don't hardcode this?
                 "/tmp",
             );
+        },
+        .version => {
+            var stdout_buffer: [1024]u8 = undefined;
+            var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
+            const stdout_writer = &stdout_file_writer.interface;
+
+            return version(stdout_writer);
         },
         .unknown => {
             return fallback_to_go(io, arena, args);
