@@ -512,7 +512,7 @@ update_dir :: proc(f: ^EnvFile, new_dir: string) {
 
 find_moved_dirs :: proc(d: ^Db, f: ^EnvFile) -> ([dynamic]string, bool) {
     feats := check_features()
-    if !has_feature(feats, .Fd) || !has_feature(feats, .Git) {
+    if .Fd not_in feats || .Git not_in feats {
         fmt.println("Error: fd and git are required for moved dir detection")
         return {}, false
     }

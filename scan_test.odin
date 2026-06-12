@@ -16,7 +16,7 @@ test_scan_path_finds_gitignored_env_files :: proc(t: ^testing.T) {
     defer os.remove_all(base)
 
     git_init := os.Process_Desc{
-        command = []string{"git", "init"},
+        command = []string{"git", "-c", "advice.defaultBranchName=false", "init"},
         working_dir = base,
         stdout = os.stderr,
         stderr = os.stderr,

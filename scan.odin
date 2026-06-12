@@ -125,7 +125,7 @@ scan_path :: proc(search_path: string, cfg: Config) -> (paths: [dynamic]string, 
 
 can_scan :: proc() -> bool {
 	feats := check_features()
-	return has_feature(feats, .Fd)
+	return Feature.Fd in feats
 }
 
 find_unbacked :: proc(local_files: []string, db_files: []EnvFile) -> [dynamic]string {

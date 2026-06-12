@@ -1,5 +1,7 @@
 package main
 
+import "base:runtime"
+import "core:mem"
 import "core:os"
 import "core:strings"
 
@@ -14,25 +16,36 @@ AvailableFeatures :: bit_set[Feature]
 check_features :: proc() -> AvailableFeatures {
 	feats: AvailableFeatures
 
-	if find_binary("git") != "" {
+	s: mem.Scratch
+	mem.scratch_init(&s, 4 * mem.DEFAULT_PAGE_SIZE)
+	defer mem.scratch_destroy(&s)
+
+	context.temp_allocator = mem.scratch_allocator(&s)
+
+	path_env := os.get_env("PATH", context.temp_allocator)
+	paths := strings.split(path_env, ":", context.temp_allocator)
+
+	if find_binary(paths, "git") != "" {
 		feats += {.Git}
 	}
-	if find_binary("fd") != "" {
+	if find_binary(paths, "fd") != "" {
 		feats += {.Fd}
 	}
-	if find_binary("age") != "" {
+	if find_binary(paths, "age") != "" {
 		feats += {.Age}
 	}
 
 	return feats
 }
 
-find_binary :: proc(name: string) -> string {
-	path_env := os.get_env("PATH", context.allocator)
-	paths := strings.split(path_env, ":")
+find_binary :: proc(
+	paths: []string,
+	name: string,
+	allocator: runtime.Allocator = context.temp_allocator,
+) -> string {
 	for p in paths {
-		candidate := strings.join({strings.trim_right(p, "/"), name}, "/")
-		_, err := os.stat(candidate, context.allocator)
+		candidate := strings.join({strings.trim_right(p, "/"), name}, "/", allocator)
+		_, err := os.stat(candidate, allocator)
 		if err == nil {
 			return candidate
 		}
@@ -40,6 +53,3 @@ find_binary :: proc(name: string) -> string {
 	return ""
 }
 
-has_feature :: proc(feats: AvailableFeatures, f: Feature) -> bool {
-	return f in feats
-}
