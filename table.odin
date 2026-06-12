@@ -9,14 +9,15 @@ render_table :: proc(headers: []string, rows: [][]string) {
 		return
 	}
 
-	col_widths := make([dynamic]int, len(headers))
+	col_widths := make([dynamic]int, 0, len(headers))
 	for i in 0..<len(headers) {
-		append(&col_widths, len(headers[i]))
+		append(&col_widths, strings.rune_count(headers[i]))
 	}
 	for r in rows {
 		for i in 0..<len(r) {
-			if i < len(col_widths) && len(r[i]) > col_widths[i] {
-				col_widths[i] = len(r[i])
+			w := strings.rune_count(r[i])
+			if i < len(col_widths) && w > col_widths[i] {
+				col_widths[i] = w
 			}
 		}
 	}
@@ -44,9 +45,14 @@ render_table :: proc(headers: []string, rows: [][]string) {
 
 	hline(&b, "\u250c", "\u252c", "\u2510", col_widths)
 
+	cell :: proc(b: ^strings.Builder, s: string, width: int) {
+		extra := len(s) - strings.rune_count(s)
+		fmt.sbprintf(b, " %-*s \u2502", width + extra, s)
+	}
+
 	strings.write_string(&b, "\u2502")
 	for i in 0..<len(headers) {
-		fmt.sbprintf(&b, " %-*s \u2502", col_widths[i], headers[i])
+		cell(&b, headers[i], col_widths[i])
 	}
 	fmt.println(strings.to_string(b))
 	strings.builder_reset(&b)
@@ -56,7 +62,7 @@ render_table :: proc(headers: []string, rows: [][]string) {
 	for r in rows {
 		strings.write_string(&b, "\u2502")
 		for i in 0..<len(r) {
-			fmt.sbprintf(&b, " %-*s \u2502", col_widths[i], r[i])
+			cell(&b, r[i], col_widths[i])
 		}
 		fmt.println(strings.to_string(b))
 		strings.builder_reset(&b)

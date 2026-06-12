@@ -97,6 +97,7 @@
                 gotools
                 cobra-cli
 
+                age
                 unstable.odin
                 unstable.ols
 

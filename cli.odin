@@ -13,6 +13,7 @@ Command :: struct {
 
 IMPLEMENTED_COMMANDS := []string{
 	"version",
+	"deps",
 }
 
 parse_args :: proc() -> (cmd: Command, ok: bool) {
