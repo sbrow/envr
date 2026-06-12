@@ -46,6 +46,7 @@ COMMANDS := []CommandInfo {
 	},
 	{"version", "envr version", "Show envr's version", "", {}},
 	{"edit-config", "envr edit-config", "Edit your config with your default editor", "", {}},
+	{"nushell-completion", "envr nushell-completion", "Generate custom completions for nushell", "", {}},
 }
 
 parse_args :: proc() -> (cmd: Command, ok: bool) {

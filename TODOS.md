@@ -75,5 +75,3 @@ Note: These todos can wait until all the subcommands have been ported.
 27. version --long Odin only prints version; Go also prints commit hash and build date
 
 28. 2 scan tests silently skip	Low	When fd isn't installed, tests pass without actually testing anything. These should use #assert to be sure that fd is in path.
-
-29. nushell completions?
