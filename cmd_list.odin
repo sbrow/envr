@@ -28,21 +28,11 @@ cmd_list :: proc(cmd: ^Command) {
         table_rows := make([dynamic][]string, 0, len(rows))
 
         for row in rows {
-            b: strings.Builder
-            strings.builder_init(&b)
-            strings.write_string(&b, row.Dir)
-            strings.write_string(&b, "/")
-            dir_str, _ := strings.clone(strings.to_string(b))
-
-            rel, rel_err := filepath.rel(row.Dir, row.Path)
-            if rel_err != nil {
-                fmt.printf("Error getting relative path: %v\n", rel_err)
-                return
-            }
-            cloned_rel, _ := strings.clone(rel)
+            dir_str := strings.concatenate({row.Dir, "/"})
+            filename := filepath.base(row.Path)
             row_slice := make([]string, 2)
             row_slice[0] = dir_str
-            row_slice[1] = cloned_rel
+            row_slice[1] = filename
             append(&table_rows, row_slice)
         }
 
@@ -50,18 +40,10 @@ cmd_list :: proc(cmd: ^Command) {
     } else {
         entries: [dynamic]ListEntry
         for row in rows {
-            rel, rel_err := filepath.rel(row.Dir, row.Path)
-            if rel_err != nil {
-                fmt.printf("Error getting relative path: %v\n", rel_err)
-                return
-            }
-            b: strings.Builder
-            strings.builder_init(&b)
-            strings.write_string(&b, row.Dir)
-            strings.write_string(&b, "/")
+            filename := filepath.base(row.Path)
             append(&entries, ListEntry{
-                Directory = strings.to_string(b),
-                Path = rel,
+                Directory = strings.concatenate({row.Dir, "/"}),
+                Path = filename,
             })
         }
 

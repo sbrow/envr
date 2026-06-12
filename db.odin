@@ -338,9 +338,8 @@ new_env_file :: proc(path: string) -> (EnvFile, bool) {
     cloned_path, _ := strings.clone(abs_path)
 
     dir := filepath.dir(cloned_path)
-    cloned_dir, _ := strings.clone(dir)
 
-    remotes := get_git_remotes(cloned_dir)
+    remotes := get_git_remotes(dir)
 
     data, read_err := os.read_entire_file_from_path(cloned_path, context.allocator)
     if read_err != nil {
@@ -354,7 +353,7 @@ new_env_file :: proc(path: string) -> (EnvFile, bool) {
 
     return EnvFile{
         Path = cloned_path,
-        Dir = cloned_dir,
+        Dir = dir,
         Remotes = remotes,
         Sha256 = sha_str,
         contents = string(data),

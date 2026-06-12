@@ -1,11 +1,16 @@
 package main
 
+import "core:encoding/json"
 import "core:fmt"
+import "core:io"
+import "core:os"
 import "core:strings"
 
 render_table :: proc(headers: []string, rows: [][]string) {
 	if !is_tty() {
-		render_json_rows(headers, rows)
+		w := io.to_writer(os.to_writer(os.stdout))
+		render_json_rows(w, headers, rows)
+		io.write_string(w, "\n")
 		return
 	}
 
@@ -71,20 +76,22 @@ render_table :: proc(headers: []string, rows: [][]string) {
 	hline(&b, "\u2514", "\u2534", "\u2518", col_widths)
 }
 
-render_json_rows :: proc(headers: []string, rows: [][]string) {
-	fmt.print("[")
-	for i in 0..<len(rows) {
-		if i > 0 {
-			fmt.print(",")
+render_json_rows :: proc(w: io.Writer, headers: []string, rows: [][]string) {
+	entries := make([dynamic]map[string]string, 0, len(rows))
+	defer delete(entries)
+
+	for row in rows {
+		entry: map[string]string
+		for i in 0..<len(headers) {
+			entry[headers[i]] = row[i]
 		}
-		fmt.print("{")
-		for j in 0..<len(headers) {
-			if j > 0 {
-				fmt.print(",")
-			}
-			fmt.printf("\"%s\":\"%s\"", headers[j], rows[i][j])
-		}
-		fmt.print("}")
+		append(&entries, entry)
 	}
-	fmt.println("]")
+
+	data, err := json.marshal(entries[:])
+	if err != nil {
+		fmt.eprintf("Error marshaling JSON: %v\n", err)
+		return
+	}
+	io.write_string(w, string(data))
 }
