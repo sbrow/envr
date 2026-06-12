@@ -13,7 +13,7 @@ the tool [of your choosing](#backup-options).
 ## Features
 
 - 🔐 **Encrypted Storage**: All `.env` files are encrypted using your ssh key and
-[age](https://github.com/FiloSottile/age) encryption.
+[libsodium](https://github.com/jedisct1/libsodium) encryption.
 - 🔄 **Automatic Sync**: Update the database with one command, which can easily
 be run on a cron.
 - 🔍 **Smart Scanning**: Automatically discover and import `.env` files in your
@@ -37,12 +37,13 @@ repositories.
 
 ## Installation
 
-### With Go
+### With Odin
 
-If you already have `go` installed:
+If you already have `odin` installed:
 
 ```bash
-go install github.com/sbrow/envr
+# You'll need libsodium and sqlite
+odin build -o:speed
 envr init
 ```
 
@@ -104,18 +105,18 @@ The configuration file is created during initialization:
 ## Backup Options
 
 `envr` merely gathers your `.env` files in one local place. It is up to you to
-back up the database (found at `~/.envr/data.age`) to a *secure* and *remote*
+back up the database (found at `~/.envr/data.envr`) to a *secure* and *remote*
 location.
 
 ### Git
 
 `envr` preserves inodes when updating the database, so you can safely hardlink
-`~/.envr/data.age` into your [GNU Stow](https://www.gnu.org/software/stow/),
+`~/.envr/data.envr` into your [GNU Stow](https://www.gnu.org/software/stow/),
 [Home Manager](https://github.com/nix-community/home-manager), or
 [NixOS](https://nixos.wiki/wiki/flakes) repository.
 
 > [!CAUTION]
-> For **maximum security**, only save your `data.age` file to a local
+> For **maximum security**, only save your `data.envr` file to a local
 (i.e. non-cloud) git server that **you personally control**.
 >
 > I take no responsibility if you push all your secrets to a public GitHub repo.
