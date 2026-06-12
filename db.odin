@@ -392,6 +392,32 @@ db_insert :: proc(d: ^Db, file: EnvFile) -> bool {
     return true
 }
 
+db_delete :: proc(d: ^Db, path: string) -> bool {
+    sql := "DELETE FROM envr_env_files WHERE path = ?"
+    stmt: ^rawptr
+    rc := sqlite.prepare_v2(d.db, string_to_cstring(sql), -1, &stmt, nil)
+    if rc != sqlite.OK {
+        fmt.printf("Error preparing delete: %s\n", sqlite.db_errmsg(d.db))
+        return false
+    }
+    defer sqlite.finalize(stmt)
+
+    rc = sqlite.bind_text(stmt, 1, string_to_cstring(path), -1, nil)
+    rc = sqlite.step(stmt)
+    if rc != sqlite.DONE {
+        fmt.printf("Error deleting: %s\n", sqlite.db_errmsg(d.db))
+        return false
+    }
+
+    if sqlite.changes(d.db) == 0 {
+        fmt.printf("No file found with path: %s\n", path)
+        return false
+    }
+
+    d.changed = true
+    return true
+}
+
 cstring_to_string :: proc(cs: cstring) -> string {
     if cs == nil {
         return ""

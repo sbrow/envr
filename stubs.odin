@@ -18,10 +18,6 @@ cmd_restore :: proc(cmd: ^Command) {
 	fmt.println("TODO: restore")
 }
 
-cmd_remove :: proc(cmd: ^Command) {
-	fmt.println("TODO: remove")
-}
-
 cmd_check :: proc(cmd: ^Command) {
 	fmt.println("TODO: check")
 }

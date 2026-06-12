@@ -25,6 +25,8 @@ main :: proc() {
 		cmd_list(&cmd)
 	case "backup", "add":
 		cmd_backup(&cmd)
+	case "remove":
+		cmd_remove(&cmd)
 	case:
 		fmt.printf("Unknown command: %s\n", cmd.name)
 		print_usage()
