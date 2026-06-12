@@ -9,12 +9,12 @@ test_find_unbacked_finds_missing :: proc(t: ^testing.T) {
 	db := []EnvFile{{Path = "/a/.env"}, {Path = "/b/.env"}}
 
 	result := find_unbacked(local, db[:])
-	testing.expect(t, len(result) == 1, fmt.aprintf("expected 1 unbacked, got %d", len(result)))
+	testing.expect(t, len(result) == 1, fmt.tprintf("expected 1 unbacked, got %d", len(result)))
 	if len(result) > 0 {
 		testing.expect(
 			t,
 			result[0] == "/c/.env",
-			fmt.aprintf("expected /c/.env, got %s", result[0]),
+			fmt.tprintf("expected /c/.env, got %s", result[0]),
 		)
 	}
 }
@@ -25,7 +25,7 @@ test_find_unbacked_all_backed :: proc(t: ^testing.T) {
 	db := []EnvFile{{Path = "/a/.env"}, {Path = "/b/.env"}}
 
 	result := find_unbacked(local, db[:])
-	testing.expect(t, len(result) == 0, fmt.aprintf("expected 0 unbacked, got %d", len(result)))
+	testing.expect(t, len(result) == 0, fmt.tprintf("expected 0 unbacked, got %d", len(result)))
 }
 
 @(test)
@@ -34,7 +34,7 @@ test_find_unbacked_no_local :: proc(t: ^testing.T) {
 	db := []EnvFile{{Path = "/a/.env"}}
 
 	result := find_unbacked(local, db[:])
-	testing.expect(t, len(result) == 0, fmt.aprintf("expected 0 unbacked, got %d", len(result)))
+	testing.expect(t, len(result) == 0, fmt.tprintf("expected 0 unbacked, got %d", len(result)))
 }
 
 @(test)
@@ -43,6 +43,6 @@ test_find_unbacked_none_backed :: proc(t: ^testing.T) {
 	db: []EnvFile
 
 	result := find_unbacked(local, db[:])
-	testing.expect(t, len(result) == 2, fmt.aprintf("expected 2 unbacked, got %d", len(result)))
+	testing.expect(t, len(result) == 2, fmt.tprintf("expected 2 unbacked, got %d", len(result)))
 }
 

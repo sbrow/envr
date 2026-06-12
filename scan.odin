@@ -121,7 +121,7 @@ next_fd_tmp_path :: proc() -> string {
 	n := fd_seq
 	fd_seq += 1
 	sync.atomic_mutex_unlock(&fd_counter)
-	return fmt.aprintf("/tmp/envr-fd-%d-%d", os.get_pid(), n, allocator = context.temp_allocator)
+	return fmt.tprintf("/tmp/envr-fd-%d-%d", os.get_pid(), n)
 }
 
 cant_scan :: proc(feats: AvailableFeatures) -> bool {

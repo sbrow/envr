@@ -17,10 +17,10 @@ test_usage_text_contains_all_commands :: proc(t: ^testing.T) {
 		testing.expect(
 			t,
 			strings.contains(text, c.name),
-			fmt.aprintf("usage missing command %q", c.name),
+			fmt.tprintf("usage missing command %q", c.name),
 		)
 		for a in c.aliases {
-			testing.expect(t, strings.contains(text, a), fmt.aprintf("usage missing alias %q", a))
+			testing.expect(t, strings.contains(text, a), fmt.tprintf("usage missing alias %q", a))
 		}
 	}
 }

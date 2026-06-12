@@ -577,7 +577,7 @@ env_file_sync :: proc(f: ^EnvFile, dir: SyncDirection, d: ^Db) -> (SyncResult, s
     if file_stat_err != nil {
         write_err := os.write_entire_file(f.Path, f.contents)
         if write_err != nil {
-            msg, _ := strings.concatenate({"failed to write file: ", fmt.aprintf("%v", write_err)})
+            msg, _ := strings.concatenate({"failed to write file: ", fmt.tprintf("%v", write_err)})
             return .Error, msg
         }
 
@@ -587,7 +587,7 @@ env_file_sync :: proc(f: ^EnvFile, dir: SyncDirection, d: ^Db) -> (SyncResult, s
 
     data, read_err := os.read_entire_file_from_path(f.Path, context.allocator)
     if read_err != nil {
-        msg, _ := strings.concatenate({"failed to read file for SHA comparison: ", fmt.aprintf("%v", read_err)})
+        msg, _ := strings.concatenate({"failed to read file for SHA comparison: ", fmt.tprintf("%v", read_err)})
         return .Error, msg
     }
 
@@ -603,7 +603,7 @@ env_file_sync :: proc(f: ^EnvFile, dir: SyncDirection, d: ^Db) -> (SyncResult, s
     case .TrustDatabase:
         write_err := os.write_entire_file(f.Path, f.contents)
         if write_err != nil {
-            msg, _ := strings.concatenate({"failed to write file: ", fmt.aprintf("%v", write_err)})
+            msg, _ := strings.concatenate({"failed to write file: ", fmt.tprintf("%v", write_err)})
             return .Error, msg
         }
         s := i32(result) | i32(SyncResult.Restored)

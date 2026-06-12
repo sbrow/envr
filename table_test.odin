@@ -20,18 +20,18 @@ test_render_json_rows_normal :: proc(t: ^testing.T) {
 
 	output := strings.to_string(b)
 
-	result: []map[string]string
-	unmarshal_err := json.unmarshal_string(output, &result)
+	result: []map[string]string = ---
+	unmarshal_err := json.unmarshal_string(output, &result, allocator = context.temp_allocator)
 	testing.expect(
 		t,
 		unmarshal_err == nil,
-		fmt.aprintf("json unmarshal failed: %v\noutput was: %q", unmarshal_err, output),
+		fmt.tprintf("json unmarshal failed: %v\noutput was: %q", unmarshal_err, output),
 	)
-	testing.expect(t, len(result) == 2, fmt.aprintf("expected 2 rows, got %d", len(result)))
+	testing.expect(t, len(result) == 2, fmt.tprintf("expected 2 rows, got %d", len(result)))
 	testing.expect(
 		t,
 		result[0]["name"] == "foo",
-		fmt.aprintf("expected name=foo, got %q", result[0]["name"]),
+		fmt.tprintf("expected name=foo, got %q", result[0]["name"]),
 	)
 	testing.expect(t, result[0]["path"] == "/home/user/.env")
 	testing.expect(t, result[1]["name"] == "bar")
@@ -57,18 +57,22 @@ test_render_json_rows_special_chars :: proc(t: ^testing.T) {
 
 	output := strings.to_string(b)
 
-	result: []map[string]string
-	unmarshal_err := json.unmarshal(transmute([]byte)output, &result)
+	result: []map[string]string = ---
+	unmarshal_err := json.unmarshal(
+		transmute([]byte)output,
+		&result,
+		allocator = context.temp_allocator,
+	)
 	testing.expect(
 		t,
 		unmarshal_err == nil,
-		fmt.aprintf("json unmarshal failed: %v\noutput was: %q", unmarshal_err, output),
+		fmt.tprintf("json unmarshal failed: %v\noutput was: %q", unmarshal_err, output),
 	)
 	testing.expect(t, len(result) == 4)
 	testing.expect(
 		t,
 		result[0]["value"] == `has "double quotes"`,
-		fmt.aprintf("got %q", result[0]["value"]),
+		fmt.tprintf("got %q", result[0]["value"]),
 	)
 	testing.expect(t, result[1]["value"] == `path\to\file`)
 	testing.expect(t, result[2]["value"] == "line1\nline2")
@@ -89,12 +93,12 @@ test_render_json_rows_empty :: proc(t: ^testing.T) {
 
 	output := strings.to_string(b)
 
-	result: []map[string]string
-	unmarshal_err := json.unmarshal_string(output, &result)
+	result: []map[string]string = ---
+	unmarshal_err := json.unmarshal_string(output, &result, allocator = context.temp_allocator)
 	testing.expect(
 		t,
 		unmarshal_err == nil,
-		fmt.aprintf("json unmarshal failed: %v\noutput was: %q", unmarshal_err, output),
+		fmt.tprintf("json unmarshal failed: %v\noutput was: %q", unmarshal_err, output),
 	)
 	testing.expect(t, len(result) == 0)
 }

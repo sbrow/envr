@@ -10,12 +10,12 @@ test_scan_path_finds_gitignored_env_files :: proc(t: ^testing.T) {
 	feats := check_features()
 	testing.expect(t, cant_scan(feats) == false)
 
-	base := fmt.aprintf("/tmp/envr-scan-test-%d", os.get_pid())
+	base := fmt.tprintf("/tmp/envr-scan-test-%d", os.get_pid())
 	os.mkdir_all(base)
 	defer os.remove_all(base)
 
 	git_init := os.Process_Desc {
-		command     = []string{"git", "-c", "advice.defaultBranchName=false", "init"},
+		command     = []string{"git", "-c", "advice.defaultBranchName=false", "init", "-q"},
 		working_dir = base,
 		stdout      = os.stderr,
 		stderr      = os.stderr,
@@ -29,12 +29,12 @@ test_scan_path_finds_gitignored_env_files :: proc(t: ^testing.T) {
 		return
 	}
 
-	gitignore_path := fmt.aprintf("%s/.gitignore", base)
+	gitignore_path := fmt.tprintf("%s/.gitignore", base)
 	_ = os.write_entire_file(gitignore_path, ".env*\n")
 
-	_ = os.write_entire_file(fmt.aprintf("%s/.env", base), "SECRET=1")
-	_ = os.write_entire_file(fmt.aprintf("%s/.env.testing", base), "TEST=1")
-	_ = os.write_entire_file(fmt.aprintf("%s/config.yaml", base), "key: value")
+	_ = os.write_entire_file(fmt.tprintf("%s/.env", base), "SECRET=1")
+	_ = os.write_entire_file(fmt.tprintf("%s/.env.testing", base), "TEST=1")
+	_ = os.write_entire_file(fmt.tprintf("%s/config.yaml", base), "key: value")
 
 	cfg := Config {
 		ScanConfig = ScanConfig{Matcher = "\\.env", Exclude = []string{}, Include = []string{}},
@@ -71,7 +71,7 @@ test_scan_path_empty_dir :: proc(t: ^testing.T) {
 	feats := check_features()
 	testing.expect(t, cant_scan(feats) == false)
 
-	base := fmt.aprintf("/tmp/envr-scan-empty-%d", os.get_pid())
+	base := fmt.tprintf("/tmp/envr-scan-empty-%d", os.get_pid())
 	os.mkdir_all(base)
 	defer os.remove_all(base)
 
@@ -82,6 +82,6 @@ test_scan_path_empty_dir :: proc(t: ^testing.T) {
 	results, ok := scan_path(base, cfg)
 	defer delete(results)
 	testing.expect(t, ok, "scan_path should succeed")
-	testing.expect(t, len(results) == 0, fmt.aprintf("expected 0 results, got %d", len(results)))
+	testing.expect(t, len(results) == 0, fmt.tprintf("expected 0 results, got %d", len(results)))
 }
 

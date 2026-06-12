@@ -87,11 +87,11 @@ render_json_rows :: proc(w: io.Writer, headers: []string, rows: [][]string) {
 		append(&entries, entry)
 	}
 
-	data, err := json.marshal(entries[:])
+	data, err := json.marshal(entries[:], allocator = context.temp_allocator)
 	if err != nil {
 		fmt.eprintf("Error marshaling JSON: %v\n", err)
 		return
 	}
-	io.write_string(w, string(data))
+	fmt.wprintf(w, "%s", data, flush = false)
 }
 
