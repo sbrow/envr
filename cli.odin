@@ -36,6 +36,7 @@ COMMANDS := []CommandInfo{
 }
 
 IMPLEMENTED_COMMANDS := []string{
+	"init",
 	"version",
 	"deps",
 	"list",
@@ -46,6 +47,7 @@ IMPLEMENTED_COMMANDS := []string{
 	"edit-config",
 	"check",
 	"scan",
+	"sync",
 }
 
 parse_args :: proc() -> (cmd: Command, ok: bool) {

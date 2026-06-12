@@ -17,6 +17,8 @@ main :: proc() {
 	}
 
 	switch cmd.name {
+	case "init":
+		cmd_init(&cmd)
 	case "version":
 		cmd_version(&cmd)
 	case "deps":
@@ -35,6 +37,8 @@ main :: proc() {
 		cmd_check(&cmd)
 	case "scan":
 		cmd_scan(&cmd)
+	case "sync":
+		cmd_sync(&cmd)
 	case:
 		fmt.printf("Unknown command: %s\n", cmd.name)
 		print_usage()
