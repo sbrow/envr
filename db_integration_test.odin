@@ -1,6 +1,5 @@
 package main
 
-import "core:encoding/json"
 import "core:fmt"
 import "core:os"
 import "core:path/filepath"
@@ -23,7 +22,7 @@ fixture_db_path :: proc() -> string {
 }
 
 fixture_config :: proc() -> Config {
-	cfg := Config{
+	cfg := Config {
 		Keys = make([dynamic]SshKeyPair, 0, 1),
 	}
 	append(&cfg.Keys, fixture_key())
@@ -263,7 +262,11 @@ test_full_db_cycle :: proc(t: ^testing.T) {
 	testing.expect(
 		t,
 		len(plaintext2) == len(original_data),
-		fmt.tprintf("double round-trip size mismatch: expected %d, got %d", len(original_data), len(plaintext2)),
+		fmt.tprintf(
+			"double round-trip size mismatch: expected %d, got %d",
+			len(original_data),
+			len(plaintext2),
+		),
 	)
 
 	os.remove(data_path)
@@ -289,12 +292,7 @@ test_ssh_key_parse_from_fixtures :: proc(t: ^testing.T) {
 	}
 
 	for i in 0 ..< 32 {
-		testing.expectf(
-			t,
-			priv_kp.Public[i] == pub_key[i],
-			"public key mismatch at byte %d",
-			i,
-		)
+		testing.expectf(t, priv_kp.Public[i] == pub_key[i], "public key mismatch at byte %d", i)
 	}
 
 	x25519_pairs, x_ok := ssh_to_x25519([]SshKeyPair{key})
@@ -327,3 +325,4 @@ test_config_load_with_fixture_key :: proc(t: ^testing.T) {
 		fmt.printf("  private key path was: '%s'\n", key.Private)
 	}
 }
+

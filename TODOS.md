@@ -36,6 +36,8 @@ Note: These todos can wait until all the subcommands have been ported.
 
 35. **prompt.odin:124** — `make([dynamic]bool, len(options))` creates N zero-initialized elements. Works because `false` is the default, but same footgun as original issue 1. Should be `make([dynamic]bool, 0, len(options))`.
 
+39. Lots of memory leaks to fix.
+
 ## LOW
 
 15. **db.odin:115** — `json.unmarshal_string` error not checked. Malformed JSON silently produces empty/partial data.
@@ -63,3 +65,5 @@ Note: These todos can wait until all the subcommands have been ported.
 27. version --long Odin only prints version; Go also prints commit hash and build date
 
 28. 2 scan tests silently skip	Low	When fd isn't installed, tests pass without actually testing anything. These should use #assert to be sure that fd is in path.
+
+38. Try to do all encryption / decryption in memory - only read / write encrypted data to disk.

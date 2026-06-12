@@ -1,0 +1,31 @@
+name: Odin
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsodium-dev sqlite3 libsqlite3-dev
+
+      - name: Install Odin
+        run: |
+          git clone https://github.com/odin-lang/Odin.git /opt/odin
+          cd /opt/odin
+          ./build_odin.sh release
+          echo "/opt/odin" >> "$GITHUB_PATH"
+
+      - name: Build
+        run: odin build . -o:speed -out:envr
+
+      - name: Test
+        run: odin test .

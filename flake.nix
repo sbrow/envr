@@ -40,7 +40,6 @@
           };
 
           treefmt = {
-            # Used to find the project root
             projectRootFile = "flake.nix";
             settings.global.excludes = [
               ".direnv/**"
@@ -50,68 +49,57 @@
               ".env.local"
             ];
 
-
-            # Format nix files
             programs.nixpkgs-fmt.enable = true;
-            # programs.deadnix.enable = true;
-
-            # Format go files
-            programs.goimports.enable = true;
           };
 
-          packages.default = pkgs.buildGoModule rec {
+          packages.default = pkgs.stdenv.mkDerivation rec {
             pname = "envr";
             version = "0.2.0";
             src = ./.;
-            # If the build complains, uncomment this line
-            # vendorHash = "sha256:0000000000000000000000000000000000000000000000000000";
-            vendorHash = "sha256-aC82an6vYifewx4amfXLzk639jz9fF5bD5cF6krY0Ks=";
-            
-            nativeBuildInputs = [ pkgs.installShellFiles ];
 
-            ldflags = [
-              "-X github.com/sbrow/envr/cmd.version=v${version}"
-              # "-X github.com/sbrow/envr/cmd.commit=$(git rev-parse HEAD)"
-              # "-X github.com/sbrow/envr/cmd.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            nativeBuildInputs = [
+              pkgs.unstable.odin
+              pkgs.pkg-config
             ];
-            
-            postBuild = ''
-              # Generate man pages
-              $GOPATH/bin/docgen -out ./man -format man
+
+            buildInputs = [
+              pkgs.libsodium
+              pkgs.sqlite
+            ];
+
+            buildPhase = ''
+              runHook preBuild
+              make version.odin
+              odin build . -o:speed -out:${pname}
+              runHook postBuild
             '';
-            
-            postInstall = ''
-              # Install man pages
-              installManPage ./man/*.1
+
+            installPhase = ''
+              runHook preInstall
+              install -Dm755 ${pname} $out/bin/${pname}
+              runHook postInstall
             '';
           };
 
-          devShells.default = pkgs.mkShell
-            {
-              buildInputs = with pkgs; [
-                fd
-                nushell
-                go
-                gopls
+          devShells.default = pkgs.mkShell {
+            buildInputs = with pkgs; [
+              fd
+              nushell
 
-                gotools
-                cobra-cli
+              libsodium
+              sqlite
+              unstable.odin
+              unstable.ols
 
-                age
-                libsodium
-                sqlite
-                unstable.odin
-                unstable.ols
+              # Build tools
+              zip
 
-                # Build tools
-                zip
-
-                # IDE
-                unstable.helix
-                typescript-language-server
-                vscode-langservers-extracted
-              ];
-            };
+              # IDE
+              unstable.helix
+              typescript-language-server
+              vscode-langservers-extracted
+            ];
+          };
         };
     };
 }
