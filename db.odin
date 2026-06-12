@@ -392,6 +392,47 @@ db_insert :: proc(d: ^Db, file: EnvFile) -> bool {
     return true
 }
 
+db_fetch :: proc(d: ^Db, path: string) -> (EnvFile, bool) {
+    sql := "SELECT path, remotes, sha256, contents FROM envr_env_files WHERE path = ?"
+    stmt: ^rawptr
+    rc := sqlite.prepare_v2(d.db, string_to_cstring(sql), -1, &stmt, nil)
+    if rc != sqlite.OK {
+        fmt.printf("Error preparing fetch: %s\n", sqlite.db_errmsg(d.db))
+        return EnvFile{}, false
+    }
+    defer sqlite.finalize(stmt)
+
+    rc = sqlite.bind_text(stmt, 1, string_to_cstring(path), -1, nil)
+    rc = sqlite.step(stmt)
+    if rc == sqlite.DONE {
+        fmt.printf("No file found with path: %s\n", path)
+        return EnvFile{}, false
+    }
+    if rc != sqlite.ROW {
+        fmt.printf("Error fetching: %s\n", sqlite.db_errmsg(d.db))
+        return EnvFile{}, false
+    }
+
+    file_path := cstring_to_string(sqlite.column_text(stmt, 0))
+    remotes_json := cstring_to_string(sqlite.column_text(stmt, 1))
+    sha := cstring_to_string(sqlite.column_text(stmt, 2))
+    contents := cstring_to_string(sqlite.column_text(stmt, 3))
+
+    remotes: [dynamic]string
+    if len(remotes_json) > 0 {
+        json.unmarshal_string(remotes_json, &remotes)
+    }
+
+    cloned_path, _ := strings.clone(file_path)
+    return EnvFile{
+        Path = cloned_path,
+        Dir = filepath.dir(cloned_path),
+        Remotes = remotes,
+        Sha256 = sha,
+        contents = contents,
+    }, true
+}
+
 db_delete :: proc(d: ^Db, path: string) -> bool {
     sql := "DELETE FROM envr_env_files WHERE path = ?"
     stmt: ^rawptr

@@ -42,6 +42,7 @@ IMPLEMENTED_COMMANDS := []string{
 	"backup",
 	"add",
 	"remove",
+	"restore",
 }
 
 parse_args :: proc() -> (cmd: Command, ok: bool) {

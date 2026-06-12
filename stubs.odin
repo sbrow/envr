@@ -14,10 +14,6 @@ cmd_sync :: proc(cmd: ^Command) {
 	fmt.println("TODO: sync")
 }
 
-cmd_restore :: proc(cmd: ^Command) {
-	fmt.println("TODO: restore")
-}
-
 cmd_check :: proc(cmd: ^Command) {
 	fmt.println("TODO: check")
 }
