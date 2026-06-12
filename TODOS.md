@@ -52,8 +52,6 @@ Note: These todos can wait until all the subcommands have been ported.
 
 21. Check for prealloc opportunities. i.e. `make([dynamic]string)` -> `make([dynamic]string, 5)`.
 
-22. Replace is_tty with terminal.is_terminal
-
 23. Add a text filter to the multi_select.
 
 24. Create backup / fallback fd.

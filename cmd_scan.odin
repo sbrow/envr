@@ -2,6 +2,8 @@ package main
 
 import "core:encoding/json"
 import "core:fmt"
+import "core:os"
+import "core:terminal"
 
 cmd_scan :: proc(cmd: ^Command) {
 	feats := check_features()
@@ -49,7 +51,7 @@ cmd_scan :: proc(cmd: ^Command) {
 		return
 	}
 
-	if !is_tty() {
+	if !terminal.is_terminal(os.stdout) {
 		output, marshal_err := json.marshal(files[:])
 		if marshal_err != nil {
 			fmt.printf("Error marshaling files to JSON: %v\n", marshal_err)

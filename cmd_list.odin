@@ -2,8 +2,10 @@ package main
 
 import "core:encoding/json"
 import "core:fmt"
+import "core:os"
 import "core:path/filepath"
 import "core:strings"
+import "core:terminal"
 
 ListEntry :: struct {
 	Directory: string `json:"directory"`,
@@ -23,7 +25,7 @@ cmd_list :: proc(cmd: ^Command) {
 	}
 	defer delete(rows)
 
-	if is_tty() {
+	if terminal.is_terminal(os.stdout) {
 		headers := []string{"Directory", "Path"}
 		table_rows := make([dynamic][]string, 0, len(rows), context.temp_allocator)
 

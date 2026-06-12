@@ -5,9 +5,10 @@ import "core:fmt"
 import "core:io"
 import "core:os"
 import "core:strings"
+import "core:terminal"
 
 render_table :: proc(headers: []string, rows: [][]string) {
-	if !is_tty() {
+	if !terminal.is_terminal(os.stdout) {
 		w := io.to_writer(os.to_writer(os.stdout))
 		render_json_rows(w, headers, rows)
 		io.write_string(w, "\n")

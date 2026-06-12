@@ -2,7 +2,9 @@ package main
 
 import "core:encoding/json"
 import "core:fmt"
+import "core:os"
 import "core:strings"
+import "core:terminal"
 
 SyncEntry :: struct {
 	Path:   string `json:"path"`,
@@ -72,7 +74,7 @@ cmd_sync :: proc(cmd: ^Command) {
 		append(&results, SyncEntry{Path = path_str, Status = status_str})
 	}
 
-	if is_tty() {
+	if terminal.is_terminal(os.stdout) {
 		headers := []string{"File", "Status"}
 		table_rows := make([dynamic][]string, 0, len(results))
 
@@ -93,3 +95,4 @@ cmd_sync :: proc(cmd: ^Command) {
 		fmt.println(string(data))
 	}
 }
+

@@ -4,13 +4,14 @@ import "core:fmt"
 import "core:os"
 import "core:strings"
 import "core:sync"
+import "core:terminal"
 
 fd_counter: sync.Atomic_Mutex
 fd_seq: int
 
 // Caller is responsible for freeing paths
 scan_path :: proc(search_path: string, cfg: Config) -> (paths: [dynamic]string, ok: bool) {
-	if is_tty() {
+	if terminal.is_terminal(os.stdout) {
 		fmt.printf("Searching for all files in \"%s\"...\n", search_path)
 	}
 	all_files, all_ok := run_fd(build_fd_args(search_path, cfg, true))
@@ -18,7 +19,7 @@ scan_path :: proc(search_path: string, cfg: Config) -> (paths: [dynamic]string, 
 		return
 	}
 
-	if is_tty() {
+	if terminal.is_terminal(os.stdout) {
 		fmt.printf("Search for unignored fies in \"%s\"...\n", search_path)
 	}
 	unignored_files, unignored_ok := run_fd(build_fd_args(search_path, cfg, false))
