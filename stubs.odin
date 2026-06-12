@@ -6,10 +6,6 @@ cmd_init :: proc(cmd: ^Command) {
 	fmt.println("TODO: init")
 }
 
-cmd_list :: proc(cmd: ^Command) {
-	fmt.println("TODO: list")
-}
-
 cmd_scan :: proc(cmd: ^Command) {
 	fmt.println("TODO: scan")
 }

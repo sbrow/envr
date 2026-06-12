@@ -98,6 +98,7 @@
                 cobra-cli
 
                 age
+                sqlite
                 unstable.odin
                 unstable.ols
 

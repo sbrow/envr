@@ -21,6 +21,8 @@ main :: proc() {
 		cmd_version(&cmd)
 	case "deps":
 		cmd_deps(&cmd)
+	case "list":
+		cmd_list(&cmd)
 	case:
 		fmt.printf("Unknown command: %s\n", cmd.name)
 		print_usage()
