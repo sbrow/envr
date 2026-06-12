@@ -1,8 +1,6 @@
 package main
 
 import "core:fmt"
-import "core:os"
-import "core:strings"
 import "core:testing"
 
 TEST_KEY_DIR :: "/tmp/envr-test-keys"
@@ -49,7 +47,11 @@ test_private_key_pub_matches_public_key :: proc(t: ^testing.T) {
 	testing.expect(
 		t,
 		pub_from_pub == kp.Public,
-		fmt.tprintf("public key mismatch:\n  from .pub: %v\n  from priv: %v", pub_from_pub, kp.Public),
+		fmt.tprintf(
+			"public key mismatch:\n  from .pub: %v\n  from priv: %v",
+			pub_from_pub,
+			kp.Public,
+		),
 	)
 }
 
@@ -67,3 +69,4 @@ test_read_wire_string :: proc(t: ^testing.T) {
 	testing.expect(t, ok2, "expected second read to succeed")
 	testing.expect(t, s2 == "", "expected empty string")
 }
+

@@ -6,7 +6,11 @@ import "core:mem"
 MAGIC :: "ENVR"
 MAGIC_BYTES := [4]u8{u8('E'), u8('N'), u8('V'), u8('R')}
 
-RECIPIENT_ENTRY_SIZE :: CRYPTO_BOX_PUBLICKEY_BYTES + CRYPTO_BOX_NONCE_BYTES + CRYPTO_SECRETBOX_KEY_BYTES + CRYPTO_BOX_MAC_BYTES
+RECIPIENT_ENTRY_SIZE ::
+	CRYPTO_BOX_PUBLICKEY_BYTES +
+	CRYPTO_BOX_NONCE_BYTES +
+	CRYPTO_SECRETBOX_KEY_BYTES +
+	CRYPTO_BOX_MAC_BYTES
 
 HEADER_SIZE :: 4 + CRYPTO_BOX_PUBLICKEY_BYTES + CRYPTO_SECRETBOX_NONCE_BYTES + 4
 
@@ -108,7 +112,13 @@ encrypt :: proc(plaintext: []u8, keys: []SshKeyPair) -> (ciphertext: []u8, ok: b
 	if len(plaintext) > 0 {
 		pt_ptr = &plaintext[0]
 	}
-	rc := crypto_secretbox_easy(&secret_ct[0], pt_ptr, u64(len(plaintext)), &main_nonce[0], &sym_key[0])
+	rc := crypto_secretbox_easy(
+		&secret_ct[0],
+		pt_ptr,
+		u64(len(plaintext)),
+		&main_nonce[0],
+		&sym_key[0],
+	)
 	if rc != 0 {
 		fmt.println("Error: symmetric encryption failed")
 		delete(secret_ct)
@@ -166,7 +176,11 @@ encrypt :: proc(plaintext: []u8, keys: []SshKeyPair) -> (ciphertext: []u8, ok: b
 		pos += CRYPTO_BOX_PUBLICKEY_BYTES
 		mem.copy(&ciphertext[pos], &entries[i].Nonce[0], CRYPTO_BOX_NONCE_BYTES)
 		pos += CRYPTO_BOX_NONCE_BYTES
-		mem.copy(&ciphertext[pos], &entries[i].EncryptedKey[0], CRYPTO_SECRETBOX_KEY_BYTES + CRYPTO_BOX_MAC_BYTES)
+		mem.copy(
+			&ciphertext[pos],
+			&entries[i].EncryptedKey[0],
+			CRYPTO_SECRETBOX_KEY_BYTES + CRYPTO_BOX_MAC_BYTES,
+		)
 		pos += CRYPTO_SECRETBOX_KEY_BYTES + CRYPTO_BOX_MAC_BYTES
 	}
 
@@ -209,8 +223,11 @@ decrypt :: proc(ciphertext: []u8, keys: []SshKeyPair) -> (plaintext: []u8, ok: b
 	}
 	offset += CRYPTO_SECRETBOX_NONCE_BYTES
 
-	num_recipients := u32(ciphertext[offset]) << 24 | u32(ciphertext[offset + 1]) << 16 |
-		u32(ciphertext[offset + 2]) << 8 | u32(ciphertext[offset + 3])
+	num_recipients :=
+		u32(ciphertext[offset]) << 24 |
+		u32(ciphertext[offset + 1]) << 16 |
+		u32(ciphertext[offset + 2]) << 8 |
+		u32(ciphertext[offset + 3])
 	offset += 4
 
 	recipients_end := offset + int(num_recipients) * RECIPIENT_ENTRY_SIZE
@@ -233,7 +250,7 @@ decrypt :: proc(ciphertext: []u8, keys: []SshKeyPair) -> (plaintext: []u8, ok: b
 	matched_pi := 0
 	for pi in 0 ..< len(x25519_pairs) {
 		scan_offset := offset
-		for ri in 0 ..< int(num_recipients) {
+		for _ in 0 ..< int(num_recipients) {
 			for i in 0 ..< CRYPTO_BOX_PUBLICKEY_BYTES {
 				enc_pub[i] = ciphertext[scan_offset + i]
 			}
@@ -247,7 +264,8 @@ decrypt :: proc(ciphertext: []u8, keys: []SshKeyPair) -> (plaintext: []u8, ok: b
 				}
 			}
 			if !match {
-				scan_offset += CRYPTO_BOX_NONCE_BYTES + CRYPTO_SECRETBOX_KEY_BYTES + CRYPTO_BOX_MAC_BYTES
+				scan_offset +=
+					CRYPTO_BOX_NONCE_BYTES + CRYPTO_SECRETBOX_KEY_BYTES + CRYPTO_BOX_MAC_BYTES
 				continue
 			}
 
@@ -301,7 +319,13 @@ decrypt :: proc(ciphertext: []u8, keys: []SshKeyPair) -> (plaintext: []u8, ok: b
 	if len(plaintext) > 0 {
 		pt_ptr = &plaintext[0]
 	}
-	rc = crypto_secretbox_open_easy(pt_ptr, &ct_data[0], u64(len(ct_data)), &main_nonce[0], &sym_key[0])
+	rc = crypto_secretbox_open_easy(
+		pt_ptr,
+		&ct_data[0],
+		u64(len(ct_data)),
+		&main_nonce[0],
+		&sym_key[0],
+	)
 	if rc != 0 {
 		fmt.println("Error: symmetric decryption failed")
 		delete(plaintext)
@@ -311,3 +335,4 @@ decrypt :: proc(ciphertext: []u8, keys: []SshKeyPair) -> (plaintext: []u8, ok: b
 	ok = true
 	return
 }
+

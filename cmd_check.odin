@@ -3,7 +3,6 @@ package main
 import "core:fmt"
 import "core:os"
 import "core:path/filepath"
-import "core:strings"
 
 cmd_check :: proc(cmd: ^Command) {
 	feats := check_features()

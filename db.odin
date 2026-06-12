@@ -1,6 +1,5 @@
 package main
 
-import "core:c"
 import "core:crypto/hash"
 import "core:encoding/hex"
 import "core:encoding/json"
@@ -513,7 +512,6 @@ env_file_backup :: proc(f: ^EnvFile) -> bool {
 
 env_file_sync :: proc(f: ^EnvFile, dir: SyncDirection, d: ^Db) -> (SyncFlag, string) {
 	result: SyncFlag = {}
-	err_msg: string
 
 	_, stat_err := os.stat(f.Dir, context.allocator)
 	if stat_err != nil {

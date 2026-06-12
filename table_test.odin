@@ -2,7 +2,6 @@ package main
 
 import "core:encoding/json"
 import "core:fmt"
-import "core:io"
 import "core:strings"
 import "core:testing"
 

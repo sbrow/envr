@@ -35,7 +35,6 @@ test_encrypt_decrypt_sqlite_roundtrip :: proc(t: ^testing.T) {
 	defer {
 		delete(cfg.Keys)
 	}
-	key := cfg.Keys[0]
 
 	db_path := fixture_db_path()
 	sqlite_data, read_err := os.read_entire_file_from_path(db_path, context.allocator)
@@ -319,7 +318,7 @@ test_config_load_with_fixture_key :: proc(t: ^testing.T) {
 	testing.expectf(t, len(key.Private) > 0, "private key path should not be empty")
 	testing.expectf(t, len(key.Public) > 0, "public key path should not be empty")
 
-	priv_kp, priv_ok := parse_ssh_private_key(key.Private)
+	_, priv_ok := parse_ssh_private_key(key.Private)
 	testing.expect(t, priv_ok, "should parse private key using config paths")
 	if !priv_ok {
 		fmt.printf("  private key path was: '%s'\n", key.Private)

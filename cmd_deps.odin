@@ -1,7 +1,5 @@
 package main
 
-import "core:fmt"
-
 cmd_deps :: proc(cmd: ^Command) {
 	feats := check_features()
 
@@ -22,3 +20,4 @@ cmd_deps :: proc(cmd: ^Command) {
 
 	render_table(headers, rows[:])
 }
+
