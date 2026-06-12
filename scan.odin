@@ -2,23 +2,49 @@ package main
 
 import "core:fmt"
 import "core:os"
-import "core:path/filepath"
 import "core:strings"
 import "core:sync"
 
 fd_counter: sync.Atomic_Mutex
 fd_seq: int
 
-next_fd_tmp_path :: proc() -> string {
-	sync.atomic_mutex_lock(&fd_counter)
-	n := fd_seq
-	fd_seq += 1
-	sync.atomic_mutex_unlock(&fd_counter)
-	return fmt.aprintf("/tmp/envr-fd-%d-%d", os.get_pid(), n)
+// Caller is responsible for freeing paths
+scan_path :: proc(search_path: string, cfg: Config) -> (paths: [dynamic]string, ok: bool) {
+	if is_tty() {
+		fmt.printf("Searching for all files in \"%s\"...\n", search_path)
+	}
+	all_files, all_ok := run_fd(build_fd_args(search_path, cfg, true))
+	if !all_ok {
+		return
+	}
+
+	if is_tty() {
+		fmt.printf("Search for unignored fies in \"%s\"...\n", search_path)
+	}
+	unignored_files, unignored_ok := run_fd(build_fd_args(search_path, cfg, false))
+	if !unignored_ok {
+		return
+	}
+
+	unignored_set := make(map[string]bool, len(unignored_files), context.temp_allocator)
+	for file in unignored_files {
+		unignored_set[file] = true
+	}
+
+	for file in all_files {
+		if !(file in unignored_set) {
+			append(&paths, file)
+		}
+	}
+
+	ok = true
+	return
 }
 
+@(private = "file")
 build_fd_args :: proc(search_path: string, cfg: Config, include_ignored: bool) -> []string {
-	args := make([dynamic]string, 0, 3 + 2 * len(cfg.ScanConfig.Exclude) + 2)
+	args_len := 3 + 2 * len(cfg.ScanConfig.Exclude) + 2
+	args := make([dynamic]string, 0, args_len, context.temp_allocator)
 	append(&args, "fd")
 	append(&args, "-a")
 	append(&args, cfg.ScanConfig.Matcher)
@@ -38,7 +64,7 @@ build_fd_args :: proc(search_path: string, cfg: Config, include_ignored: bool) -
 	return args[:]
 }
 
-run_fd :: proc(args: []string) -> (lines: [dynamic]string, ok: bool) {
+run_fd :: proc(args: []string) -> (lines: []string, ok: bool) {
 	tmp_path := next_fd_tmp_path()
 	tmp_file, tmp_err := os.open(tmp_path, os.O_CREATE | os.O_WRONLY | os.O_TRUNC)
 	if tmp_err != nil {
@@ -64,7 +90,7 @@ run_fd :: proc(args: []string) -> (lines: [dynamic]string, ok: bool) {
 		return
 	}
 
-	data, read_err := os.read_entire_file_from_path(tmp_path, context.allocator)
+	data, read_err := os.read_entire_file_from_path(tmp_path, context.temp_allocator)
 	os.remove(tmp_path)
 	if read_err != nil {
 		return
@@ -77,69 +103,44 @@ run_fd :: proc(args: []string) -> (lines: [dynamic]string, ok: bool) {
 		return
 	}
 
-	raw_lines := strings.split(output, "\n")
+	raw_lines := strings.split(output, "\n", context.temp_allocator)
+	result := make([dynamic]string, 0, len(raw_lines), context.temp_allocator)
 	for line in raw_lines {
-		trimmed, _ := strings.clone(strings.trim_space(line))
+		trimmed := strings.trim_space(line)
 		if len(trimmed) > 0 {
-			append(&lines, trimmed)
+			append(&result, trimmed)
 		}
 	}
 
-	ok = true
-	return
+	return result[:], true
 }
 
-scan_path :: proc(search_path: string, cfg: Config) -> (paths: [dynamic]string, ok: bool) {
-	if is_tty() {
-		fmt.printf("Searching for all files in \"%s\"...\n", search_path)
-	}
-	all_args := build_fd_args(search_path, cfg, true)
-	all_files, all_ok := run_fd(all_args)
-	if !all_ok {
-		return
-	}
-
-	if is_tty() {
-		fmt.printf("Search for unignored fies in \"%s\"...\n", search_path)
-	}
-	unignored_args := build_fd_args(search_path, cfg, false)
-	unignored_files, unignored_ok := run_fd(unignored_args)
-	if !unignored_ok {
-		return
-	}
-
-	unignored_set: map[string]bool
-	for file in unignored_files {
-		unignored_set[file] = true
-	}
-
-	for file in all_files {
-		if !(file in unignored_set) {
-			append(&paths, file)
-		}
-	}
-
-	ok = true
-	return
+@(private = "file")
+next_fd_tmp_path :: proc() -> string {
+	sync.atomic_mutex_lock(&fd_counter)
+	n := fd_seq
+	fd_seq += 1
+	sync.atomic_mutex_unlock(&fd_counter)
+	return fmt.aprintf("/tmp/envr-fd-%d-%d", os.get_pid(), n, allocator = context.temp_allocator)
 }
 
-can_scan :: proc() -> bool {
-	feats := check_features()
-	return Feature.Fd in feats
+cant_scan :: proc(feats: AvailableFeatures) -> bool {
+	return Feature.Fd not_in feats
 }
 
-find_unbacked :: proc(local_files: []string, db_files: []EnvFile) -> [dynamic]string {
-	backed_set: map[string]bool
+find_unbacked :: proc(local_files: []string, db_files: []EnvFile) -> []string {
+	// Lives until the end of the function
+	backed_set := make(map[string]bool, len(db_files), context.temp_allocator)
 	for file in db_files {
 		backed_set[file.Path] = true
 	}
 
-	unbacked: [dynamic]string
+	unbacked := make([dynamic]string, 0, len(db_files) / 2, context.temp_allocator)
 	for file in local_files {
 		if !(file in backed_set) {
 			append(&unbacked, file)
 		}
 	}
-	return unbacked
+	return unbacked[:]
 }
 

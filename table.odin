@@ -15,11 +15,11 @@ render_table :: proc(headers: []string, rows: [][]string) {
 	}
 
 	col_widths := make([dynamic]int, 0, len(headers))
-	for i in 0..<len(headers) {
+	for i in 0 ..< len(headers) {
 		append(&col_widths, strings.rune_count(headers[i]))
 	}
 	for r in rows {
-		for i in 0..<len(r) {
+		for i in 0 ..< len(r) {
 			w := strings.rune_count(r[i])
 			if i < len(col_widths) && w > col_widths[i] {
 				col_widths[i] = w
@@ -34,11 +34,11 @@ render_table :: proc(headers: []string, rows: [][]string) {
 
 	hline :: proc(b: ^strings.Builder, left, mid, right: string, widths: [dynamic]int) {
 		strings.write_string(b, left)
-		for i in 0..<len(widths) {
-			for _ in 0..<widths[i]+2 {
+		for i in 0 ..< len(widths) {
+			for _ in 0 ..< widths[i] + 2 {
 				strings.write_string(b, "\u2500")
 			}
-			if i < len(widths)-1 {
+			if i < len(widths) - 1 {
 				strings.write_string(b, mid)
 			} else {
 				strings.write_string(b, right)
@@ -56,7 +56,7 @@ render_table :: proc(headers: []string, rows: [][]string) {
 	}
 
 	strings.write_string(&b, "\u2502")
-	for i in 0..<len(headers) {
+	for i in 0 ..< len(headers) {
 		cell(&b, headers[i], col_widths[i])
 	}
 	fmt.println(strings.to_string(b))
@@ -66,7 +66,7 @@ render_table :: proc(headers: []string, rows: [][]string) {
 
 	for r in rows {
 		strings.write_string(&b, "\u2502")
-		for i in 0..<len(r) {
+		for i in 0 ..< len(r) {
 			cell(&b, r[i], col_widths[i])
 		}
 		fmt.println(strings.to_string(b))
@@ -77,12 +77,11 @@ render_table :: proc(headers: []string, rows: [][]string) {
 }
 
 render_json_rows :: proc(w: io.Writer, headers: []string, rows: [][]string) {
-	entries := make([dynamic]map[string]string, 0, len(rows))
-	defer delete(entries)
+	entries := make([dynamic]map[string]string, 0, len(rows), context.temp_allocator)
 
 	for row in rows {
-		entry: map[string]string
-		for i in 0..<len(headers) {
+		entry := make(map[string]string, len(headers), context.temp_allocator)
+		for i in 0 ..< len(headers) {
 			entry[headers[i]] = row[i]
 		}
 		append(&entries, entry)
@@ -95,3 +94,4 @@ render_json_rows :: proc(w: io.Writer, headers: []string, rows: [][]string) {
 	}
 	io.write_string(w, string(data))
 }
+

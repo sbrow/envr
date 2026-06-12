@@ -4,7 +4,8 @@ import "core:encoding/json"
 import "core:fmt"
 
 cmd_scan :: proc(cmd: ^Command) {
-	if !can_scan() {
+	feats := check_features()
+	if cant_scan(feats) {
 		fmt.println(
 			"Error: please install fd to use the scan command (https://github.com/sharkdp/fd)",
 		)
