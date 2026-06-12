@@ -33,6 +33,8 @@ main :: proc() {
 		cmd_edit_config(&cmd)
 	case "check":
 		cmd_check(&cmd)
+	case "scan":
+		cmd_scan(&cmd)
 	case:
 		fmt.printf("Unknown command: %s\n", cmd.name)
 		print_usage()

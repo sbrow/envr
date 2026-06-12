@@ -49,3 +49,13 @@ Note: These todos can wait until all the subcommands have been ported.
 20. **cmd_list.odin** — Non-TTY branch builds `ListEntry` structs and marshals JSON separately. Now that `render_json_rows` (issue 1) accepts an `io.Writer` and uses `json.marshal`, unify both branches to use it. Note: will change JSON keys from `"directory"/"path"` to `"Directory"/"Path"`.
 
 21. Check for prealloc opportunities. i.e. `make([dynamic]string)` -> `make([dynamic]string, 5)`.
+
+22. Replace is_tty with terminal.is_terminal
+
+23. Add a text filter to the multi_select.
+
+24. Create backup / fallback fd.
+
+25. Add tests for untested commands.
+
+26. Add a global --config -c flag to use an alternate config.

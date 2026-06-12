@@ -90,12 +90,18 @@ run_fd :: proc(args: []string) -> (lines: [dynamic]string, ok: bool) {
 }
 
 scan_path :: proc(search_path: string, cfg: Config) -> (paths: [dynamic]string, ok: bool) {
+	if is_tty() {
+		fmt.printf("Searching for all files in \"%s\"...\n", search_path)
+	}
 	all_args := build_fd_args(search_path, cfg, true)
 	all_files, all_ok := run_fd(all_args)
 	if !all_ok {
 		return
 	}
 
+	if is_tty() {
+		fmt.printf("Search for unignored fies in \"%s\"...\n", search_path)
+	}
 	unignored_args := build_fd_args(search_path, cfg, false)
 	unignored_files, unignored_ok := run_fd(unignored_args)
 	if !unignored_ok {

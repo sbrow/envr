@@ -4,6 +4,7 @@ import "core:encoding/json"
 import "core:fmt"
 import "core:os"
 import "core:path/filepath"
+import "core:strings"
 
 SshKeyPair :: struct {
 	Private: string `json:"private"`,
@@ -11,14 +12,14 @@ SshKeyPair :: struct {
 }
 
 ScanConfig :: struct {
-	Matcher: string   `json:"matcher"`,
+	Matcher: string `json:"matcher"`,
 	Exclude: []string `json:"exclude"`,
 	Include: []string `json:"include"`,
 }
 
 Config :: struct {
 	Keys:       []SshKeyPair `json:"keys"`,
-	ScanConfig: ScanConfig   `json:"scan"`,
+	ScanConfig: ScanConfig `json:"scan"`,
 }
 
 load_config :: proc() -> (Config, bool) {
@@ -59,3 +60,22 @@ data_age_path :: proc() -> string {
 	path, _ := filepath.join([]string{dir, "data.age"})
 	return path
 }
+
+search_paths :: proc(cfg: Config) -> (paths: [dynamic]string) {
+	home, _ := os.user_home_dir(context.allocator)
+
+	for include in cfg.ScanConfig.Include {
+		expanded, _ := strings.replace(include, "~", home, 1)
+		cloned, _ := strings.clone(expanded)
+		if filepath.is_abs(cloned) {
+			append(&paths, cloned)
+		} else {
+			resolved, err := filepath.abs(cloned)
+			if err == nil {
+				append(&paths, resolved)
+			}
+		}
+	}
+	return
+}
+
