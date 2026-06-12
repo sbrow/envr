@@ -97,6 +97,9 @@
                 gotools
                 cobra-cli
 
+                unstable.odin
+                unstable.ols
+
                 # Build tools
                 zip
 
