@@ -13,7 +13,3 @@ cmd_scan :: proc(cmd: ^Command) {
 cmd_sync :: proc(cmd: ^Command) {
 	fmt.println("TODO: sync")
 }
-
-cmd_check :: proc(cmd: ^Command) {
-	fmt.println("TODO: check")
-}

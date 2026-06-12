@@ -44,6 +44,7 @@ IMPLEMENTED_COMMANDS := []string{
 	"remove",
 	"restore",
 	"edit-config",
+	"check",
 }
 
 parse_args :: proc() -> (cmd: Command, ok: bool) {
