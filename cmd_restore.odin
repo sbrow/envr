@@ -7,7 +7,7 @@ import "core:strings"
 
 cmd_restore :: proc(cmd: ^Command) {
     if len(cmd.args) != 1 {
-        fmt.println("Usage: envr restore <path>")
+		print_command_help("restore")
         return
     }
 

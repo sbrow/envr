@@ -6,7 +6,7 @@ import "core:strings"
 
 cmd_remove :: proc(cmd: ^Command) {
     if len(cmd.args) != 1 {
-        fmt.println("Usage: envr remove <path>")
+		print_command_help("remove")
         return
     }
 

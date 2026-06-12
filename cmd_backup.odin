@@ -5,7 +5,7 @@ import "core:strings"
 
 cmd_backup :: proc(cmd: ^Command) {
 	if len(cmd.args) != 1 {
-		fmt.println("Usage: envr backup <path>")
+		print_command_help("backup")
 		return
 	}
 
