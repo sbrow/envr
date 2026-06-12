@@ -19,25 +19,20 @@ all: release clean
 $(BUILD_DIR):
 	@mkdir -p $(BUILD_DIR)
 
-# Generate version.odin from flake.nix
-version.odin:
-	@echo 'Generating version.odin (v$(VERSION))...'
-	@printf 'package main\n\nVERSION :: "$(VERSION)"\n' > version.odin
-
 # Build Linux AMD64
-$(LINUX_AMD64_BIN): version.odin $(BUILD_DIR)
+$(LINUX_AMD64_BIN): $(BUILD_DIR)
 	@echo "Building for Linux AMD64..."
 	odin build . -target:linux_amd64 -o:speed -out:$(LINUX_AMD64_BIN)
 	@echo "Built $(LINUX_AMD64_BIN)"
 
 # Build Linux ARM64
-$(LINUX_ARM64_BIN): version.odin $(BUILD_DIR)
+$(LINUX_ARM64_BIN): $(BUILD_DIR)
 	@echo "Building for Linux ARM64..."
 	odin build . -target:linux_arm64 -o:speed -out:$(LINUX_ARM64_BIN)
 	@echo "Built $(LINUX_ARM64_BIN)"
 
 # Build Darwin ARM64 (Mac)
-$(DARWIN_ARM64_BIN): version.odin $(BUILD_DIR)
+$(DARWIN_ARM64_BIN): $(BUILD_DIR)
 	@echo "Building for Darwin ARM64..."
 	odin build . -target:darwin_arm64 -o:speed -out:$(DARWIN_ARM64_BIN)
 	@echo "Built $(DARWIN_ARM64_BIN)"

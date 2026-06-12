@@ -69,7 +69,7 @@
 
             buildPhase = ''
               runHook preBuild
-              make version.odin
+              echo '${version}' > version.txt
               odin build . -o:speed -out:${pname}
               runHook postBuild
             '';

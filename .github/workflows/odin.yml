@@ -26,7 +26,6 @@ jobs:
 
       - name: Build
         run: |
-          make version.odin
           odin build . -o:speed -out:envr
 
       - name: Test
