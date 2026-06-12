@@ -3,6 +3,10 @@
 Have you ever wanted to back up all your .env files in case your hard drive gets
 nuked? `envr` makes it easier.
 
+> [!CAUTION]
+> The Zig community is quite anti-AI. Please read the [AI Disclaimer](#ai-disclaimer)
+> before wasting your time.
+
 `envr` is a binary application that tracks your `.env` files
 in an encyrpted sqlite database. Changes can be effortlessly synced with
 `envr sync`, and restored with `envr restore`.
@@ -132,3 +136,13 @@ This project is licensed under the [MIT License](./LICENSE).
 
 For issues, feature requests, or questions, please
 [open an issue](https://github.com/sbrow/envr/issues).
+
+## AI Disclaimer
+
+Unless noted here, you can be assured that I have personally written and reviewed
+every line of code in this software.
+
+- Many compiler errors that couldn't be solved with a quick google search were
+solved by passing errors to AI and transcribing the suggestions.
+- The "Pre-Zig" version of this readme was written by AI and then edited by me.
+- The Go code was mostly written using opencode, and manually tested by me.

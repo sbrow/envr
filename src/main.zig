@@ -1,0 +1,149 @@
+const std = @import("std");
+const Io = std.Io;
+
+const config = @import("config");
+const comma = @import("comma");
+const envr = @import("envr");
+
+const goBinary = "envr-go";
+
+pub fn main(init: std.process.Init) !void {
+    // This is appropriate for anything that lives as long as the process.
+    const arena: std.mem.Allocator = init.arena.allocator();
+
+    const args = try init.minimal.args.toSlice(arena);
+
+    try run(init.environ_map, init.io, arena, args);
+}
+
+/// Attempt to run the requested command.
+fn run(
+    environ_map: *std.process.Environ.Map,
+    io: Io,
+    arena: std.mem.Allocator,
+    args: []const [:0]const u8,
+) !void {
+    const page_size = std.heap.pageSize();
+
+    const cmd = envr.root.parse(args[1..]);
+    switch (cmd) {
+        .envr => {
+            var stdout_buffer: [page_size]u8 = undefined;
+            var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
+            const stdout_writer = &stdout_file_writer.interface;
+
+            return envr.root.help(stdout_writer);
+        },
+        .deps => {
+            var stdout_buffer: [1024]u8 = undefined;
+            var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
+            const stdout_writer = &stdout_file_writer.interface;
+
+            return envr.deps(
+                io,
+                stdout_writer,
+                environ_map.get("PATH").?,
+            );
+        },
+        .init => {
+            var stdout_buffer: [1024]u8 = undefined;
+            var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
+            const stdout_writer = &stdout_file_writer.interface;
+
+            try envr.init_cmd(
+                io,
+                arena,
+                stdout_writer,
+                environ_map.get("HOME").?,
+                .{
+                    // TODO: Actually parse this
+                    .force = true,
+                },
+            );
+        },
+        .list => {
+            var stdout_buffer: [page_size]u8 = undefined;
+            var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
+            const stdout_writer = &stdout_file_writer.interface;
+
+            return envr.list(
+                io,
+                arena,
+                stdout_writer,
+                environ_map.get("HOME").?,
+                // TODO: Don't hardcode this?
+                "/tmp",
+            );
+        },
+        .version => {
+            var stdout_buffer: [1024]u8 = undefined;
+            var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
+            const stdout_writer = &stdout_file_writer.interface;
+
+            return version(stdout_writer);
+        },
+        .unknown => {
+            return fallback_to_go(io, arena, args);
+        },
+    }
+}
+
+fn version(writer: *Io.Writer) !void {
+    try writer.print("{s}\n", .{config.version});
+    try writer.flush();
+}
+
+fn fallback_to_go(
+    io: Io,
+    arena: std.mem.Allocator,
+    args: []const [:0]const u8,
+) std.process.ReplaceError {
+    // Remap args
+    var childArgs = try std.ArrayList([]const u8).initCapacity(arena, args.len);
+    childArgs.appendAssumeCapacity(goBinary);
+
+    for (args[1..]) |arg| {
+        childArgs.appendAssumeCapacity(arg);
+    }
+
+    return std.process.replace(io, .{ .argv = childArgs.items });
+}
+
+test "simple test" {
+    const gpa = std.testing.allocator;
+    var alist: std.ArrayList(i32) = .empty;
+    defer alist.deinit(gpa); // Try commenting this out and see if zig detects the memory leak!
+    try alist.append(gpa, 42);
+    try std.testing.expectEqual(@as(i32, 42), alist.pop());
+}
+
+test "fuzz example" {
+    try std.testing.fuzz({}, testOne, .{});
+}
+
+fn testOne(context: void, smith: *std.testing.Smith) !void {
+    _ = context;
+    // Try passing `--fuzz` to `zig build test` and see if it manages to fail this test case!
+
+    const gpa = std.testing.allocator;
+    var alist: std.ArrayList(u8) = .empty;
+    defer alist.deinit(gpa);
+    while (!smith.eos()) switch (smith.value(enum { add_data, dup_data })) {
+        .add_data => {
+            const slice = try alist.addManyAsSlice(gpa, smith.value(u4));
+            smith.bytes(slice);
+        },
+        .dup_data => {
+            if (alist.items.len == 0) continue;
+            if (alist.items.len > std.math.maxInt(u32)) return error.SkipZigTest;
+            const len = smith.valueRangeAtMost(u32, 1, @min(32, alist.items.len));
+            const off = smith.valueRangeAtMost(u32, 0, @intCast(alist.items.len - len));
+            try alist.appendSlice(gpa, alist.items[off..][0..len]);
+            try std.testing.expectEqualSlices(
+                u8,
+                alist.items[off..][0..len],
+                alist.items[alist.items.len - len ..],
+            );
+        },
+    };
+}

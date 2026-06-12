@@ -1,0 +1,21 @@
+{
+  "db_path": "~/.envr/data.age",
+  "keys": [
+    {
+      "private": "~/.ssh/id_ed25519",
+      "public": "~/.ssh/id_ed25519.pub"
+    }
+  ],
+  "scan": {
+    "matcher": "\\.env",
+    "exclude": [
+      "*\\.envrc",
+      "\\.local",
+      "node_modules",
+      "vendor"
+    ],
+    "include": [
+      "~"
+    ]
+  }
+}

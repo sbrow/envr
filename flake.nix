@@ -93,12 +93,17 @@
                 nushell
                 go
                 gopls
+                sqlite
 
                 gotools
                 cobra-cli
 
                 # Build tools
+                age
+                unstable.cargo
                 zip
+
+                opencode
 
                 # IDE
                 unstable.helix

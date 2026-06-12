@@ -1,10 +1,18 @@
 # dev env
 .direnv
+/.env
+
+# dependencies
+deps
+vendor
 
 # docs
 man 
 
 # build artifacts
+.zig-cache
 builds
 envr
+envr-go
 result
+zig-pkg

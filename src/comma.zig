@@ -1,0 +1,146 @@
+//! By convention, root.zig is the root source file when making a package.
+const std = @import("std");
+const Io = std.Io;
+
+pub const Command = struct {
+    name: []const u8,
+    short: ?[]const u8 = null,
+    long: ?[]const u8 = null,
+    subcommands: []const Command = &.{},
+    examples: [][]const u8 = &.{},
+    /// The enum type of the command
+    Type: type,
+    /// The type of struct that holds the Commands's flags and arguments
+    // Params: type,
+
+    pub fn new(cmd: CommandOptions) Command {
+        const subcommands: [cmd.subcommands.len]Command = blk: {
+            var result: [cmd.subcommands.len]Command = undefined;
+            inline for (cmd.subcommands, 0..) |sub, idx| {
+                result[idx] = new(sub);
+            }
+            break :blk result;
+        };
+
+        return .{
+            .name = cmd.name,
+            .short = cmd.short,
+            .long = cmd.long,
+            .subcommands = &subcommands,
+            .Type = cmd.as_enum(),
+        };
+    }
+
+    pub fn parse(comptime self: @This(), args: []const []const u8) self.Type {
+        if (args.len == 0) {
+            return @enumFromInt(0);
+        }
+
+        const target = args[0];
+
+        inline for (self.subcommands, 1..) |cmd, idx| {
+            if (std.mem.eql(u8, target, cmd.name)) {
+                return @enumFromInt(idx);
+            }
+        }
+
+        return @enumFromInt(self.subcommands.len + 1);
+    }
+
+    /// Used for indentation when printing command help
+    const tab = "  ";
+
+    /// Print usage information to the console.
+    pub fn help(self: @This(), w: *Io.Writer) !void {
+        defer w.flush() catch {};
+
+        if (self.long) |long| {
+            try w.print("{s}\n\n", .{long});
+        }
+
+        try w.print("Usage:\n{s}{s}\n", .{ tab, self.name });
+
+        if (self.subcommands.len > 0) {
+            try w.print("\nAvailable Commands:\n", .{});
+
+            var max_width: u8 = 0;
+
+            inline for (self.subcommands) |cmd| {
+                max_width = @max(max_width, cmd.name.len);
+            }
+
+            // Print short command description
+            inline for (self.subcommands) |cmd| {
+                try w.print(
+                    "{s}{s}",
+                    .{
+                        tab,
+                        cmd.name,
+                    },
+                );
+
+                for (0..(max_width - cmd.name.len)) |_| {
+                    try w.print(" ", .{});
+                }
+
+                try w.print(
+                    " {s}\n",
+                    .{
+                        cmd.short orelse "",
+                    },
+                );
+            }
+
+            try w.print("\n", .{});
+        }
+
+        // TODO: Print flags
+
+        // TODO: Print arguments
+
+        if (self.subcommands.len > 0) {
+            try w.print(
+                "Use \"{s} [command] --help\" for more information about a command.",
+                .{self.name},
+            );
+        }
+    }
+};
+
+pub const ParseError = error{
+    InvalidType,
+};
+
+const CommandOptions = struct {
+    name: []const u8,
+    short: ?[]const u8 = null,
+    long: ?[]const u8 = null,
+    subcommands: []const CommandOptions = &[0]CommandOptions{},
+
+    fn as_enum(self: @This()) type {
+        var field_names: [self.subcommands.len + 2][]const u8 = undefined;
+        var field_values: [self.subcommands.len + 2]u32 = undefined;
+
+        field_names[0] = self.name;
+        field_values[0] = 0;
+
+        inline for (self.subcommands, 1..) |cmd, idx| {
+            field_names[idx] = cmd.name;
+            field_values[idx] = idx;
+        }
+
+        field_names[self.subcommands.len + 1] = "unknown";
+        field_values[self.subcommands.len + 1] = self.subcommands.len + 1;
+
+        return @Enum(
+            u32,
+            .exhaustive,
+            &field_names,
+            &field_values,
+        );
+    }
+};
+
+// /// parses the args into params
+// pub fn params(cmd: Command, args: [][]const u8) cmd.Params {
+// }

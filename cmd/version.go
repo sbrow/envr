@@ -15,6 +15,7 @@ var (
 var long bool
 
 // versionCmd represents the version command
+// Deprecated: Remove when Zig has the chance to emit help
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show envr's version",
