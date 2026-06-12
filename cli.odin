@@ -35,21 +35,6 @@ COMMANDS := []CommandInfo{
 	{"edit-config", "envr edit-config", "Edit your config with your default editor", ""},
 }
 
-IMPLEMENTED_COMMANDS := []string{
-	"init",
-	"version",
-	"deps",
-	"list",
-	"backup",
-	"add",
-	"remove",
-	"restore",
-	"edit-config",
-	"check",
-	"scan",
-	"sync",
-}
-
 parse_args :: proc() -> (cmd: Command, ok: bool) {
 	args := os.args
 	if len(args) < 2 {
@@ -101,15 +86,6 @@ parse_args :: proc() -> (cmd: Command, ok: bool) {
 	}
 
 	return cmd, true
-}
-
-is_implemented :: proc(name: string) -> bool {
-	for c in IMPLEMENTED_COMMANDS {
-		if c == name {
-			return true
-		}
-	}
-	return false
 }
 
 has_flag :: proc(cmd: ^Command, name: string) -> bool {

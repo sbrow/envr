@@ -113,7 +113,7 @@ new_config :: proc(private_key_paths: []string) -> Config {
 
 	exclude := make([dynamic]string, 0, 4)
 	append(&exclude, "*\\.envrc")
-	append(&exclude, "\\.local")
+	append(&exclude, "\\.local/")
 	append(&exclude, "node_modules")
 	append(&exclude, "vendor")
 
@@ -148,7 +148,7 @@ save_config :: proc(cfg: Config, force: bool = false) -> bool {
 
 	config_path, _ := filepath.join([]string{config_dir, "config.json"})
 
-	if !force && os.exists(config_path) {
+	if os.exists(config_path) && !force {
 		info, stat_err := os.stat(config_path, context.allocator)
 		if stat_err == nil {
 			defer os.file_info_delete(info, context.allocator)
