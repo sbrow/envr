@@ -12,13 +12,15 @@ import "core:time"
 
 import "sqlite"
 
-SyncResult :: enum i32 {
-	Noop       = 0,
-	DirUpdated = 1,
-	Restored   = 1 << 1,
-	BackedUp   = 1 << 2,
-	Error      = 1 << 3,
+SyncFlagEnum :: enum {
+	Noop,
+	DirUpdated,
+	Restored,
+	BackedUp,
+	Error,
 }
+
+SyncFlag :: bit_set[SyncFlagEnum]
 
 SyncDirection :: enum {
 	TrustDatabase,
@@ -449,9 +451,8 @@ string_to_cstring :: proc(s: string) -> cstring {
 	return cs
 }
 
-db_update_required :: proc(status: SyncResult) -> bool {
-	s := i32(status)
-	return (s & (i32(SyncResult.BackedUp) | i32(SyncResult.DirUpdated))) != 0
+db_update_required :: proc(status: SyncFlag) -> bool {
+	return .BackedUp in status || .DirUpdated in status
 }
 
 shares_remote :: proc(f: ^EnvFile, remotes: []string) -> bool {
@@ -510,8 +511,8 @@ env_file_backup :: proc(f: ^EnvFile) -> bool {
 	return true
 }
 
-env_file_sync :: proc(f: ^EnvFile, dir: SyncDirection, d: ^Db) -> (SyncResult, string) {
-	result: SyncResult = .Noop
+env_file_sync :: proc(f: ^EnvFile, dir: SyncDirection, d: ^Db) -> (SyncFlag, string) {
+	result: SyncFlag = {}
 	err_msg: string
 
 	_, stat_err := os.stat(f.Dir, context.allocator)
@@ -521,18 +522,18 @@ env_file_sync :: proc(f: ^EnvFile, dir: SyncDirection, d: ^Db) -> (SyncResult, s
 		if d != nil {
 			dirs, dirs_ok := find_moved_dirs(d, f)
 			if !dirs_ok {
-				return .Error, "failed to find moved dirs"
+				return {.Error}, "failed to find moved dirs"
 			}
 			moved_dirs = dirs
 		}
 
 		if len(moved_dirs) == 0 {
-			return .Error, "directory missing"
+			return {.Error}, "directory missing"
 		} else if len(moved_dirs) == 1 {
 			update_dir(f, moved_dirs[0])
-			result = .DirUpdated
+			result = {.DirUpdated}
 		} else {
-			return .Error, "multiple directories found"
+			return {.Error}, "multiple directories found"
 		}
 	}
 
@@ -541,11 +542,10 @@ env_file_sync :: proc(f: ^EnvFile, dir: SyncDirection, d: ^Db) -> (SyncResult, s
 		write_err := os.write_entire_file(f.Path, f.contents)
 		if write_err != nil {
 			msg, _ := strings.concatenate({"failed to write file: ", fmt.tprintf("%v", write_err)})
-			return .Error, msg
+			return {.Error}, msg
 		}
 
-		s := i32(result) | i32(SyncResult.Restored)
-		return SyncResult(s), ""
+		return result + {.Restored}, ""
 	}
 
 	data, read_err := os.read_entire_file_from_path(f.Path, context.allocator)
@@ -553,7 +553,7 @@ env_file_sync :: proc(f: ^EnvFile, dir: SyncDirection, d: ^Db) -> (SyncResult, s
 		msg, _ := strings.concatenate(
 			{"failed to read file for SHA comparison: ", fmt.tprintf("%v", read_err)},
 		)
-		return .Error, msg
+		return {.Error}, msg
 	}
 
 	digest := hash.hash_bytes(hash.Algorithm.SHA256, data)
@@ -569,21 +569,20 @@ env_file_sync :: proc(f: ^EnvFile, dir: SyncDirection, d: ^Db) -> (SyncResult, s
 		write_err := os.write_entire_file(f.Path, f.contents)
 		if write_err != nil {
 			msg, _ := strings.concatenate({"failed to write file: ", fmt.tprintf("%v", write_err)})
-			return .Error, msg
+			return {.Error}, msg
 		}
-		s := i32(result) | i32(SyncResult.Restored)
-		return SyncResult(s), ""
+		return result + {.Restored}, ""
 	case .TrustFilesystem:
 		if !env_file_backup(f) {
-			return .Error, "failed to backup file"
+			return {.Error}, "failed to backup file"
 		}
-		return .BackedUp, ""
+		return result + {.BackedUp}, ""
 	}
 
 	return result, ""
 }
 
-db_sync :: proc(d: ^Db, f: ^EnvFile) -> (SyncResult, string) {
+db_sync :: proc(d: ^Db, f: ^EnvFile) -> (SyncFlag, string) {
 	return env_file_sync(f, .TrustFilesystem, d)
 }
 

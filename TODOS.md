@@ -10,8 +10,6 @@ Note: These todos can wait until all the subcommands have been ported.
 
 30. **cmd_sync.odin:46-50, 64-68** — Double `db_insert` when `BackedUp`: first insert on line 48, then `db_update_required` is also true for `BackedUp` so second insert runs on line 65. Redundant and wasteful.
 
-31. **db.odin:626 & env_file.go:183** — `BackedUp` discards `DirUpdated`. When `TrustFilesystem` is used and the hash differs, the result is just `BackedUp` (not `BackedUp | DirUpdated`). If a file's directory was moved AND its contents changed, the old DB entry won't be deleted because the `DirUpdated` check at `cmd_sync.odin:59` never fires. Bug exists in both Go and Odin.
-
 ## MEDIUM
 
 4. **db.odin:29-35** — `make_temp_path` never calls `strings.builder_destroy`. Leaks builder buffer every call.

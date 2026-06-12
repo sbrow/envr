@@ -4,33 +4,32 @@ import "core:testing"
 
 @(test)
 test_db_update_required_noop :: proc(t: ^testing.T) {
-	testing.expect(t, !db_update_required(.Noop), "Noop should not require update")
+	testing.expect(t, !db_update_required({}), "Noop should not require update")
 }
 
 @(test)
 test_db_update_required_backed_up :: proc(t: ^testing.T) {
-	testing.expect(t, db_update_required(.BackedUp), "BackedUp should require update")
+	testing.expect(t, db_update_required({.BackedUp}), "BackedUp should require update")
 }
 
 @(test)
 test_db_update_required_dir_updated :: proc(t: ^testing.T) {
-	testing.expect(t, db_update_required(.DirUpdated), "DirUpdated should require update")
+	testing.expect(t, db_update_required({.DirUpdated}), "DirUpdated should require update")
 }
 
 @(test)
 test_db_update_required_restored :: proc(t: ^testing.T) {
-	testing.expect(t, !db_update_required(.Restored), "Restored alone should not require update")
+	testing.expect(t, !db_update_required({.Restored}), "Restored alone should not require update")
 }
 
 @(test)
 test_db_update_required_error :: proc(t: ^testing.T) {
-	testing.expect(t, !db_update_required(.Error), "Error alone should not require update")
+	testing.expect(t, !db_update_required({.Error}), "Error alone should not require update")
 }
 
 @(test)
 test_db_update_required_combined :: proc(t: ^testing.T) {
-	s := i32(SyncResult.DirUpdated) | i32(SyncResult.Restored)
-	combined := SyncResult(s)
+	combined := SyncFlag{.DirUpdated, .Restored}
 	testing.expect(t, db_update_required(combined), "DirUpdated|Restored should require update")
 }
 

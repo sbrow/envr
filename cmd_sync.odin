@@ -11,6 +11,7 @@ SyncEntry :: struct {
 	Status: string `json:"status"`,
 }
 
+// TODO: Check for quiet failures.
 cmd_sync :: proc(cmd: ^Command) {
 	db, db_ok := db_open()
 	if !db_ok {
@@ -33,28 +34,25 @@ cmd_sync :: proc(cmd: ^Command) {
 		result, err_msg := db_sync(&db, &file)
 
 		status: string
-		s := i32(result)
-		is_error := (s & i32(SyncResult.Error)) != 0
-		is_backed := (s & i32(SyncResult.BackedUp)) != 0
-		is_restored := (s & i32(SyncResult.Restored)) != 0
-		is_dir_updated := (s & i32(SyncResult.DirUpdated)) != 0
+		is_dir_updated := .DirUpdated in result
 
-		if is_error {
+		switch {
+		case .Error in result:
 			if len(err_msg) > 0 {
 				status = err_msg
 			} else {
 				status = "error"
 			}
-		} else if is_backed {
+		case .BackedUp in result:
 			status = "Backed Up"
 			if !db_insert(&db, file) {
 				return
 			}
-		} else if is_restored {
+		case .Restored in result:
 			status = "Restored"
-		} else if is_dir_updated && !is_restored {
+		case .DirUpdated in result:
 			status = "Moved"
-		} else {
+		case:
 			status = "OK"
 		}
 
