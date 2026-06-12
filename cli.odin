@@ -15,6 +15,8 @@ IMPLEMENTED_COMMANDS := []string{
 	"version",
 	"deps",
 	"list",
+	"backup",
+	"add",
 }
 
 parse_args :: proc() -> (cmd: Command, ok: bool) {

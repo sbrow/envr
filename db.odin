@@ -1,6 +1,8 @@
 package main
 
 import "core:c"
+import "core:crypto/hash"
+import "core:encoding/hex"
 import "core:encoding/json"
 import "core:fmt"
 import "core:os"
@@ -262,6 +264,131 @@ db_attach_and_copy :: proc(mem_db: ^rawptr, src_path: string) -> bool {
     }
 
     sqlite.db_exec(mem_db, "DETACH DATABASE source", nil, nil, nil)
+    return true
+}
+
+get_git_remotes :: proc(dir: string) -> [dynamic]string {
+    remotes: [dynamic]string
+    remote_set: map[string]bool
+
+    b: strings.Builder
+    strings.builder_init(&b)
+    fmt.sbprintf(&b, "%s-git-remotes", make_temp_path())
+    tmp_path := strings.to_string(b)
+    tmp_file, tmp_err := os.open(tmp_path, os.O_CREATE | os.O_WRONLY | os.O_TRUNC)
+    if tmp_err != nil {
+        return remotes
+    }
+
+    args := []string{"git", "remote", "-v"}
+    desc := os.Process_Desc{
+        command = args,
+        stdout = tmp_file,
+        stderr = nil,
+        working_dir = dir,
+    }
+
+    p, start_err := os.process_start(desc)
+    os.close(tmp_file)
+    if start_err != nil {
+        os.remove(tmp_path)
+        return remotes
+    }
+
+    state, wait_err := os.process_wait(p)
+    if wait_err != nil || state.exit_code != 0 {
+        os.remove(tmp_path)
+        return remotes
+    }
+
+    data, read_err := os.read_entire_file_from_path(tmp_path, context.allocator)
+    os.remove(tmp_path)
+    if read_err != nil {
+        return remotes
+    }
+
+    output_str := string(data)
+    lines := strings.split(output_str, "\n")
+
+    for &line in lines {
+        line = strings.trim_space(line)
+        if len(line) == 0 {
+            continue
+        }
+        parts := strings.fields(line)
+        if len(parts) >= 2 {
+            remote_set[parts[1]] = true
+        }
+    }
+
+    for remote, _ in remote_set {
+        cloned, _ := strings.clone(remote)
+        append(&remotes, cloned)
+    }
+
+    return remotes
+}
+
+new_env_file :: proc(path: string) -> (EnvFile, bool) {
+    abs_path, abs_err := filepath.abs(path)
+    if abs_err != nil {
+        fmt.printf("Error getting absolute path: %v\n", abs_err)
+        return EnvFile{}, false
+    }
+    cloned_path, _ := strings.clone(abs_path)
+
+    dir := filepath.dir(cloned_path)
+    cloned_dir, _ := strings.clone(dir)
+
+    remotes := get_git_remotes(cloned_dir)
+
+    data, read_err := os.read_entire_file_from_path(cloned_path, context.allocator)
+    if read_err != nil {
+        fmt.printf("Error reading file %s: %v\n", cloned_path, read_err)
+        return EnvFile{}, false
+    }
+
+    digest := hash.hash_bytes(hash.Algorithm.SHA256, data)
+    hex_bytes, _ := hex.encode(digest)
+    sha_str := string(hex_bytes)
+
+    return EnvFile{
+        Path = cloned_path,
+        Dir = cloned_dir,
+        Remotes = remotes,
+        Sha256 = sha_str,
+        contents = string(data),
+    }, true
+}
+
+db_insert :: proc(d: ^Db, file: EnvFile) -> bool {
+    remotes_json, marshal_err := json.marshal(file.Remotes)
+    if marshal_err != nil {
+        fmt.printf("Error marshaling remotes: %v\n", marshal_err)
+        return false
+    }
+
+    sql := "INSERT OR REPLACE INTO envr_env_files (path, remotes, sha256, contents) VALUES (?, ?, ?, ?)"
+    stmt: ^rawptr
+    rc := sqlite.prepare_v2(d.db, string_to_cstring(sql), -1, &stmt, nil)
+    if rc != sqlite.OK {
+        fmt.printf("Error preparing insert: %s\n", sqlite.db_errmsg(d.db))
+        return false
+    }
+    defer sqlite.finalize(stmt)
+
+    rc = sqlite.bind_text(stmt, 1, string_to_cstring(file.Path), -1, nil)
+    rc = sqlite.bind_text(stmt, 2, string_to_cstring(string(remotes_json)), -1, nil)
+    rc = sqlite.bind_text(stmt, 3, string_to_cstring(file.Sha256), -1, nil)
+    rc = sqlite.bind_text(stmt, 4, string_to_cstring(file.contents), -1, nil)
+
+    rc = sqlite.step(stmt)
+    if rc != sqlite.DONE {
+        fmt.printf("Error inserting: %s\n", sqlite.db_errmsg(d.db))
+        return false
+    }
+
+    d.changed = true
     return true
 }
 
