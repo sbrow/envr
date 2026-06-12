@@ -45,9 +45,6 @@ cmd_sync :: proc(cmd: ^Command) {
 			}
 		case .BackedUp in result:
 			status = "Backed Up"
-			if !db_insert(&db, file) {
-				return
-			}
 		case .Restored in result:
 			status = "Restored"
 		case .DirUpdated in result:

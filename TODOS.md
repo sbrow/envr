@@ -8,8 +8,6 @@ Note: These todos can wait until all the subcommands have been ported.
 
 3. **config.odin:52-54** — `os.user_home_dir` error silently ignored. If it fails, `home` is `""` and all paths become relative (`".envr"` instead of `"~/.envr"`).
 
-30. **cmd_sync.odin:46-50, 64-68** — Double `db_insert` when `BackedUp`: first insert on line 48, then `db_update_required` is also true for `BackedUp` so second insert runs on line 65. Redundant and wasteful.
-
 ## MEDIUM
 
 4. **db.odin:29-35** — `make_temp_path` never calls `strings.builder_destroy`. Leaks builder buffer every call.
