@@ -17,7 +17,3 @@ cmd_sync :: proc(cmd: ^Command) {
 cmd_check :: proc(cmd: ^Command) {
 	fmt.println("TODO: check")
 }
-
-cmd_edit_config :: proc(cmd: ^Command) {
-	fmt.println("TODO: edit-config")
-}
