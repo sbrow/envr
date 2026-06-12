@@ -18,7 +18,8 @@ cmd_init :: proc(cmd: ^Command) {
 	}
 
 	if len(keys) == 0 {
-		fmt.println("No SSH private keys found in ~/.ssh")
+		fmt.println("No ssh-ed25519 keys found in ~/.ssh")
+		fmt.println("Generate one with: ssh-keygen -t ed25519")
 		return
 	}
 

@@ -98,6 +98,7 @@
                 cobra-cli
 
                 age
+                libsodium
                 sqlite
                 unstable.odin
                 unstable.ols

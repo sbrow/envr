@@ -61,9 +61,9 @@ envr_dir :: proc() -> string {
 	return dir
 }
 
-data_age_path :: proc() -> string {
+data_encrypted_path :: proc() -> string {
 	dir := envr_dir()
-	path, _ := filepath.join([]string{dir, "data.age"})
+	path, _ := filepath.join([]string{dir, "data.envr"})
 	return path
 }
 
@@ -103,6 +103,9 @@ find_ssh_private_keys :: proc() -> (keys: [dynamic]string, ok: bool) {
 		}
 
 		full_path, _ := filepath.join([]string{ssh_dir, name})
+		if !is_ed25519_key(full_path) {
+			continue
+		}
 		append(&keys, full_path)
 	}
 

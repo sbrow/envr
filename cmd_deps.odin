@@ -20,11 +20,5 @@ cmd_deps :: proc(cmd: ^Command) {
 		append(&rows, []string{"fd", "\u2717 Missing"})
 	}
 
-	if .Age in feats {
-		append(&rows, []string{"age", "\u2713 Available"})
-	} else {
-		append(&rows, []string{"age", "\u2717 Missing"})
-	}
-
 	render_table(headers, rows[:])
 }

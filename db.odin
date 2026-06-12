@@ -53,8 +53,8 @@ db_open :: proc() -> (Db, bool) {
 		return Db{}, false
 	}
 
-	age_path := data_age_path()
-	_, stat_err := os.stat(age_path, context.allocator)
+	data_path := data_encrypted_path()
+	_, stat_err := os.stat(data_path, context.allocator)
 
 	db: ^rawptr
 	rc := sqlite.db_open(":memory:", &db)
@@ -72,7 +72,7 @@ db_open :: proc() -> (Db, bool) {
 	}
 
 	if stat_err == nil {
-		if !db_restore_from_age(db, cfg) {
+		if !db_restore_from_encrypted(db, cfg) {
 			sqlite.db_close(db)
 			return Db{}, false
 		}
@@ -91,8 +91,34 @@ db_close :: proc(d: ^Db) {
 			return
 		}
 
-		db_encrypt_file(tmp_path, d.cfg.Keys[:])
+		sqlite_data, read_err := os.read_entire_file_from_path(tmp_path, context.allocator)
 		os.remove(tmp_path)
+		if read_err != nil {
+			fmt.printf("Error reading vacuumed database: %v\n", read_err)
+			sqlite.db_close(d.db)
+			return
+		}
+
+		encrypted, enc_ok := encrypt(sqlite_data, d.cfg.Keys[:])
+		delete(sqlite_data)
+		if !enc_ok {
+			fmt.println("Error: encryption failed")
+			sqlite.db_close(d.db)
+			return
+		}
+
+		data_path := data_encrypted_path()
+		envr_d := envr_dir()
+		os.mkdir_all(envr_d)
+
+		write_err := os.write_entire_file(data_path, encrypted)
+		delete(encrypted)
+		if write_err != nil {
+			fmt.printf("Error writing encrypted database: %v\n", write_err)
+			sqlite.db_close(d.db)
+			return
+		}
+
 		d.changed = false
 	}
 	sqlite.db_close(d.db)
@@ -158,105 +184,33 @@ db_vacuum_to_file :: proc(db: ^rawptr, path: string) -> bool {
 	return true
 }
 
-db_restore_from_age :: proc(db: ^rawptr, cfg: Config) -> bool {
-	tmp_path := make_temp_path()
-	defer os.remove(tmp_path)
-
-	if !db_decrypt_to_file(tmp_path, cfg.Keys[:]) {
+db_restore_from_encrypted :: proc(db: ^rawptr, cfg: Config) -> bool {
+	data_path := data_encrypted_path()
+	encrypted_data, read_err := os.read_entire_file_from_path(data_path, context.temp_allocator)
+	if read_err != nil {
+		fmt.printf("Error reading encrypted database: %v\n", read_err)
 		return false
 	}
+
+	plaintext, dec_ok := decrypt(encrypted_data, cfg.Keys[:])
+	if !dec_ok {
+		fmt.println("Error: decryption failed")
+		return false
+	}
+	defer delete(plaintext)
+
+	tmp_path := make_temp_path()
+	write_err := os.write_entire_file(tmp_path, plaintext)
+	if write_err != nil {
+		fmt.printf("Error writing temp database: %v\n", write_err)
+		return false
+	}
+	defer os.remove(tmp_path)
 
 	if !db_attach_and_copy(db, tmp_path) {
 		return false
 	}
 
-	return true
-}
-
-db_decrypt_to_file :: proc(tmp_path: string, keys: []SshKeyPair) -> bool {
-	age_path := data_age_path()
-
-	args := make([dynamic]string)
-	append(&args, "age")
-	append(&args, "--decrypt")
-	append(&args, "-o")
-	append(&args, tmp_path)
-	for key in keys {
-		append(&args, "-i")
-		append(&args, key.Private)
-	}
-	append(&args, age_path)
-
-	desc := os.Process_Desc {
-		command = args[:],
-		stdout  = os.stderr,
-		stderr  = os.stderr,
-	}
-
-	p, err := os.process_start(desc)
-	if err != nil {
-		fmt.printf("Error running age decrypt: %v\n", err)
-		return false
-	}
-
-	state, wait_err := os.process_wait(p)
-	if wait_err != nil {
-		fmt.printf("Error waiting for age: %v\n", wait_err)
-		return false
-	}
-	if state.exit_code != 0 {
-		fmt.println("Error: age decryption failed")
-		return false
-	}
-	return true
-}
-
-db_encrypt_file :: proc(tmp_path: string, keys: []SshKeyPair) -> bool {
-	age_path := data_age_path()
-	envr_d := envr_dir()
-	os.mkdir_all(envr_d)
-
-	args := make([dynamic]string)
-	append(&args, "age")
-	append(&args, "--encrypt")
-	for key in keys {
-		append(&args, "-r")
-		pub_data, pub_err := os.read_entire_file_from_path(key.Public, context.allocator)
-		if pub_err != nil {
-			fmt.printf("Error reading public key: %s\n", key.Public)
-			return false
-		}
-		pub_str := string(pub_data)
-		if strings.has_suffix(pub_str, "\n") {
-			pub_str = pub_str[:len(pub_str) - 1]
-		}
-		append(&args, pub_str)
-	}
-	append(&args, "-o")
-	append(&args, age_path)
-	append(&args, tmp_path)
-
-	desc := os.Process_Desc {
-		command = args[:],
-		stdout  = os.stderr,
-		stderr  = os.stderr,
-	}
-
-	p, err := os.process_start(desc)
-	if err != nil {
-		fmt.printf("Error running age encrypt: %v\n", err)
-		return false
-	}
-
-	state, wait_err := os.process_wait(p)
-	if wait_err != nil {
-		fmt.printf("Error waiting for age: %v\n", wait_err)
-		return false
-	}
-	if state.exit_code != 0 {
-		fmt.println("Error: age encryption failed")
-		return false
-	}
 	return true
 }
 

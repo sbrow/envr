@@ -4,13 +4,13 @@ Note: These todos can wait until all the subcommands have been ported.
 
 ## HIGH
 
-1. [x] **table.odin:74-89** — Hand-rolled JSON output doesn't escape `"`, `\`, newlines. Reimplements `json.marshal` which is already imported in `cmd_list.odin`. Replace with `json.marshal`.
-
 2. **db.odin:380-383, 405, 446** — `sqlite.bind_text` return values overwritten but never checked. A failed bind means `sqlite.step` operates on unbound params.
 
 3. **config.odin:52-54** — `os.user_home_dir` error silently ignored. If it fails, `home` is `""` and all paths become relative (`".envr"` instead of `"~/.envr"`).
 
 30. **cmd_sync.odin:46-50, 64-68** — Double `db_insert` when `BackedUp`: first insert on line 48, then `db_update_required` is also true for `BackedUp` so second insert runs on line 65. Redundant and wasteful.
+
+31. **db.odin:626 & env_file.go:183** — `BackedUp` discards `DirUpdated`. When `TrustFilesystem` is used and the hash differs, the result is just `BackedUp` (not `BackedUp | DirUpdated`). If a file's directory was moved AND its contents changed, the old DB entry won't be deleted because the `DirUpdated` check at `cmd_sync.odin:59` never fires. Bug exists in both Go and Odin.
 
 ## MEDIUM
 
@@ -37,8 +37,6 @@ Note: These todos can wait until all the subcommands have been ported.
 35. **prompt.odin:124** — `make([dynamic]bool, len(options))` creates N zero-initialized elements. Works because `false` is the default, but same footgun as original issue 1. Should be `make([dynamic]bool, 0, len(options))`.
 
 ## LOW
-
-14. [x] **db.odin:338-341** — Unnecessary `strings.clone` before `filepath.dir` (which already returns a slice into the input).
 
 15. **db.odin:115** — `json.unmarshal_string` error not checked. Malformed JSON silently produces empty/partial data.
 

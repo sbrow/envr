@@ -1,6 +1,8 @@
 # dev env
 .direnv
 
+list.json
+
 # docs
 man 
 

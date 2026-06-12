@@ -6,52 +6,56 @@ import "core:path/filepath"
 import "core:strings"
 
 ListEntry :: struct {
-    Directory: string `json:"directory"`,
-    Path:      string `json:"path"`,
+	Directory: string `json:"directory"`,
+	Path:      string `json:"path"`,
 }
 
 cmd_list :: proc(cmd: ^Command) {
-    db, db_ok := db_open()
-    if !db_ok {
-        return
-    }
-    defer db_close(&db)
+	db, db_ok := db_open()
+	if !db_ok {
+		return
+	}
+	defer db_close(&db)
 
-    rows, list_ok := db_list(&db)
-    if !list_ok {
-        return
-    }
-    defer delete(rows)
+	rows, list_ok := db_list(&db)
+	if !list_ok {
+		return
+	}
+	defer delete(rows)
 
-    if is_tty() {
-        headers := []string{"Directory", "Path"}
-        table_rows := make([dynamic][]string, 0, len(rows))
+	if is_tty() {
+		headers := []string{"Directory", "Path"}
+		table_rows := make([dynamic][]string, 0, len(rows), context.temp_allocator)
 
-        for row in rows {
-            dir_str := strings.concatenate({row.Dir, "/"})
-            filename := filepath.base(row.Path)
-            row_slice := make([]string, 2)
-            row_slice[0] = dir_str
-            row_slice[1] = filename
-            append(&table_rows, row_slice)
-        }
+		for row in rows {
+			dir_str := strings.concatenate({row.Dir, "/"}, context.temp_allocator)
+			filename := filepath.base(row.Path)
+			row_slice := make([]string, 2)
+			row_slice[0] = dir_str
+			row_slice[1] = filename
+			append(&table_rows, row_slice)
+		}
 
-        render_table(headers, table_rows[:])
-    } else {
-        entries: [dynamic]ListEntry
-        for row in rows {
-            filename := filepath.base(row.Path)
-            append(&entries, ListEntry{
-                Directory = strings.concatenate({row.Dir, "/"}),
-                Path = filename,
-            })
-        }
+		render_table(headers, table_rows[:])
+	} else {
+		entries: [dynamic]ListEntry
+		for row in rows {
+			filename := filepath.base(row.Path)
+			append(
+				&entries,
+				ListEntry {
+					Directory = strings.concatenate({row.Dir, "/"}, context.temp_allocator),
+					Path = filename,
+				},
+			)
+		}
 
-        data, marshal_err := json.marshal(entries[:])
-        if marshal_err != nil {
-            fmt.printf("Error marshaling JSON: %v\n", marshal_err)
-            return
-        }
-        fmt.println(string(data))
-    }
+		data, marshal_err := json.marshal(entries[:])
+		if marshal_err != nil {
+			fmt.printf("Error marshaling JSON: %v\n", marshal_err)
+			return
+		}
+		fmt.println(string(data))
+	}
 }
+
