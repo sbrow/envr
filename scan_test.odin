@@ -37,7 +37,7 @@ test_scan_path_finds_gitignored_env_files :: proc(t: ^testing.T) {
 	_ = os.write_entire_file(fmt.tprintf("%s/config.yaml", base), "key: value")
 
 	cfg := Config {
-		ScanConfig = ScanConfig{Matcher = "\\.env", Exclude = []string{}, Include = []string{}},
+		ScanConfig = ScanConfig{Matcher = "\\.env"},
 	}
 
 	results, ok := scan_path(base, cfg)
@@ -76,7 +76,7 @@ test_scan_path_empty_dir :: proc(t: ^testing.T) {
 	defer os.remove_all(base)
 
 	cfg := Config {
-		ScanConfig = ScanConfig{Matcher = "\\.env", Exclude = []string{}, Include = []string{}},
+		ScanConfig = ScanConfig{Matcher = "\\.env"},
 	}
 
 	results, ok := scan_path(base, cfg)

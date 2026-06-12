@@ -13,17 +13,17 @@ SshKeyPair :: struct {
 
 ScanConfig :: struct {
 	Matcher: string `json:"matcher"`,
-	Exclude: []string `json:"exclude"`,
-	Include: []string `json:"include"`,
+	Exclude: [dynamic]string `json:"exclude"`,
+	Include: [dynamic]string `json:"include"`,
 }
 
 Config :: struct {
-	Keys:       []SshKeyPair `json:"keys"`,
+	Keys:       [dynamic]SshKeyPair `json:"keys"`,
 	ScanConfig: ScanConfig `json:"scan"`,
 }
 
 load_config :: proc() -> (Config, bool) {
-	home, home_err := os.user_home_dir(context.allocator)
+	home, home_err := os.user_home_dir(context.temp_allocator)
 	if home_err != nil {
 		fmt.printf("Error getting home dir: %v\n", home_err)
 		return Config{}, false
@@ -47,6 +47,12 @@ load_config :: proc() -> (Config, bool) {
 	}
 
 	return cfg, true
+}
+
+delete_config :: proc(cfg: Config) {
+	delete(cfg.Keys)
+	delete(cfg.ScanConfig.Exclude)
+	delete(cfg.ScanConfig.Include)
 }
 
 envr_dir :: proc() -> string {
@@ -107,7 +113,8 @@ find_ssh_private_keys :: proc() -> (keys: [dynamic]string, ok: bool) {
 new_config :: proc(private_key_paths: []string) -> Config {
 	keys := make([dynamic]SshKeyPair, 0, len(private_key_paths))
 	for priv in private_key_paths {
-		pub, _ := strings.concatenate([]string{priv, ".pub"})
+		// TODO: Is this bad?
+		pub, _ := strings.concatenate([]string{priv, ".pub"}, context.temp_allocator)
 		append(&keys, SshKeyPair{Private = priv, Public = pub})
 	}
 
@@ -122,11 +129,11 @@ new_config :: proc(private_key_paths: []string) -> Config {
 
 	scan_cfg := ScanConfig {
 		Matcher = "\\.env",
-		Exclude = exclude[:],
-		Include = include[:],
+		Exclude = exclude,
+		Include = include,
 	}
 
-	return Config{Keys = keys[:], ScanConfig = scan_cfg}
+	return Config{Keys = keys, ScanConfig = scan_cfg}
 }
 
 save_config :: proc(cfg: Config, force: bool = false) -> bool {

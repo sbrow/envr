@@ -1,3 +1,5 @@
+#+feature dynamic-literals
+
 package main
 
 import "core:fmt"
@@ -138,5 +140,52 @@ test_command_help_version :: proc(t: ^testing.T) {
 		!strings.contains(text, "Aliases:"),
 		"version should not have Aliases section",
 	)
+}
+
+@(test)
+test_has_flag_bool_set :: proc(t: ^testing.T) {
+	cmd := Command {
+		name = "test",
+		bool_set = map[string]bool{"force" = true},
+	}
+	defer delete(cmd.bool_set)
+
+	testing.expect(t, has_flag(&cmd, "force"), "should find flag in bool_set")
+	testing.expect(t, !has_flag(&cmd, "verbose"), "should not find missing flag")
+}
+
+@(test)
+test_has_flag_value_map :: proc(t: ^testing.T) {
+	cmd := Command {
+		name = "test",
+		flags = map[string]string{"output" = "/tmp/out"},
+	}
+	defer delete(cmd.flags)
+
+	testing.expect(t, has_flag(&cmd, "output"), "should find flag in flags map")
+	testing.expect(t, !has_flag(&cmd, "force"), "should not find missing flag")
+}
+
+@(test)
+test_has_flag_both_maps :: proc(t: ^testing.T) {
+	cmd := Command {
+		name = "test",
+		flags = map[string]string{"output" = "/tmp/out"},
+		bool_set = map[string]bool{"force" = true},
+	}
+	defer delete(cmd.flags)
+	defer delete(cmd.bool_set)
+
+	testing.expect(t, has_flag(&cmd, "output"), "should find in flags")
+	testing.expect(t, has_flag(&cmd, "force"), "should find in bool_set")
+	testing.expect(t, !has_flag(&cmd, "verbose"), "should not find missing flag")
+}
+
+@(test)
+test_has_flag_empty_command :: proc(t: ^testing.T) {
+	cmd := Command {
+		name = "test",
+	}
+	testing.expect(t, !has_flag(&cmd, "anything"), "empty command should have no flags")
 }
 
