@@ -163,80 +163,83 @@ print_command_help :: proc(name: string) {
 	bufio.writer_flush(&bw)
 }
 
-usage_text :: proc() -> string {
-	b: strings.Builder
-	strings.builder_init(&b)
+write_usage :: proc(w: io.Writer) {
+	fmt.wprintf(
+		w,
+		`envr keeps your .env synced to a local, age encrypted database.
+Is a safe and easy way to gather all your .env files in one place where they can
+easily be backed by another tool such as restic or git.
 
-	fmt.sbprintf(&b, "envr keeps your .env synced to a local, age encrypted database.\n")
-	fmt.sbprintf(
-		&b,
-		"Is a safe and easy way to gather all your .env files in one place where they can\n",
+All your data is stored in ~/data.age
+
+Getting started is easy:
+
+1. Create your configuration file and set up encrypted storage:
+
+> envr init
+
+2. Scan for existing .env files:
+
+> envr scan
+
+Select the files you want to back up from the interactive list.
+
+3. Verify that it worked:
+
+> envr list
+
+4. After changing any of your .env files, update the backup with:
+
+> envr sync
+
+5. If you lose a repository, after re-cloning the repo into the same path it was
+at before, restore your backup with:
+
+> envr restore ~/<path to repository>/.env
+
+Usage:
+  envr [command]
+
+Available Commands:
+`,
+		flush = false,
 	)
-	fmt.sbprintf(&b, "easily be backed by another tool such as restic or git.\n")
-	fmt.sbprintf(&b, "\n")
-	fmt.sbprintf(&b, "All your data is stored in ~/data.age\n")
-	fmt.sbprintf(&b, "\n")
-	fmt.sbprintf(&b, "Getting started is easy:\n")
-	fmt.sbprintf(&b, "\n")
-	fmt.sbprintf(&b, "1. Create your configuration file and set up encrypted storage:\n")
-	fmt.sbprintf(&b, "\n")
-	fmt.sbprintf(&b, "> envr init\n")
-	fmt.sbprintf(&b, "\n")
-	fmt.sbprintf(&b, "2. Scan for existing .env files:\n")
-	fmt.sbprintf(&b, "\n")
-	fmt.sbprintf(&b, "> envr scan\n")
-	fmt.sbprintf(&b, "\n")
-	fmt.sbprintf(&b, "Select the files you want to back up from the interactive list.\n")
-	fmt.sbprintf(&b, "\n")
-	fmt.sbprintf(&b, "3. Verify that it worked:\n")
-	fmt.sbprintf(&b, "\n")
-	fmt.sbprintf(&b, "> envr list\n")
-	fmt.sbprintf(&b, "\n")
-	fmt.sbprintf(&b, "4. After changing any of your .env files, update the backup with:\n")
-	fmt.sbprintf(&b, "\n")
-	fmt.sbprintf(&b, "> envr sync\n")
-	fmt.sbprintf(&b, "\n")
-	fmt.sbprintf(
-		&b,
-		"5. If you lose a repository, after re-cloning the repo into the same path it was\n",
-	)
-	fmt.sbprintf(&b, "at before, restore your backup with:\n")
-	fmt.sbprintf(&b, "\n")
-	fmt.sbprintf(&b, "> envr restore ~/<path to repository>/.env\n")
-	fmt.sbprintf(&b, "\n")
-	fmt.sbprintf(&b, "Usage:\n")
-	fmt.sbprintf(&b, "  envr [command]\n")
-	fmt.sbprintf(&b, "\n")
-	fmt.sbprintf(&b, "Available Commands:\n")
 
 	for c in COMMANDS {
-		name_start := len(b.buf)
-		fmt.sbprintf(&b, "%s", c.name)
+		name_start := len(c.name)
+		fmt.wprintf(w, "%s", c.name, flush = false)
 		for a in c.aliases {
-			fmt.sbprintf(&b, ", %s", a)
+			fmt.wprintf(w, ", %s", a, flush = false)
+			name_start += len(a) + 2
 		}
-		name_len := len(b.buf) - name_start
-		padding := 20 - name_len
+		padding := 20 - name_start
 		if padding > 0 {
 			for _ in 0 ..< padding {
-				strings.write_byte(&b, ' ')
+				io.write_byte(w, ' ')
 			}
 		}
-		fmt.sbprintf(&b, " %s\n", c.short)
+		fmt.wprintf(w, " %s\n", c.short, flush = false)
 	}
 
-	fmt.sbprintf(&b, "\n")
-	fmt.sbprintf(&b, "Flags:\n")
-	fmt.sbprintf(&b, "  -h, --help   help for envr\n")
-	fmt.sbprintf(&b, "\n")
-	fmt.sbprintf(&b, "Use \"envr [command] --help\" for more information about a command.\n")
+	fmt.wprintf(
+		w,
+		`
+Flags:
+  -h, --help   help for envr
 
-	s := strings.clone(strings.to_string(b))
-	strings.builder_destroy(&b)
-	return s
+Use "envr [command] --help" for more information about a command.
+`,
+		flush = false,
+	)
 }
 
+// TODO: Look at usages,might want to pass a writer
 print_usage :: proc() {
-	fmt.print(usage_text())
+	bw: bufio.Writer
+	bufio.writer_init(&bw, io.to_writer(os.to_writer(os.stdout)), mem.DEFAULT_PAGE_SIZE)
+	defer bufio.writer_destroy(&bw)
+	defer bufio.writer_flush(&bw)
+
+	write_usage(bufio.writer_to_writer(&bw))
 }
 

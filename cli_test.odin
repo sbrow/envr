@@ -6,27 +6,33 @@ import "core:testing"
 
 @(test)
 test_usage_text_contains_all_commands :: proc(t: ^testing.T) {
-	text := usage_text()
+	b: strings.Builder
+	strings.builder_init(&b)
+	defer strings.builder_destroy(&b)
+
+	write_usage(strings.to_writer(&b))
+	text := strings.to_string(b)
 
 	for c in COMMANDS {
 		testing.expect(
 			t,
 			strings.contains(text, c.name),
-			fmt.aprintf("usage_text missing command %q", c.name),
+			fmt.aprintf("usage missing command %q", c.name),
 		)
 		for a in c.aliases {
-			testing.expect(
-				t,
-				strings.contains(text, a),
-				fmt.aprintf("usage_text missing alias %q", a),
-			)
+			testing.expect(t, strings.contains(text, a), fmt.aprintf("usage missing alias %q", a))
 		}
 	}
 }
 
 @(test)
 test_usage_text_contains_steps :: proc(t: ^testing.T) {
-	text := usage_text()
+	b: strings.Builder
+	strings.builder_init(&b)
+	defer strings.builder_destroy(&b)
+
+	write_usage(strings.to_writer(&b))
+	text := strings.to_string(b)
 
 	testing.expect(t, strings.contains(text, "1."), "missing step 1")
 	testing.expect(t, strings.contains(text, "2."), "missing step 2")
@@ -39,7 +45,12 @@ test_usage_text_contains_steps :: proc(t: ^testing.T) {
 
 @(test)
 test_usage_text_contains_flags_and_help_hint :: proc(t: ^testing.T) {
-	text := usage_text()
+	b: strings.Builder
+	strings.builder_init(&b)
+	defer strings.builder_destroy(&b)
+
+	write_usage(strings.to_writer(&b))
+	text := strings.to_string(b)
 
 	testing.expect(t, strings.contains(text, "Flags:"), "missing Flags section")
 	testing.expect(t, strings.contains(text, "--help"), "missing --help flag")
