@@ -63,3 +63,42 @@ Note: These todos can wait until all the subcommands have been ported.
 28. 2 scan tests silently skip	Low	When fd isn't installed, tests pass without actually testing anything. These should use #assert to be sure that fd is in path.
 
 38. Try to do all encryption / decryption in memory - only read / write encrypted data to disk.
+
+## Double-check AI output
+
+- [ ] cli.odin
+- [ ] config.odin
+- [ ] crypto.odin
+- [ ] db.odin
+- [ ] features.odin
+- [ ] main.odin
+- [ ] prompt.odin
+- [ ] scan.odin
+- [ ] sodium.odin
+- [ ] ssh.odin
+- [ ] table.odin
+- [ ] cmd_backup.odin
+- [ ] cmd_check.odin
+- [ ] cmd_deps.odin
+- [ ] cmd_edit_config.odin
+- [ ] cmd_init.odin
+- [ ] cmd_list.odin
+- [ ] cmd_nushell_completion.odin
+- [ ] cmd_remove.odin
+- [ ] cmd_restore.odin
+- [ ] cmd_scan.odin
+- [ ] cmd_sync.odin
+- [ ] cmd_version.odin
+- [ ] sqlite/sqlite.odin
+- [ ] cli_test.odin
+- [ ] cmd_check_test.odin
+- [ ] cmd_list_test.odin
+- [ ] cmd_nushell_completion_test.odin
+- [ ] config_test.odin
+- [ ] crypto_test.odin
+- [ ] db_integration_test.odin
+- [ ] db_test.odin
+- [ ] features_test.odin
+- [ ] scan_test.odin
+- [ ] ssh_test.odin
+- [ ] table_test.odin
