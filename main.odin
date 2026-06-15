@@ -4,7 +4,7 @@ import "core:fmt"
 import "core:os"
 
 main :: proc() {
-	cmd, ok := parse_args()
+	cmd, ok := parse_args(os.args)
 	if !ok {
 		return
 	}

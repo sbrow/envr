@@ -3,7 +3,7 @@ package main
 import "core:fmt"
 import "core:testing"
 
-CRYPTO_TEST_KEY_DIR :: "/tmp/envr-test-keys"
+CRYPTO_TEST_KEY_DIR :: "fixtures/keys"
 
 make_test_key_pair :: proc(name: string) -> SshKeyPair {
 	priv := fmt.tprintf("%s/%s", CRYPTO_TEST_KEY_DIR, name)

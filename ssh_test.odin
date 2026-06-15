@@ -3,7 +3,7 @@ package main
 import "core:fmt"
 import "core:testing"
 
-TEST_KEY_DIR :: "/tmp/envr-test-keys"
+TEST_KEY_DIR :: "fixtures/keys"
 
 @(test)
 test_parse_ed25519_public_key :: proc(t: ^testing.T) {
@@ -68,5 +68,41 @@ test_read_wire_string :: proc(t: ^testing.T) {
 	s2, ok2 := read_wire_string(data, &offset)
 	testing.expect(t, ok2, "expected second read to succeed")
 	testing.expect(t, s2 == "", "expected empty string")
+}
+
+@(test)
+test_is_encrypted_key_encrypted :: proc(t: ^testing.T) {
+	testing.expect(
+		t,
+		is_encrypted_key(TEST_KEY_DIR + "/test_ed25519_encrypted"),
+		"encrypted key should be detected as encrypted",
+	)
+}
+
+@(test)
+test_is_encrypted_key_unencrypted :: proc(t: ^testing.T) {
+	testing.expect(
+		t,
+		!is_encrypted_key(TEST_KEY_DIR + "/test_ed25519"),
+		"unencrypted key should not be detected as encrypted",
+	)
+}
+
+@(test)
+test_is_encrypted_key_rsa_unencrypted :: proc(t: ^testing.T) {
+	testing.expect(
+		t,
+		!is_encrypted_key(TEST_KEY_DIR + "/test_rsa"),
+		"unencrypted RSA key should not be detected as encrypted",
+	)
+}
+
+@(test)
+test_is_encrypted_key_missing_file :: proc(t: ^testing.T) {
+	testing.expect(
+		t,
+		is_encrypted_key(TEST_KEY_DIR + "/nonexistent"),
+		"missing file should be treated as encrypted (fail-safe)",
+	)
 }
 

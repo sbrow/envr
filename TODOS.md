@@ -64,6 +64,8 @@ Note: These todos can wait until all the subcommands have been ported.
 
 38. Try to do all encryption / decryption in memory - only read / write encrypted data to disk.
 
+40. use a buffered writer where possible (mem.DEFAULT_PAGE_SIZE)
+
 ## Double-check AI output
 
 - [ ] cli.odin

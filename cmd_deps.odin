@@ -24,7 +24,8 @@ cmd_deps :: proc(cmd: ^Command) {
 	}
 
 	if terminal.is_terminal(os.stdout) {
-		render_table(headers, rows[:])
+		w := io.to_writer(os.to_writer(os.stdout))
+		render_table(w, headers, rows[:])
 	} else {
 		w := io.to_writer(os.to_writer(os.stdout))
 		render_json_rows(w, headers, rows[:])

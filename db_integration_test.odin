@@ -8,16 +8,22 @@ import "core:testing"
 
 import "sqlite"
 
-FIXTURES :: "/home/spencer/github.com/envr-zig/fixtures"
+FIXTURES :: "fixtures"
 
 fixture_key :: proc() -> SshKeyPair {
-	priv, _ := strings.concatenate([]string{FIXTURES, "/insecure-test-key"}, context.allocator)
-	pub, _ := strings.concatenate([]string{FIXTURES, "/insecure-test-key.pub"}, context.allocator)
+	priv, _ := strings.concatenate(
+		[]string{FIXTURES, "/keys/insecure-test-key"},
+		context.temp_allocator,
+	)
+	pub, _ := strings.concatenate(
+		[]string{FIXTURES, "/keys/insecure-test-key.pub"},
+		context.temp_allocator,
+	)
 	return SshKeyPair{Private = priv, Public = pub}
 }
 
 fixture_db_path :: proc() -> string {
-	p, _ := strings.concatenate([]string{FIXTURES, "/single-file.db"}, context.allocator)
+	p, _ := strings.concatenate([]string{FIXTURES, "/single-file.db"}, context.temp_allocator)
 	return p
 }
 

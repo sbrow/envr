@@ -2,6 +2,7 @@ package main
 
 import "core:encoding/json"
 import "core:fmt"
+import "core:io"
 import "core:os"
 import "core:path/filepath"
 import "core:strings"
@@ -38,7 +39,8 @@ cmd_list :: proc(cmd: ^Command) {
 			append(&table_rows, row_slice)
 		}
 
-		render_table(headers, table_rows[:])
+		w := io.to_writer(os.to_writer(os.stdout))
+		render_table(w, headers, table_rows[:])
 	} else {
 		entries: [dynamic]ListEntry
 		for row in rows {

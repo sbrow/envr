@@ -102,3 +102,60 @@ test_render_json_rows_empty :: proc(t: ^testing.T) {
 	testing.expect(t, len(result) == 0)
 }
 
+@(test)
+test_render_table_normal :: proc(t: ^testing.T) {
+	b: strings.Builder
+	strings.builder_init(&b)
+	defer strings.builder_destroy(&b)
+
+	headers := []string{"Name", "Path"}
+	rows := [][]string{{"foo", "/home/user/.env"}, {"bar", "/home/user/project/.env"}}
+
+	w := strings.to_writer(&b)
+	render_table(w, headers, rows)
+
+	output := strings.to_string(b)
+
+	testing.expect(t, strings.contains(output, "Name"), "header 'Name' missing from output")
+	testing.expect(t, strings.contains(output, "Path"), "header 'Path' missing from output")
+	testing.expect(t, strings.contains(output, "foo"), "cell 'foo' missing from output")
+	testing.expect(t, strings.contains(output, "/home/user/.env"), "cell '/home/user/.env' missing from output")
+	testing.expect(t, strings.contains(output, "bar"), "cell 'bar' missing from output")
+	testing.expect(t, strings.contains(output, "/home/user/project/.env"), "cell '/home/user/project/.env' missing")
+}
+
+@(test)
+test_render_table_empty :: proc(t: ^testing.T) {
+	b: strings.Builder
+	strings.builder_init(&b)
+	defer strings.builder_destroy(&b)
+
+	headers := []string{"Name"}
+	rows: [][]string
+
+	w := strings.to_writer(&b)
+	render_table(w, headers, rows)
+
+	output := strings.to_string(b)
+
+	testing.expect(t, strings.contains(output, "Name"), "header 'Name' missing from output")
+}
+
+@(test)
+test_render_table_unicode :: proc(t: ^testing.T) {
+	b: strings.Builder
+	strings.builder_init(&b)
+	defer strings.builder_destroy(&b)
+
+	headers := []string{"Status", "Detail"}
+	rows := [][]string{{"\u2713 Available", "ok"}, {"\u2717 Missing", "fail"}}
+
+	w := strings.to_writer(&b)
+	render_table(w, headers, rows)
+
+	output := strings.to_string(b)
+
+	testing.expect(t, strings.contains(output, "Available"), "unicode cell content missing")
+	testing.expect(t, strings.contains(output, "Missing"), "unicode cell content missing")
+}
+

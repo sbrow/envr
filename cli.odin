@@ -55,8 +55,7 @@ COMMANDS := []CommandInfo {
 	},
 }
 
-parse_args :: proc() -> (cmd: Command, ok: bool) {
-	args := os.args
+parse_args :: proc(args: []string) -> (cmd: Command, ok: bool) {
 	if len(args) < 2 || args[1] == "--help" || args[1] == "-h" {
 		print_usage()
 		return Command{}, false
