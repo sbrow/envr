@@ -25,7 +25,11 @@ test_encrypt_decrypt_roundtrip :: proc(t: ^testing.T) {
 	testing.expect(t, dec_ok, "decryption should succeed")
 	defer delete(decrypted)
 
-	testing.expect(t, len(decrypted) == len(original), fmt.tprintf("expected %d bytes, got %d", len(original), len(decrypted)))
+	testing.expect(
+		t,
+		len(decrypted) == len(original),
+		fmt.tprintf("expected %d bytes, got %d", len(original), len(decrypted)),
+	)
 	for i in 0 ..< len(original) {
 		testing.expect(t, decrypted[i] == original[i], fmt.tprintf("byte mismatch at index %d", i))
 	}
@@ -50,8 +54,16 @@ test_encrypt_decrypt_multi_recipient :: proc(t: ^testing.T) {
 	defer delete(decrypted2)
 
 	for i in 0 ..< len(original) {
-		testing.expect(t, decrypted1[i] == original[i], fmt.tprintf("key1: byte mismatch at %d", i))
-		testing.expect(t, decrypted2[i] == original[i], fmt.tprintf("key2: byte mismatch at %d", i))
+		testing.expect(
+			t,
+			decrypted1[i] == original[i],
+			fmt.tprintf("key1: byte mismatch at %d", i),
+		)
+		testing.expect(
+			t,
+			decrypted2[i] == original[i],
+			fmt.tprintf("key2: byte mismatch at %d", i),
+		)
 	}
 }
 
@@ -86,6 +98,25 @@ test_encrypt_empty_plaintext :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_recipient_can_decrypt_senders_data :: proc(t: ^testing.T) {
+	key1 := make_test_key_pair("test_ed25519")
+	key2 := make_test_key_pair("test_ed25519_second")
+	original := []u8{10, 20, 30, 40, 50}
+
+	encrypted, enc_ok := encrypt(original, []SshKeyPair{key1, key2})
+	testing.expect(t, enc_ok, "encryption with 2 keys should succeed")
+	defer delete(encrypted)
+
+	decrypted, dec_ok := decrypt(encrypted, []SshKeyPair{key2})
+	testing.expect(t, dec_ok, "second recipient should decrypt without the sender key present")
+	defer delete(decrypted)
+
+	for i in 0 ..< len(original) {
+		testing.expect(t, decrypted[i] == original[i], fmt.tprintf("byte mismatch at %d", i))
+	}
+}
+
+@(test)
 test_ciphertext_has_magic :: proc(t: ^testing.T) {
 	key := make_test_key_pair("test_ed25519")
 	original := []u8{1, 2, 3}
@@ -100,3 +131,4 @@ test_ciphertext_has_magic :: proc(t: ^testing.T) {
 	testing.expect(t, encrypted[2] == u8('V'), "magic byte 2")
 	testing.expect(t, encrypted[3] == u8('R'), "magic byte 3")
 }
+

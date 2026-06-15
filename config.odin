@@ -23,9 +23,11 @@ Config :: struct {
 	config_path: string `json:"-"`,
 }
 
-default_config_path :: proc(home: string) -> string {
-	// FIXME: catch error
-	path, _ := filepath.join([]string{home, ".envr", "config.json"})
+default_config_path :: proc(home: string, allocator := context.allocator) -> string {
+	path, err := filepath.join([]string{home, ".envr", "config.json"}, allocator)
+	if err != nil {
+		panic("Ran out of memory when building config path")
+	}
 	return path
 }
 
@@ -35,8 +37,10 @@ load_config :: proc(config_path: string) -> (Config, bool) {
 		fmt.println("No config file found. Please run `envr init` to generate one.")
 		return Config{}, false
 	}
+	defer delete(data)
 
 	cfg: Config
+	// TODO: use json 5
 	err := json.unmarshal(data, &cfg)
 	if err != nil {
 		fmt.printf("Error parsing config: %v\n", err)
@@ -47,9 +51,23 @@ load_config :: proc(config_path: string) -> (Config, bool) {
 	return cfg, true
 }
 
-delete_config :: proc(cfg: Config) {
+delete_config :: proc(cfg: ^Config) {
+	for key in cfg.Keys {
+		delete(key.Private)
+		delete(key.Public)
+	}
 	delete(cfg.Keys)
+
+	delete(cfg.ScanConfig.Matcher)
+
+	for exclude in cfg.ScanConfig.Exclude {
+		delete(exclude)
+	}
 	delete(cfg.ScanConfig.Exclude)
+
+	for include in cfg.ScanConfig.Include {
+		delete(include)
+	}
 	delete(cfg.ScanConfig.Include)
 }
 
@@ -115,21 +133,22 @@ new_config :: proc(
 	keys := make([dynamic]SshKeyPair, 0, len(private_key_paths))
 	for priv in private_key_paths {
 		// TODO: Is this bad?
-		pub, _ := strings.concatenate([]string{priv, ".pub"}, context.temp_allocator)
-		append(&keys, SshKeyPair{Private = priv, Public = pub})
+		priv_key := strings.clone(priv)
+		pub, _ := strings.concatenate([]string{priv_key, ".pub"})
+		append(&keys, SshKeyPair{Private = priv_key, Public = pub})
 	}
 
 	exclude := make([dynamic]string, 0, 4)
-	append(&exclude, "*\\.envrc")
-	append(&exclude, "\\.local/")
-	append(&exclude, "node_modules")
-	append(&exclude, "vendor")
+	append(&exclude, strings.clone("*\\.envrc"))
+	append(&exclude, strings.clone("\\.local/"))
+	append(&exclude, strings.clone("node_modules"))
+	append(&exclude, strings.clone("vendor"))
 
 	include := make([dynamic]string, 0, 1)
-	append(&include, "~")
+	append(&include, strings.clone("~"))
 
 	scan_cfg := ScanConfig {
-		Matcher = "\\.env",
+		Matcher = strings.clone("\\.env"),
 		Exclude = exclude,
 		Include = include,
 	}
@@ -164,6 +183,7 @@ save_config :: proc(cfg: Config, force: bool = false) -> bool {
 		fmt.printf("Error marshaling config: %v\n", marshal_err)
 		return false
 	}
+	defer delete(data)
 
 	write_err := os.write_entire_file(cfg.config_path, data)
 	if write_err != nil {
@@ -175,15 +195,18 @@ save_config :: proc(cfg: Config, force: bool = false) -> bool {
 }
 
 search_paths :: proc(cfg: Config) -> (paths: [dynamic]string) {
-	home, _ := os.user_home_dir(context.allocator)
+	// TODO: Is this okay?
+	// TODO: handle error
+	home, _ := os.user_home_dir(context.temp_allocator)
 
 	for include in cfg.ScanConfig.Include {
+		// TODO: Do we need to manually expand ~/ in odin?
 		expanded, _ := strings.replace(include, "~", home, 1)
-		cloned, _ := strings.clone(expanded)
-		if filepath.is_abs(cloned) {
-			append(&paths, cloned)
+		if filepath.is_abs(expanded) {
+			append(&paths, expanded)
 		} else {
-			resolved, err := filepath.abs(cloned)
+			defer delete(expanded)
+			resolved, err := filepath.abs(expanded)
 			if err == nil {
 				append(&paths, resolved)
 			}

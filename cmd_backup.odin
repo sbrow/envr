@@ -17,19 +17,16 @@ cmd_backup :: proc(cmd: ^Command) {
 
 	file, ok := new_env_file(path)
 	if !ok {
-		// TODO: log a message
 		return
 	}
 
 	db, db_ok := db_open(cmd.config_path)
 	if !db_ok {
-		// TODO: log a message
 		return
 	}
 	defer db_close(&db)
 
 	if !db_insert(&db, file) {
-		// TODO: log a message
 		return
 	}
 

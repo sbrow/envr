@@ -15,8 +15,8 @@ make_test_db :: proc() -> (Db, bool) {
 		return Db{}, false
 	}
 
-	create_sql := "CREATE TABLE IF NOT EXISTS envr_env_files (path TEXT PRIMARY KEY NOT NULL, remotes TEXT, sha256 TEXT NOT NULL, contents TEXT NOT NULL)"
-	rc = sqlite.db_exec(db, string_to_cstring(create_sql), nil, nil, nil)
+	create_sql: cstring = "CREATE TABLE IF NOT EXISTS envr_env_files (path TEXT PRIMARY KEY NOT NULL, remotes TEXT, sha256 TEXT NOT NULL, contents TEXT NOT NULL)"
+	rc = sqlite.db_exec(db, create_sql, nil, nil, nil)
 	if rc != sqlite.OK {
 		sqlite.db_close(db)
 		return Db{}, false
@@ -46,26 +46,25 @@ test_db_insert_and_fetch :: proc(t: ^testing.T) {
 	if !ok do return
 	defer sqlite.db_close(d.db)
 
-	f := make_test_env_file(
-		"/project/.env",
-		"abc123",
-		"SECRET=value",
-		[]string{"git@github.com:user/repo.git"},
-	)
+	path := "/project/.env"
+	sha := "abc123"
+	contents := "SECRET=value"
+
+	f := make_test_env_file(path, sha, contents, []string{"git@github.com:user/repo.git"})
 	defer delete(f.Remotes)
 
 	testing.expect(t, db_insert(&d, f), "insert should succeed")
 
 	fetched, fetch_ok := db_fetch(&d, "/project/.env")
+	defer delete_envfile(&fetched)
 	testing.expect(t, fetch_ok, "fetch should succeed")
 	if !fetch_ok do return
-	defer delete(fetched.Remotes)
 
-	testing.expect(t, fetched.Path == "/project/.env", "path mismatch")
-	testing.expect(t, fetched.Sha256 == "abc123", "sha mismatch")
-	testing.expect(t, fetched.contents == "SECRET=value", "contents mismatch")
-	testing.expect(t, len(fetched.Remotes) == 1, "remotes count mismatch")
-	testing.expect(t, fetched.Remotes[0] == "git@github.com:user/repo.git", "remote mismatch")
+	testing.expect_value(t, fetched.Path, path)
+	testing.expect_value(t, fetched.Sha256, sha)
+	testing.expect_value(t, fetched.contents, contents)
+	testing.expect_value(t, len(fetched.Remotes), 1)
+	testing.expect_value(t, fetched.Remotes[0], "git@github.com:user/repo.git")
 }
 
 @(test)
@@ -98,16 +97,19 @@ test_db_insert_or_replace :: proc(t: ^testing.T) {
 	testing.expect(t, list_ok, "list should succeed")
 	if !list_ok do return
 	defer delete(results)
+	for &result in results {
+		defer delete_envfile(&result)
+	}
 
 	testing.expect(t, len(results) == 1, "should have 1 row, not 2")
 
 	fetched, fetch_ok := db_fetch(&d, "/project/.env")
 	testing.expect(t, fetch_ok, "fetch should succeed")
 	if !fetch_ok do return
-	defer delete(fetched.Remotes)
+	defer delete_envfile(&fetched)
 
-	testing.expect(t, fetched.contents == "KEY=new", "contents should be updated")
-	testing.expect(t, fetched.Sha256 == "sha2", "sha should be updated")
+	testing.expect_value(t, fetched.contents, "KEY=new")
+	testing.expect_value(t, fetched.Sha256, "sha2")
 }
 
 @(test)
@@ -145,11 +147,10 @@ test_db_list_multiple :: proc(t: ^testing.T) {
 	defer sqlite.db_close(d.db)
 
 	f1 := make_test_env_file("/proj1/.env", "sha1", "A=1", []string{"git@github.com:a/repo.git"})
-	f2 := make_test_env_file("/proj2/.env", "sha2", "B=2", []string{"git@github.com:b/repo.git"})
-	f3 := make_test_env_file("/proj3/.env", "sha3", "C=3")
 	defer delete(f1.Remotes)
+	f2 := make_test_env_file("/proj2/.env", "sha2", "B=2", []string{"git@github.com:b/repo.git"})
 	defer delete(f2.Remotes)
-	defer delete(f3.Remotes)
+	f3 := make_test_env_file("/proj3/.env", "sha3", "C=3")
 
 	db_insert(&d, f1)
 	db_insert(&d, f2)
@@ -159,8 +160,13 @@ test_db_list_multiple :: proc(t: ^testing.T) {
 	testing.expect(t, list_ok, "list should succeed")
 	if !list_ok do return
 	defer delete(results)
+	defer {
+		for &result in results {
+			delete_envfile(&result)
+		}
+	}
 
-	testing.expect(t, len(results) == 3, "should have 3 rows")
+	testing.expect_value(t, len(results), 3)
 }
 
 @(test)
@@ -224,13 +230,12 @@ test_db_vacuum_to_file :: proc(t: ^testing.T) {
 
 	testing.expect(t, db_vacuum_to_file(d.db, vacuum_path), "vacuum should succeed")
 
-	_, stat_err := os.stat(vacuum_path, context.allocator)
+	info, stat_err := os.stat(vacuum_path, context.allocator)
+	defer os.file_info_delete(info, context.allocator)
 	testing.expect(t, stat_err == nil, "vacuumed file should exist")
-	if stat_err != nil do return
 
 	data, read_err := os.read_entire_file_from_path(vacuum_path, context.allocator)
 	testing.expect(t, read_err == nil, "should read vacuumed file")
-	if read_err != nil do return
 	defer delete(data)
 
 	testing.expect(t, len(data) > 0, "vacuumed file should be non-empty")
@@ -342,6 +347,8 @@ test_new_env_file :: proc(t: ^testing.T) {
 	testing.expect(t, ok, "new_env_file should succeed")
 	if !ok do return
 	defer delete(file.Remotes)
+	defer delete(file.Sha256)
+	defer delete(file.Path)
 
 	testing.expect(t, filepath.is_abs(file.Path), "path should be absolute")
 	testing.expect(t, strings.has_suffix(file.Path, "/.env"), "path should end with /.env")
@@ -368,9 +375,11 @@ test_env_file_backup :: proc(t: ^testing.T) {
 	f := EnvFile {
 		Path = env_path,
 	}
+	defer delete(f.contents)
+	defer delete(f.Sha256)
 	testing.expect(t, env_file_backup(&f), "backup should succeed")
-	testing.expect(t, f.contents == "KEY=12345\n", "contents should be populated")
-	testing.expect(t, len(f.Sha256) == 64, "sha256 should be 64 hex chars")
+	testing.expect_value(t, f.contents, "KEY=12345\n")
+	testing.expect_value(t, len(f.Sha256), 64)
 }
 
 @(test)
@@ -388,11 +397,11 @@ test_update_dir :: proc(t: ^testing.T) {
 		Dir     = "/old/project",
 		Remotes = make([dynamic]string, 0),
 	}
-	defer delete(f.Remotes)
+	defer delete_envfile(&f)
 
 	update_dir(&f, "/new/location")
 
-	testing.expect(t, f.Dir == "/new/location", "dir should be updated")
-	testing.expect(t, f.Path == "/new/location/.env", "path should be updated")
+	testing.expect_value(t, f.Dir, "/new/location")
+	testing.expect_value(t, f.Path, "/new/location/.env")
 }
 

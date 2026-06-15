@@ -22,7 +22,7 @@ cmd_scan :: proc(cmd: ^Command) {
 
 	search_dirs := search_paths(db.cfg)
 	if len(search_dirs) == 0 {
-		fmt.println("No search paths configured. Please run `envr init` or edit your config.")
+		fmt.println("No search paths configured. Please run `envr init -f` or edit your config.")
 		return
 	}
 
@@ -62,6 +62,7 @@ cmd_scan :: proc(cmd: ^Command) {
 	}
 
 	selected, result := multi_select("Select .env files to backup:", files[:])
+	defer delete(selected)
 	if result == .Cancel {
 		fmt.println("\x1b[2mCancelled.\x1b[0m")
 		return

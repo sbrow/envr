@@ -113,10 +113,14 @@ MultiSelect_Result :: enum {
 
 MAX_VISIBLE :: 7
 
+// Caller is responsible for deleting the responses.
 multi_select :: proc(
 	prompt: string,
 	options: []string,
-) -> (selected: [dynamic]bool, result: MultiSelect_Result) {
+) -> (
+	selected: [dynamic]bool,
+	result: MultiSelect_Result,
+) {
 	if len(options) == 0 {
 		return
 	}
@@ -166,18 +170,21 @@ multi_select :: proc(
 	}
 }
 
-render_options :: proc(prompt: string, options: []string, selected: []bool, cursor: int, scroll_offset: int) -> int {
-	fmt.printf(
-		"\x1b[1;36m%s\x1b[0m (↑/↓ move, space select, enter confirm)\r\n",
-		prompt,
-	)
+render_options :: proc(
+	prompt: string,
+	options: []string,
+	selected: []bool,
+	cursor: int,
+	scroll_offset: int,
+) -> int {
+	fmt.printf("\x1b[1;36m%s\x1b[0m (↑/↓ move, space select, enter confirm)\r\n", prompt)
 
 	end := scroll_offset + MAX_VISIBLE
 	if end > len(options) {
 		end = len(options)
 	}
 
-	for i in scroll_offset..<end {
+	for i in scroll_offset ..< end {
 		checkbox := " "
 		if selected[i] {
 			checkbox = "x"
@@ -191,3 +198,4 @@ render_options :: proc(prompt: string, options: []string, selected: []bool, curs
 
 	return end - scroll_offset
 }
+

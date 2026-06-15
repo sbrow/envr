@@ -11,7 +11,7 @@ cmd_check :: proc(cmd: ^Command) {
 	if len(cmd.args) > 0 {
 		check_path = cmd.args[0]
 	} else {
-		cwd, cwd_err := os.get_working_directory(context.allocator)
+		cwd, cwd_err := os.get_working_directory(context.temp_allocator)
 		if cwd_err != nil {
 			fmt.printf("Error getting current directory: %v\n", cwd_err)
 			return

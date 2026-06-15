@@ -13,7 +13,7 @@ home_mutex: sync.Mutex
 test_new_config_single_key :: proc(t: ^testing.T) {
 	paths := []string{"/home/user/.ssh/id_ed25519"}
 	cfg := new_config(paths)
-	defer delete_config(cfg)
+	defer delete_config(&cfg)
 
 	testing.expect(t, len(cfg.Keys) == 1, "should have 1 key")
 	testing.expect(t, cfg.Keys[0].Private == "/home/user/.ssh/id_ed25519", "Private path mismatch")
@@ -28,7 +28,7 @@ test_new_config_single_key :: proc(t: ^testing.T) {
 test_new_config_multiple_keys :: proc(t: ^testing.T) {
 	paths := []string{"/home/user/.ssh/id_ed25519", "/home/user/.ssh/id_rsa"}
 	cfg := new_config(paths)
-	defer delete_config(cfg)
+	defer delete_config(&cfg)
 
 	testing.expect(t, len(cfg.Keys) == 2, "should have 2 keys")
 	testing.expect(t, cfg.Keys[0].Private == "/home/user/.ssh/id_ed25519")
@@ -39,7 +39,7 @@ test_new_config_multiple_keys :: proc(t: ^testing.T) {
 test_new_config_empty_keys :: proc(t: ^testing.T) {
 	paths: []string
 	cfg := new_config(paths)
-	defer delete_config(cfg)
+	defer delete_config(&cfg)
 
 	testing.expect(t, len(cfg.Keys) == 0, "should have 0 keys")
 }
@@ -48,7 +48,7 @@ test_new_config_empty_keys :: proc(t: ^testing.T) {
 test_new_config_scan_defaults :: proc(t: ^testing.T) {
 	paths := []string{"/home/user/.ssh/id_ed25519"}
 	cfg := new_config(paths)
-	defer delete_config(cfg)
+	defer delete_config(&cfg)
 
 	testing.expect(t, cfg.ScanConfig.Matcher == "\\.env", "matcher should be \\.env")
 	testing.expect(t, len(cfg.ScanConfig.Exclude) == 4, "should have 4 exclude patterns")
@@ -60,7 +60,7 @@ test_new_config_scan_defaults :: proc(t: ^testing.T) {
 test_new_config_exclude_patterns :: proc(t: ^testing.T) {
 	paths := []string{"/home/user/.ssh/id_ed25519"}
 	cfg := new_config(paths)
-	defer delete_config(cfg)
+	defer delete_config(&cfg)
 
 	expected := []string{"*\\.envrc", "\\.local/", "node_modules", "vendor"}
 	for i in 0 ..< len(expected) {
@@ -78,14 +78,14 @@ test_save_load_config_roundtrip :: proc(t: ^testing.T) {
 	testing.expect(t, err == nil, "cfgPath should build successfully")
 
 	cfg := new_config([]string{"/home/user/.ssh/id_ed25519"}, cfgPath)
-	defer delete_config(cfg)
+	defer delete_config(&cfg)
 
 	testing.expect(t, save_config(cfg, force = true), "save should succeed")
 
 	loaded, ok := load_config(cfg.config_path)
 	testing.expect(t, ok, "load should succeed")
 	if !ok do return
-	defer delete_config(loaded)
+	defer delete_config(&loaded)
 
 	testing.expect(t, len(loaded.Keys) == 1, "should have 1 key")
 	testing.expect(t, loaded.Keys[0].Private == "/home/user/.ssh/id_ed25519")
@@ -112,11 +112,11 @@ test_save_config_no_clobber :: proc(t: ^testing.T) {
 	testing.expect(t, err == nil, "cfgPath should build successfully")
 
 	cfg := new_config([]string{"/home/user/.ssh/key1"}, cfgPath)
-	defer delete_config(cfg)
+	defer delete_config(&cfg)
 	testing.expect(t, save_config(cfg, force = true), "first save should succeed")
 
 	cfg2 := new_config([]string{"/home/user/.ssh/key2"}, cfgPath)
-	defer delete_config(cfg2)
+	defer delete_config(&cfg2)
 	testing.expect(t, !save_config(cfg2), "second save without force should fail")
 }
 
@@ -130,17 +130,17 @@ test_save_config_force_overwrites :: proc(t: ^testing.T) {
 	testing.expect(t, err == nil, "cfgPath should build successfully")
 
 	cfg := new_config([]string{"/home/user/.ssh/key1"}, cfgPath)
-	defer delete_config(cfg)
+	defer delete_config(&cfg)
 	testing.expect(t, save_config(cfg, force = true), "first save should succeed")
 
 	cfg2 := new_config([]string{"/home/user/.ssh/key2"}, cfgPath)
-	defer delete_config(cfg2)
+	defer delete_config(&cfg2)
 	testing.expect(t, save_config(cfg2, force = true), "force save should overwrite")
 
 	loaded, ok := load_config(cfgPath)
 	testing.expect(t, ok, "load should succeed")
 	if !ok do return
-	defer delete_config(loaded)
+	defer delete_config(&loaded)
 
 	testing.expect(t, len(loaded.Keys) == 1, "should have 1 key")
 	testing.expect(
@@ -165,6 +165,7 @@ test_envr_dir :: proc(t: ^testing.T) {
 @(test)
 test_data_encrypted_path :: proc(t: ^testing.T) {
 	p := data_encrypted_path("/tmp/envr-fake-home-datapath/config.json")
+	defer delete(p)
 	testing.expectf(t, strings.has_suffix(p, "data.envr"), "should end with data.envr, got %s", p)
 	testing.expectf(t, strings.contains(p, ".envr"), "should contain .envr dir, got %s", p)
 }
@@ -191,6 +192,9 @@ test_search_paths_expands_tilde :: proc(t: ^testing.T) {
 
 	paths := search_paths(cfg)
 	defer delete(paths)
+	for path in paths {
+		defer delete(path)
+	}
 
 	testing.expect(t, len(paths) == 1, "should have 1 path")
 	if len(paths) > 0 {

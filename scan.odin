@@ -69,6 +69,7 @@ run_fd :: proc(args: []string) -> (lines: []string, ok: bool) {
 	tmp_path := next_fd_tmp_path()
 	tmp_file, tmp_err := os.open(tmp_path, os.O_CREATE | os.O_WRONLY | os.O_TRUNC)
 	if tmp_err != nil {
+		// TODO: Log a message here
 		return
 	}
 

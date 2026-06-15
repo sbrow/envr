@@ -180,16 +180,16 @@ test_decrypt_then_attach_sqlite :: proc(t: ^testing.T) {
 	}
 	defer sqlite.db_close(mem_db)
 
-	create_sql := "CREATE TABLE IF NOT EXISTS envr_env_files (path TEXT PRIMARY KEY NOT NULL, remotes TEXT, sha256 TEXT NOT NULL, contents TEXT NOT NULL)"
-	rc = sqlite.db_exec(mem_db, string_to_cstring(create_sql), nil, nil, nil)
+	create_sql: cstring = "CREATE TABLE IF NOT EXISTS envr_env_files (path TEXT PRIMARY KEY NOT NULL, remotes TEXT, sha256 TEXT NOT NULL, contents TEXT NOT NULL)"
+	rc = sqlite.db_exec(mem_db, create_sql, nil, nil, nil)
 	testing.expect(t, rc == sqlite.OK, "failed to create table")
 
 	attach_ok := db_attach_and_copy(mem_db, tmp_db_path)
 	testing.expect(t, attach_ok, "failed to attach and copy")
 
-	sql := "SELECT path FROM envr_env_files"
+	sql: cstring = "SELECT path FROM envr_env_files"
 	stmt: ^rawptr
-	rc = sqlite.prepare_v2(mem_db, string_to_cstring(sql), -1, &stmt, nil)
+	rc = sqlite.prepare_v2(mem_db, sql, -1, &stmt, nil)
 	testing.expect(t, rc == sqlite.OK, "prepare failed")
 	if rc != sqlite.OK {
 		return
@@ -199,7 +199,7 @@ test_decrypt_then_attach_sqlite :: proc(t: ^testing.T) {
 	rc = sqlite.step(stmt)
 	testing.expect(t, rc == sqlite.ROW, "expected at least one row")
 	if rc == sqlite.ROW {
-		path := cstring_to_string(sqlite.column_text(stmt, 0))
+		path := string(sqlite.column_text(stmt, 0))
 		testing.expect(t, len(path) > 0, "path should not be empty")
 	}
 }
@@ -207,9 +207,7 @@ test_decrypt_then_attach_sqlite :: proc(t: ^testing.T) {
 @(test)
 test_full_db_cycle :: proc(t: ^testing.T) {
 	cfg := fixture_config()
-	defer {
-		delete(cfg.Keys)
-	}
+	defer delete(cfg.Keys)
 
 	db_path := fixture_db_path()
 	original_data, read_err := os.read_entire_file_from_path(db_path, context.allocator)
@@ -230,6 +228,7 @@ test_full_db_cycle :: proc(t: ^testing.T) {
 	os.mkdir_all(envr_dir_path)
 
 	data_path, _ := filepath.join([]string{envr_dir_path, "data.envr"})
+	defer delete(data_path)
 	write_err := os.write_entire_file(data_path, encrypted)
 	testing.expectf(t, write_err == nil, "failed to write data.envr: %v", write_err)
 	if write_err != nil {

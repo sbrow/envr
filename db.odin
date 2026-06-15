@@ -27,6 +27,7 @@ SyncDirection :: enum {
 }
 
 Db :: struct {
+	// Pointer to the sqlite db
 	db:      ^rawptr,
 	cfg:     Config,
 	changed: bool,
@@ -40,10 +41,22 @@ EnvFile :: struct {
 	contents: string,
 }
 
+delete_envfile :: proc(f: ^EnvFile) {
+	delete(f.Path)
+	for &remote in f.Remotes {
+		delete(remote)
+	}
+	delete(f.Remotes)
+	delete(f.Sha256)
+	delete(f.contents)
+}
+
+// TODO: Leak?
 make_temp_path :: proc() -> string {
 	ts := time.time_to_unix(time.now())
 	b: strings.Builder
 	strings.builder_init(&b)
+	defer strings.builder_destroy(&b)
 	fmt.sbprintf(&b, "/tmp/envr-%d-%d.db", os.get_pid(), ts)
 	return strings.to_string(b)
 }
@@ -64,8 +77,8 @@ db_open :: proc(cfg_path: string) -> (Db, bool) {
 		return Db{}, false
 	}
 
-	create_sql := "CREATE TABLE IF NOT EXISTS envr_env_files (path TEXT PRIMARY KEY NOT NULL, remotes TEXT, sha256 TEXT NOT NULL, contents TEXT NOT NULL)"
-	rc = sqlite.db_exec(db, string_to_cstring(create_sql), nil, nil, nil)
+	create_sql: cstring = "CREATE TABLE IF NOT EXISTS envr_env_files (path TEXT PRIMARY KEY NOT NULL, remotes TEXT, sha256 TEXT NOT NULL, contents TEXT NOT NULL)"
+	rc = sqlite.db_exec(db, create_sql, nil, nil, nil)
 	if rc != sqlite.OK {
 		fmt.printf("Error creating table: %s\n", sqlite.db_errmsg(db))
 		sqlite.db_close(db)
@@ -125,14 +138,27 @@ db_close :: proc(d: ^Db) {
 	sqlite.db_close(d.db)
 }
 
-db_list :: proc(d: ^Db) -> (results: [dynamic]EnvFile, ok: bool) {
-	sql := "SELECT path, remotes, sha256, contents FROM envr_env_files"
+// Caller is responsible for calling:
+// ```odin
+// delete(results)
+// for &result in results {
+// 	delete(&result)
+// }
+// ```
+db_list :: proc(d: ^Db, allocator := context.allocator) -> (results: [dynamic]EnvFile, ok: bool) {
 	stmt: ^rawptr
-	rc := sqlite.prepare_v2(d.db, string_to_cstring(sql), -1, &stmt, nil)
+	rc := sqlite.prepare_v2(
+		d.db,
+		"SELECT path, remotes, sha256, contents FROM envr_env_files",
+		-1,
+		&stmt,
+		nil,
+	)
 	if rc != sqlite.OK {
 		fmt.printf("Error preparing query: %s\n", sqlite.db_errmsg(d.db))
 		return
 	}
+	defer sqlite.finalize(stmt)
 
 	for {
 		rc = sqlite.step(stmt)
@@ -141,19 +167,15 @@ db_list :: proc(d: ^Db) -> (results: [dynamic]EnvFile, ok: bool) {
 		}
 		if rc != sqlite.ROW {
 			fmt.printf("Error stepping query: %s\n", sqlite.db_errmsg(d.db))
-			sqlite.finalize(stmt)
 			return
 		}
 
-		path := cstring_to_string(sqlite.column_text(stmt, 0))
-		remotes_json := cstring_to_string(sqlite.column_text(stmt, 1))
-		sha := cstring_to_string(sqlite.column_text(stmt, 2))
-		contents := cstring_to_string(sqlite.column_text(stmt, 3))
-
-		remotes: [dynamic]string
+		remotes_json := string(sqlite.column_text(stmt, 1))
+		remotes: [dynamic]string = ---
 		if len(remotes_json) > 0 {
-			json.unmarshal_string(remotes_json, &remotes)
+			json.unmarshal_string(remotes_json, &remotes, allocator = allocator)
 		}
+		path := clone_cstring(sqlite.column_text(stmt, 0), allocator)
 
 		append(
 			&results,
@@ -161,13 +183,12 @@ db_list :: proc(d: ^Db) -> (results: [dynamic]EnvFile, ok: bool) {
 				Path = path,
 				Dir = filepath.dir(path),
 				Remotes = remotes,
-				Sha256 = sha,
-				contents = contents,
+				Sha256 = clone_cstring(sqlite.column_text(stmt, 2), allocator),
+				contents = clone_cstring(sqlite.column_text(stmt, 3), allocator),
 			},
 		)
 	}
 
-	sqlite.finalize(stmt)
 	ok = true
 	return
 }
@@ -175,9 +196,9 @@ db_list :: proc(d: ^Db) -> (results: [dynamic]EnvFile, ok: bool) {
 db_vacuum_to_file :: proc(db: ^rawptr, path: string) -> bool {
 	b: strings.Builder
 	strings.builder_init(&b)
+	defer strings.builder_destroy(&b)
 	fmt.sbprintf(&b, "VACUUM INTO '%s'", path)
-	sql := strings.to_string(b)
-	rc := sqlite.db_exec(db, string_to_cstring(sql), nil, nil, nil)
+	rc := sqlite.db_exec(db, to_cstring(&b), nil, nil, nil)
 	if rc != sqlite.OK {
 		fmt.printf("Error vacuuming database: %s\n", sqlite.db_errmsg(db))
 		return false
@@ -218,10 +239,10 @@ db_restore_from_encrypted :: proc(db: ^rawptr, cfg: Config) -> bool {
 db_attach_and_copy :: proc(mem_db: ^rawptr, src_path: string) -> bool {
 	b: strings.Builder
 	strings.builder_init(&b)
+	defer strings.builder_destroy(&b)
 	fmt.sbprintf(&b, "ATTACH DATABASE '%s' AS source", src_path)
-	attach_sql := strings.to_string(b)
 
-	rc := sqlite.db_exec(mem_db, string_to_cstring(attach_sql), nil, nil, nil)
+	rc := sqlite.db_exec(mem_db, to_cstring(&b), nil, nil, nil)
 	if rc != sqlite.OK {
 		fmt.printf("Error attaching database: %s\n", sqlite.db_errmsg(mem_db))
 		return false
@@ -250,6 +271,7 @@ get_git_remotes :: proc(dir: string) -> [dynamic]string {
 
 	b: strings.Builder
 	strings.builder_init(&b)
+	defer strings.builder_destroy(&b)
 	fmt.sbprintf(&b, "%s-git-remotes", make_temp_path())
 	tmp_path := strings.to_string(b)
 	tmp_file, tmp_err := os.open(tmp_path, os.O_CREATE | os.O_WRONLY | os.O_TRUNC)
@@ -279,13 +301,13 @@ get_git_remotes :: proc(dir: string) -> [dynamic]string {
 	}
 
 	data, read_err := os.read_entire_file_from_path(tmp_path, context.allocator)
+	defer delete(data)
 	os.remove(tmp_path)
 	if read_err != nil {
 		return remotes
 	}
 
-	output_str := string(data)
-	lines := strings.split(output_str, "\n")
+	lines := strings.split(string(data), "\n")
 
 	for &line in lines {
 		line = strings.trim_space(line)
@@ -312,27 +334,27 @@ new_env_file :: proc(path: string) -> (EnvFile, bool) {
 		fmt.printf("Error getting absolute path: %v\n", abs_err)
 		return EnvFile{}, false
 	}
-	cloned_path, _ := strings.clone(abs_path)
 
-	dir := filepath.dir(cloned_path)
+	dir := filepath.dir(abs_path)
 
 	remotes := get_git_remotes(dir)
 
-	data, read_err := os.read_entire_file_from_path(cloned_path, context.allocator)
+	data, read_err := os.read_entire_file_from_path(abs_path, context.allocator)
+	defer delete(data)
 	if read_err != nil {
-		fmt.printf("Error reading file %s: %v\n", cloned_path, read_err)
+		fmt.printf("Error reading file %s: %v\n", abs_path, read_err)
 		return EnvFile{}, false
 	}
 
-	digest := hash.hash_bytes(hash.Algorithm.SHA256, data)
+	digest := hash.hash_bytes(hash.Algorithm.SHA256, data, context.temp_allocator)
+	// TODO: Handle error
 	hex_bytes, _ := hex.encode(digest)
-	sha_str := string(hex_bytes)
 
 	return EnvFile {
-			Path = cloned_path,
+			Path = abs_path,
 			Dir = dir,
 			Remotes = remotes,
-			Sha256 = sha_str,
+			Sha256 = string(hex_bytes),
 			contents = string(data),
 		},
 		true
@@ -344,20 +366,35 @@ db_insert :: proc(d: ^Db, file: EnvFile) -> bool {
 		fmt.printf("Error marshaling remotes: %v\n", marshal_err)
 		return false
 	}
+	defer delete(remotes_json)
 
-	sql := "INSERT OR REPLACE INTO envr_env_files (path, remotes, sha256, contents) VALUES (?, ?, ?, ?)"
+	sql: cstring =
+		"INSERT OR REPLACE INTO " +
+		"envr_env_files (path, remotes, sha256, contents) VALUES (?, ?, ?, ?)"
 	stmt: ^rawptr
-	rc := sqlite.prepare_v2(d.db, string_to_cstring(sql), -1, &stmt, nil)
+	rc := sqlite.prepare_v2(d.db, sql, -1, &stmt, nil)
 	if rc != sqlite.OK {
 		fmt.printf("Error preparing insert: %s\n", sqlite.db_errmsg(d.db))
 		return false
 	}
 	defer sqlite.finalize(stmt)
 
-	rc = sqlite.bind_text(stmt, 1, string_to_cstring(file.Path), -1, nil)
-	rc = sqlite.bind_text(stmt, 2, string_to_cstring(string(remotes_json)), -1, nil)
-	rc = sqlite.bind_text(stmt, 3, string_to_cstring(file.Sha256), -1, nil)
-	rc = sqlite.bind_text(stmt, 4, string_to_cstring(file.contents), -1, nil)
+	// TODO: deal with elsewhere?
+	cpath := to_cstring(file.Path)
+	defer delete(cpath)
+	rc = sqlite.bind_text(stmt, 1, cpath, -1, nil)
+
+	cremotes := to_cstring(string(remotes_json))
+	defer delete(cremotes)
+	rc = sqlite.bind_text(stmt, 2, cremotes, -1, nil)
+
+	csha := to_cstring(file.Sha256)
+	defer delete(csha)
+	rc = sqlite.bind_text(stmt, 3, csha, -1, nil)
+
+	ccontents := to_cstring(file.contents)
+	defer delete(ccontents)
+	rc = sqlite.bind_text(stmt, 4, ccontents, -1, nil)
 
 	rc = sqlite.step(stmt)
 	if rc != sqlite.DONE {
@@ -369,17 +406,19 @@ db_insert :: proc(d: ^Db, file: EnvFile) -> bool {
 	return true
 }
 
-db_fetch :: proc(d: ^Db, path: string) -> (EnvFile, bool) {
-	sql := "SELECT path, remotes, sha256, contents FROM envr_env_files WHERE path = ?"
+db_fetch :: proc(d: ^Db, path: string, allocator := context.allocator) -> (EnvFile, bool) {
+	sql: cstring = "SELECT path, remotes, sha256, contents FROM envr_env_files WHERE path = ?"
 	stmt: ^rawptr
-	rc := sqlite.prepare_v2(d.db, string_to_cstring(sql), -1, &stmt, nil)
+	rc := sqlite.prepare_v2(d.db, sql, -1, &stmt, nil)
 	if rc != sqlite.OK {
 		fmt.printf("Error preparing fetch: %s\n", sqlite.db_errmsg(d.db))
 		return EnvFile{}, false
 	}
 	defer sqlite.finalize(stmt)
 
-	rc = sqlite.bind_text(stmt, 1, string_to_cstring(path), -1, nil)
+	cpath := to_cstring(path, allocator)
+	defer delete(cpath, allocator)
+	rc = sqlite.bind_text(stmt, 1, cpath, -1, nil)
 	rc = sqlite.step(stmt)
 	if rc == sqlite.DONE {
 		fmt.printf("No file found with path: %s\n", path)
@@ -390,38 +429,37 @@ db_fetch :: proc(d: ^Db, path: string) -> (EnvFile, bool) {
 		return EnvFile{}, false
 	}
 
-	file_path := cstring_to_string(sqlite.column_text(stmt, 0))
-	remotes_json := cstring_to_string(sqlite.column_text(stmt, 1))
-	sha := cstring_to_string(sqlite.column_text(stmt, 2))
-	contents := cstring_to_string(sqlite.column_text(stmt, 3))
-
-	remotes: [dynamic]string
+	remotes_json := string(sqlite.column_text(stmt, 1))
+	remotes: [dynamic]string = ---
 	if len(remotes_json) > 0 {
-		json.unmarshal_string(remotes_json, &remotes)
+		json.unmarshal_string(remotes_json, &remotes, allocator = allocator)
 	}
 
-	cloned_path, _ := strings.clone(file_path)
+	file_path := clone_cstring(sqlite.column_text(stmt, 0))
+
 	return EnvFile {
-			Path = cloned_path,
-			Dir = filepath.dir(cloned_path),
+			Path = file_path,
+			Dir = filepath.dir(file_path),
 			Remotes = remotes,
-			Sha256 = sha,
-			contents = contents,
+			Sha256 = clone_cstring(sqlite.column_text(stmt, 2), allocator),
+			contents = clone_cstring(sqlite.column_text(stmt, 3), allocator),
 		},
 		true
 }
 
 db_delete :: proc(d: ^Db, path: string) -> bool {
-	sql := "DELETE FROM envr_env_files WHERE path = ?"
+	sql: cstring = "DELETE FROM envr_env_files WHERE path = ?"
 	stmt: ^rawptr
-	rc := sqlite.prepare_v2(d.db, string_to_cstring(sql), -1, &stmt, nil)
+	rc := sqlite.prepare_v2(d.db, sql, -1, &stmt, nil)
 	if rc != sqlite.OK {
 		fmt.printf("Error preparing delete: %s\n", sqlite.db_errmsg(d.db))
 		return false
 	}
 	defer sqlite.finalize(stmt)
 
-	rc = sqlite.bind_text(stmt, 1, string_to_cstring(path), -1, nil)
+	cpath := to_cstring(path)
+	defer delete(cpath)
+	rc = sqlite.bind_text(stmt, 1, cpath, -1, nil)
 	rc = sqlite.step(stmt)
 	if rc != sqlite.DONE {
 		fmt.printf("Error deleting: %s\n", sqlite.db_errmsg(d.db))
@@ -437,17 +475,29 @@ db_delete :: proc(d: ^Db, path: string) -> bool {
 	return true
 }
 
-cstring_to_string :: proc(cs: cstring) -> string {
-	if cs == nil {
-		return ""
-	}
-	s, _ := strings.clone_from_cstring(cs)
-	return s
+to_cstring :: proc {
+	string_to_cstring,
+	strings.to_cstring,
 }
 
-string_to_cstring :: proc(s: string) -> cstring {
-	cs, _ := strings.clone_to_cstring(s)
+string_to_cstring :: proc(s: string, allocator := context.allocator) -> cstring {
+	cs, err := strings.clone_to_cstring(s, allocator)
+	if err != nil {
+		fmt.printf("Failed to convert string to cstring: %v\n", err)
+		panic("Allocation Exception")
+	}
 	return cs
+}
+
+clone_cstring :: proc(c: cstring, allocator := context.allocator) -> string {
+	str, err := strings.clone_from_cstring(c, allocator)
+	if err != nil {
+		fmt.printf("Failed to convert string to cstring: %v\n", err)
+		delete(str)
+		panic("Allocation Exception")
+	}
+
+	return str
 }
 
 db_update_required :: proc(status: SyncFlag) -> bool {
@@ -496,20 +546,11 @@ find_moved_dirs :: proc(d: ^Db, f: ^EnvFile) -> ([dynamic]string, bool) {
 	return moved, true
 }
 
-env_file_backup :: proc(f: ^EnvFile) -> bool {
-	data, read_err := os.read_entire_file_from_path(f.Path, context.allocator)
-	if read_err != nil {
-		fmt.printf("Error reading file %s: %v\n", f.Path, read_err)
-		return false
-	}
-
-	f.contents = string(data)
-	digest := hash.hash_bytes(hash.Algorithm.SHA256, data)
-	hex_bytes, _ := hex.encode(digest)
-	f.Sha256 = string(hex_bytes)
-	return true
+db_sync :: proc(d: ^Db, f: ^EnvFile) -> (SyncFlag, string) {
+	return env_file_sync(f, .TrustFilesystem, d)
 }
 
+// If SyncFlag is .BackedUp, Caller is responsible for calling delete on f.contents and f.Sha256
 env_file_sync :: proc(f: ^EnvFile, dir: SyncDirection, d: ^Db) -> (SyncFlag, string) {
 	result: SyncFlag = {}
 
@@ -555,6 +596,7 @@ env_file_sync :: proc(f: ^EnvFile, dir: SyncDirection, d: ^Db) -> (SyncFlag, str
 	}
 
 	digest := hash.hash_bytes(hash.Algorithm.SHA256, data)
+	// TODO: Handle error
 	hex_bytes, _ := hex.encode(digest)
 	current_sha := string(hex_bytes)
 
@@ -580,7 +622,24 @@ env_file_sync :: proc(f: ^EnvFile, dir: SyncDirection, d: ^Db) -> (SyncFlag, str
 	return result, ""
 }
 
-db_sync :: proc(d: ^Db, f: ^EnvFile) -> (SyncFlag, string) {
-	return env_file_sync(f, .TrustFilesystem, d)
+// Loads the contents of the the file at f.Path into f.contents
+//
+// Caller is responsible for calling delete on f.contents and f.Sha256
+env_file_backup :: proc(f: ^EnvFile) -> bool {
+	data, read_err := os.read_entire_file_from_path(f.Path, context.allocator)
+	if read_err != nil {
+		fmt.printf("Error reading file %s: %v\n", f.Path, read_err)
+		return false
+	}
+
+	f.contents = string(data)
+	digest := hash.hash_bytes(hash.Algorithm.SHA256, data, context.temp_allocator)
+	hex_bytes, alloc_err := hex.encode(digest)
+	if alloc_err != nil {
+		fmt.printf("Error generating hash for file %s: %v\n", f.Path, alloc_err)
+		return false
+	}
+	f.Sha256 = string(hex_bytes)
+	return true
 }
 

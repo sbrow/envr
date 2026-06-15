@@ -1,10 +1,10 @@
 package main
 
-import "core:fmt"
 import "core:io"
 import "core:os"
 import "core:terminal"
 
+// TODO: Improve table rendering
 cmd_deps :: proc(cmd: ^Command) {
 	feats := check_features()
 

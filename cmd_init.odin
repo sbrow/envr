@@ -5,10 +5,14 @@ import "core:fmt"
 cmd_init :: proc(cmd: ^Command) {
 	force := has_flag(cmd, "force") || has_flag(cmd, "f")
 
+	fmt.println(cmd.config_path)
+
 	_, cfg_exists := load_config(cmd.config_path)
 	if cfg_exists && !force {
-		fmt.println("You have already initialized envr.")
-		fmt.println("Run again with the --force flag if you want to reinitialize.")
+		fmt.println(
+			`You have already initialized envr.
+Run again with the --force flag if you want to reinitialize.`,
+		)
 		return
 	}
 
@@ -18,12 +22,13 @@ cmd_init :: proc(cmd: ^Command) {
 	}
 
 	if len(keys) == 0 {
-		fmt.println("No ssh-ed25519 keys found in ~/.ssh")
-		fmt.println("Generate one with: ssh-keygen -t ed25519")
+		fmt.println(`No ssh-ed25519 keys found in ~/.ssh
+Generate one with: ssh-keygen -t ed25519`)
 		return
 	}
 
 	selected, result := multi_select("Select SSH private keys:", keys[:])
+	defer delete(selected)
 	if result == .Cancel {
 		fmt.println("\x1b[2mCancelled.\x1b[0m")
 		return

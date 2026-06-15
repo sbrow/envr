@@ -13,6 +13,8 @@ ListEntry :: struct {
 	Path:      string `json:"path"`,
 }
 
+// TODO: Support --format flag
+// TODO: Improve table rendering
 cmd_list :: proc(cmd: ^Command) {
 	db, db_ok := db_open(cmd.config_path)
 	if !db_ok {
@@ -42,6 +44,7 @@ cmd_list :: proc(cmd: ^Command) {
 		w := io.to_writer(os.to_writer(os.stdout))
 		render_table(w, headers, table_rows[:])
 	} else {
+		// TODO: Should we instead print full entries here?
 		entries: [dynamic]ListEntry
 		for row in rows {
 			filename := filepath.base(row.Path)
@@ -54,7 +57,7 @@ cmd_list :: proc(cmd: ^Command) {
 			)
 		}
 
-		data, marshal_err := json.marshal(entries[:])
+		data, marshal_err := json.marshal(entries[:], allocator = context.temp_allocator)
 		if marshal_err != nil {
 			fmt.printf("Error marshaling JSON: %v\n", marshal_err)
 			return

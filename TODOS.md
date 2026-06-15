@@ -56,34 +56,34 @@ Note: These todos can wait until all the subcommands have been ported.
 
 25. Add tests for untested commands.
 
-26. Add a global --config -c flag to use an alternate config.
-
-27. version --long Odin only prints version; Go also prints commit hash and build date
-
-28. 2 scan tests silently skip	Low	When fd isn't installed, tests pass without actually testing anything. These should use #assert to be sure that fd is in path.
+28. 2 scan tests silently skip when fd isn't installed, tests pass without actually testing anything. These should use #assert to be sure that fd is in path.
 
 38. Try to do all encryption / decryption in memory - only read / write encrypted data to disk.
 
 40. use a buffered writer where possible (mem.DEFAULT_PAGE_SIZE)
 
+41. add --format -f flag to commands that draw tables.
+
+42. Replace `testing.expect` calls with `testing.expect_value` calls where appropriate.
+
 ## Double-check AI output
 
 - [ ] cli.odin
 - [ ] cli_test.odin
-- [ ] cmd_backup.odin
-- [ ] cmd_check.odin
+- [x] cmd_backup.odin
+- [x] cmd_check.odin
 - [ ] cmd_check_test.odin
-- [ ] cmd_deps.odin
+- [x] cmd_deps.odin
 - [ ] cmd_edit_config.odin
-- [ ] cmd_init.odin
-- [ ] cmd_list.odin
+- [x] cmd_init.odin
+- [x] cmd_list.odin
 - [ ] cmd_list_test.odin
-- [ ] cmd_nushell_completion.odin
-- [ ] cmd_nushell_completion_test.odin
-- [ ] cmd_remove.odin
-- [ ] cmd_restore.odin
-- [ ] cmd_scan.odin
-- [ ] cmd_sync.odin
+- [x] cmd_nushell_completion.odin
+- [x] cmd_nushell_completion_test.odin
+- [x] cmd_remove.odin
+- [x] cmd_restore.odin
+- [x] cmd_scan.odin
+- [x] cmd_sync.odin
 - [x] cmd_version.odin
 - [ ] config.odin
 - [ ] config_test.odin
@@ -92,10 +92,10 @@ Note: These todos can wait until all the subcommands have been ported.
 - [ ] db.odin
 - [ ] db_integration_test.odin
 - [ ] db_test.odin
-- [ ] features.odin
-- [ ] features_test.odin
-- [ ] main.odin
-- [ ] prompt.odin
+- [x] features.odin
+- [x] features_test.odin
+- [x] main.odin
+- [x] prompt.odin
 - [ ] scan.odin
 - [ ] scan_test.odin
 - [ ] sodium.odin

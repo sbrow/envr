@@ -56,6 +56,15 @@ COMMANDS := []CommandInfo {
 	},
 }
 
+delete_command :: proc(cmd: ^Command) {
+	delete(cmd.args)
+	delete(cmd.flags)
+	delete(cmd.bool_set)
+	// delete(cmd.config_path)
+}
+
+// Caller is responsible for calling delete_command(cmd).
+// FIXME: Works in kinda a wonky and awkward way.
 parse_args :: proc(args: []string) -> (cmd: Command, ok: bool) {
 	if len(args) < 2 || args[1] == "--help" || args[1] == "-h" {
 		print_usage()
@@ -101,8 +110,10 @@ parse_args :: proc(args: []string) -> (cmd: Command, ok: bool) {
 		cmd.config_path = val
 	} else {
 		// FIXME: Handle err
-		home, _ := os.user_home_dir(context.allocator)
-		cmd.config_path = default_config_path(home)
+		// TODO: Is this right?
+		home, _ := os.user_home_dir(context.temp_allocator)
+		// TODO: should we copy out of the temp_allocator?
+		cmd.config_path = default_config_path(home, context.temp_allocator)
 	}
 
 	if has_flag(&cmd, "help") {
@@ -157,7 +168,12 @@ write_command_help :: proc(name: string, w: io.Writer) -> bool {
 		fmt.wprintf(w, "\n%s\n", info.long, flush = false)
 	}
 
-	fmt.wprintf(w, "\nFlags:\n  -h, --help   help for %s\n  -c, --config-file <path>   config file (default \"~/.envr/config.json\")\n", info.name, flush = false)
+	fmt.wprintf(
+		w,
+		"\nFlags:\n  -h, --help   help for %s\n  -c, --config-file <path>   config file (default \"~/.envr/config.json\")\n",
+		info.name,
+		flush = false,
+	)
 	return true
 }
 
@@ -175,6 +191,7 @@ print_command_help :: proc(name: string) {
 	bufio.writer_flush(&bw)
 }
 
+// TODO: command args should be shown in usage.
 write_usage :: proc(w: io.Writer) {
 	fmt.wprintf(
 		w,

@@ -13,6 +13,7 @@ SyncEntry :: struct {
 }
 
 // TODO: Check for quiet failures.
+// TODO: Support --format -f flags
 cmd_sync :: proc(cmd: ^Command) {
 	db, db_ok := db_open(cmd.config_path)
 	if !db_ok {
@@ -26,11 +27,13 @@ cmd_sync :: proc(cmd: ^Command) {
 	}
 	defer delete(files)
 
+	// TODO: Set sane default size
 	results: [dynamic]SyncEntry
+	defer delete(results)
 
 	for &file in files {
 		old_path: string
-		old_path, _ = strings.clone(file.Path)
+		old_path, _ = strings.clone(file.Path, context.temp_allocator)
 
 		result, err_msg := db_sync(&db, &file)
 
