@@ -46,22 +46,23 @@ COMMANDS := []CommandInfo {
 	},
 	{"version", "envr version", "Show envr's version", "", {}},
 	{"edit-config", "envr edit-config", "Edit your config with your default editor", "", {}},
-	{"nushell-completion", "envr nushell-completion", "Generate custom completions for nushell", "", {}},
+	{
+		"nushell-completion",
+		"envr nushell-completion",
+		"Generate custom completions for nushell",
+		"",
+		{},
+	},
 }
 
 parse_args :: proc() -> (cmd: Command, ok: bool) {
 	args := os.args
-	if len(args) < 2 {
+	if len(args) < 2 || args[1] == "--help" || args[1] == "-h" {
 		print_usage()
 		return Command{}, false
 	}
 
 	cmd.name = args[1]
-
-	if cmd.name == "--help" || cmd.name == "-h" {
-		print_usage()
-		return Command{}, false
-	}
 
 	cmd.args = make([dynamic]string)
 	cmd.flags = make(map[string]string)
