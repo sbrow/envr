@@ -116,12 +116,22 @@ test_render_table_normal :: proc(t: ^testing.T) {
 
 	output := strings.to_string(b)
 
-	testing.expect(t, strings.contains(output, "Name"), "header 'Name' missing from output")
-	testing.expect(t, strings.contains(output, "Path"), "header 'Path' missing from output")
-	testing.expect(t, strings.contains(output, "foo"), "cell 'foo' missing from output")
-	testing.expect(t, strings.contains(output, "/home/user/.env"), "cell '/home/user/.env' missing from output")
-	testing.expect(t, strings.contains(output, "bar"), "cell 'bar' missing from output")
-	testing.expect(t, strings.contains(output, "/home/user/project/.env"), "cell '/home/user/project/.env' missing")
+	expected := `┌──────┬─────────────────────────┐
+│ Name │ Path                    │
+├──────┼─────────────────────────┤
+│ foo  │ /home/user/.env         │
+│ bar  │ /home/user/project/.env │
+└──────┴─────────────────────────┘
+`
+	testing.expect(
+		t,
+		output == expected,
+		fmt.tprintf(
+			"table output mismatch\n--- expected ---\n%s\n--- got ---\n%s\n",
+			expected,
+			output,
+		),
+	)
 }
 
 @(test)
@@ -138,7 +148,20 @@ test_render_table_empty :: proc(t: ^testing.T) {
 
 	output := strings.to_string(b)
 
-	testing.expect(t, strings.contains(output, "Name"), "header 'Name' missing from output")
+	expected := `┌──────┐
+│ Name │
+├──────┤
+└──────┘
+`
+	testing.expect(
+		t,
+		output == expected,
+		fmt.tprintf(
+			"table output mismatch\n--- expected ---\n%s\n--- got ---\n%s\n",
+			expected,
+			output,
+		),
+	)
 }
 
 @(test)
@@ -155,7 +178,21 @@ test_render_table_unicode :: proc(t: ^testing.T) {
 
 	output := strings.to_string(b)
 
-	testing.expect(t, strings.contains(output, "Available"), "unicode cell content missing")
-	testing.expect(t, strings.contains(output, "Missing"), "unicode cell content missing")
+	expected := `┌─────────────┬────────┐
+│ Status      │ Detail │
+├─────────────┼────────┤
+│ ✓ Available │ ok     │
+│ ✗ Missing   │ fail   │
+└─────────────┴────────┘
+`
+	testing.expect(
+		t,
+		output == expected,
+		fmt.tprintf(
+			"table output mismatch\n--- expected ---\n%s\n--- got ---\n%s\n",
+			expected,
+			output,
+		),
+	)
 }
 
