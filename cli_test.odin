@@ -315,3 +315,44 @@ test_parse_args_flag_then_positional_then_flag :: proc(t: ^testing.T) {
 	testing.expect(t, cmd.args[0] == "a.env")
 }
 
+@(test)
+test_parse_args_config_file_long_flag :: proc(t: ^testing.T) {
+	cmd, ok := parse_args([]string{"envr", "list", "--config-file", "/custom/config.json"})
+	testing.expect(t, ok, "should succeed")
+	if !ok do return
+	defer delete(cmd.args)
+	defer delete(cmd.flags)
+	defer delete(cmd.bool_set)
+
+	testing.expect(t, cmd.config_path == "/custom/config.json", "config_path should be set from --config-file")
+}
+
+@(test)
+test_parse_args_config_file_short_flag :: proc(t: ^testing.T) {
+	cmd, ok := parse_args([]string{"envr", "list", "-c", "/custom/config.json"})
+	testing.expect(t, ok, "should succeed")
+	if !ok do return
+	defer delete(cmd.args)
+	defer delete(cmd.flags)
+	defer delete(cmd.bool_set)
+
+	testing.expect(t, cmd.config_path == "/custom/config.json", "config_path should be set from -c")
+}
+
+@(test)
+test_parse_args_config_file_defaults :: proc(t: ^testing.T) {
+	cmd, ok := parse_args([]string{"envr", "list"})
+	testing.expect(t, ok, "should succeed")
+	if !ok do return
+	defer delete(cmd.args)
+	defer delete(cmd.flags)
+	defer delete(cmd.bool_set)
+
+	testing.expect(t, len(cmd.config_path) > 0, "config_path should default to non-empty path")
+	testing.expect(
+		t,
+		strings.contains(cmd.config_path, ".envr"),
+		"default config_path should contain .envr dir, got %s",
+	)
+}
+

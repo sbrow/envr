@@ -2,7 +2,6 @@ package main
 
 import "core:fmt"
 import "core:os"
-import "core:path/filepath"
 
 cmd_edit_config :: proc(cmd: ^Command) {
 	editor := os.get_env("EDITOR", context.allocator)
@@ -11,11 +10,7 @@ cmd_edit_config :: proc(cmd: ^Command) {
 		return
 	}
 
-	config_path, join_err := filepath.join([]string{envr_dir(), "config.json"})
-	if join_err != nil {
-		fmt.printf("Error building config path: %v\n", join_err)
-		return
-	}
+	config_path := cmd.config_path
 
 	_, stat_err := os.stat(config_path, context.allocator)
 	if stat_err != nil {

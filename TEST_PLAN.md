@@ -2,22 +2,17 @@
 
 ## Current State
 
-- 101 tests, all passing
-- Strong coverage: crypto (100%), ssh (90%), db CRUD + env_file + update_dir, config save/load + paths, scan, features, cant_scan, parse_args
+- 104 tests, all passing
+- Strong coverage: crypto, ssh, db CRUD + env_file + update_dir, config save/load + paths, scan, features, cant_scan, parse_args, `-c`/`--config-file` flag
 - Misleading test files: `cmd_check_test`, `cmd_list_test`, `cmd_nushell_completion_test` don't test their namesake procs
 - Biggest remaining gap: all `cmd_*` handlers untested
 
-## Next: `load_config` / `save_config` path param + `-c`/`--config-file` flag
-- Refactor `load_config(path: string = "")` and `save_config(cfg, force, path: string = "")` — empty string defaults to `~/.envr/config.json`
-- Add `-c`/`--config-file` to `parse_args` (now testable)
-- Wire through `main.odin` so commands receive the config path
-- Unblocks command handler tests with fixture configs
+## Command handler tests
 
-## Command handlers (need DB + filesystem fixtures)
+Stdout will be captured by redirecting `os.stdout` to a pipe.
 
 ### `cmd_version` (cmd_version.odin)
 - Test default output (prints VERSION)
-- Capture stdout, assert content
 
 ### `cmd_list` (cmd_list.odin)
 - Test TTY path: fixture DB with rows, capture table output
@@ -69,7 +64,6 @@
 
 ## Notes
 
-- All command handler tests will need stdout capture. Consider extracting a helper or using `io.Writer` injection.
 - DB integration tests should use in-memory SQLite (`:memory:`) where possible.
 - Temp dir fixtures should follow the pattern in `scan_test.odin`.
 - External dependency tests (`fd`, `git`) should use `#assert` to ensure the dependency is present rather than silently skipping (TODO 28).

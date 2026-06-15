@@ -18,21 +18,18 @@ ScanConfig :: struct {
 }
 
 Config :: struct {
-	Keys:       [dynamic]SshKeyPair `json:"keys"`,
-	ScanConfig: ScanConfig `json:"scan"`,
+	Keys:        [dynamic]SshKeyPair `json:"keys"`,
+	ScanConfig:  ScanConfig `json:"scan"`,
+	config_path: string `json:"-"`,
 }
 
-load_config :: proc() -> (Config, bool) {
-	home, home_err := os.user_home_dir(context.temp_allocator)
-	if home_err != nil {
-		fmt.printf("Error getting home dir: %v\n", home_err)
-		return Config{}, false
-	}
-	config_path, join_err := filepath.join([]string{home, ".envr", "config.json"})
-	if join_err != nil {
-		return Config{}, false
-	}
+default_config_path :: proc(home: string) -> string {
+	// FIXME: catch error
+	path, _ := filepath.join([]string{home, ".envr", "config.json"})
+	return path
+}
 
+load_config :: proc(config_path: string) -> (Config, bool) {
 	data, read_err := os.read_entire_file_from_path(config_path, context.allocator)
 	if read_err != nil {
 		fmt.println("No config file found. Please run `envr init` to generate one.")
@@ -45,6 +42,7 @@ load_config :: proc() -> (Config, bool) {
 		fmt.printf("Error parsing config: %v\n", err)
 		return Config{}, false
 	}
+	cfg.config_path = config_path
 
 	return cfg, true
 }
@@ -55,15 +53,12 @@ delete_config :: proc(cfg: Config) {
 	delete(cfg.ScanConfig.Include)
 }
 
-envr_dir :: proc() -> string {
-	home, _ := os.user_home_dir(context.allocator)
-	dir, _ := filepath.join([]string{home, ".envr"})
-	return dir
+envr_dir :: proc(config_path: string) -> string {
+	return filepath.dir(config_path)
 }
 
-data_encrypted_path :: proc() -> string {
-	dir := envr_dir()
-	path, _ := filepath.join([]string{dir, "data.envr"})
+data_encrypted_path :: proc(config_path: string) -> string {
+	path, _ := filepath.join([]string{envr_dir(config_path), "data.envr"})
 	return path
 }
 
@@ -113,7 +108,10 @@ find_ssh_private_keys :: proc() -> (keys: [dynamic]string, ok: bool) {
 	return
 }
 
-new_config :: proc(private_key_paths: []string) -> Config {
+new_config :: proc(
+	private_key_paths: []string,
+	cfg_path: string = "~/.envr/config.json",
+) -> Config {
 	keys := make([dynamic]SshKeyPair, 0, len(private_key_paths))
 	for priv in private_key_paths {
 		// TODO: Is this bad?
@@ -136,30 +134,22 @@ new_config :: proc(private_key_paths: []string) -> Config {
 		Include = include,
 	}
 
-	return Config{Keys = keys, ScanConfig = scan_cfg}
+	return Config{Keys = keys, ScanConfig = scan_cfg, config_path = cfg_path}
 }
 
 save_config :: proc(cfg: Config, force: bool = false) -> bool {
-	home, home_err := os.user_home_dir(context.allocator)
-	if home_err != nil {
-		fmt.printf("Error getting home dir: %v\n", home_err)
-		return false
-	}
-
-	config_dir, _ := filepath.join([]string{home, ".envr"})
+	config_dir := envr_dir(cfg.config_path)
 
 	if !os.exists(config_dir) {
 		mkdir_err := os.make_directory(config_dir)
 		if mkdir_err != nil {
-			fmt.printf("Error creating ~/.envr directory: %v\n", mkdir_err)
+			fmt.printf("Error creating %s directory: %v\n", config_dir, mkdir_err)
 			return false
 		}
 	}
 
-	config_path, _ := filepath.join([]string{config_dir, "config.json"})
-
-	if os.exists(config_path) && !force {
-		info, stat_err := os.stat(config_path, context.allocator)
+	if os.exists(cfg.config_path) && !force {
+		info, stat_err := os.stat(cfg.config_path, context.allocator)
 		if stat_err == nil {
 			defer os.file_info_delete(info, context.allocator)
 			if info.size > 0 {
@@ -175,7 +165,7 @@ save_config :: proc(cfg: Config, force: bool = false) -> bool {
 		return false
 	}
 
-	write_err := os.write_entire_file(config_path, data)
+	write_err := os.write_entire_file(cfg.config_path, data)
 	if write_err != nil {
 		fmt.printf("Error writing config: %v\n", write_err)
 		return false

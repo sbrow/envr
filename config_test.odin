@@ -2,6 +2,7 @@ package main
 
 import "core:fmt"
 import "core:os"
+import "core:path/filepath"
 import "core:strings"
 import "core:sync"
 import "core:testing"
@@ -69,27 +70,19 @@ test_new_config_exclude_patterns :: proc(t: ^testing.T) {
 
 @(test)
 test_save_load_config_roundtrip :: proc(t: ^testing.T) {
-	sync.mutex_lock(&home_mutex)
-	defer sync.mutex_unlock(&home_mutex)
-
-	old_home := os.get_env("HOME", context.temp_allocator)
-	defer {
-		if old_home != "" {
-			os.set_env("HOME", old_home)
-		}
-	}
-
 	base := fmt.tprintf("/tmp/envr-test-cfg-rt-%d", os.get_pid())
 	os.mkdir_all(base)
 	defer os.remove_all(base)
-	os.set_env("HOME", base)
 
-	cfg := new_config([]string{"/home/user/.ssh/id_ed25519"})
+	cfgPath, err := filepath.join([]string{base, "config.json"}, context.temp_allocator)
+	testing.expect(t, err == nil, "cfgPath should build successfully")
+
+	cfg := new_config([]string{"/home/user/.ssh/id_ed25519"}, cfgPath)
 	defer delete_config(cfg)
 
-	testing.expect(t, save_config(cfg, force=true), "save should succeed")
+	testing.expect(t, save_config(cfg, force = true), "save should succeed")
 
-	loaded, ok := load_config()
+	loaded, ok := load_config(cfg.config_path)
 	testing.expect(t, ok, "load should succeed")
 	if !ok do return
 	defer delete_config(loaded)
@@ -105,106 +98,62 @@ test_save_load_config_roundtrip :: proc(t: ^testing.T) {
 
 @(test)
 test_load_config_missing :: proc(t: ^testing.T) {
-	sync.mutex_lock(&home_mutex)
-	defer sync.mutex_unlock(&home_mutex)
-
-	old_home := os.get_env("HOME", context.temp_allocator)
-	defer {
-		if old_home != "" {
-			os.set_env("HOME", old_home)
-		}
-	}
-
-	base := fmt.tprintf("/tmp/envr-test-cfg-missing-%d", os.get_pid())
-	os.mkdir_all(base)
-	defer os.remove_all(base)
-	os.set_env("HOME", base)
-
-	_, ok := load_config()
+	_, ok := load_config("/tmp/envr-test-cfg-nonexistent/config.json")
 	testing.expect(t, !ok, "missing config should return false")
 }
 
 @(test)
 test_save_config_no_clobber :: proc(t: ^testing.T) {
-	sync.mutex_lock(&home_mutex)
-	defer sync.mutex_unlock(&home_mutex)
-
-	old_home := os.get_env("HOME", context.temp_allocator)
-	defer {
-		if old_home != "" {
-			os.set_env("HOME", old_home)
-		}
-	}
-
 	base := fmt.tprintf("/tmp/envr-test-cfg-noclobber-%d", os.get_pid())
 	os.mkdir_all(base)
 	defer os.remove_all(base)
-	os.set_env("HOME", base)
 
-	cfg := new_config([]string{"/home/user/.ssh/key1"})
+	cfgPath, err := filepath.join([]string{base, "config.json"}, context.temp_allocator)
+	testing.expect(t, err == nil, "cfgPath should build successfully")
+
+	cfg := new_config([]string{"/home/user/.ssh/key1"}, cfgPath)
 	defer delete_config(cfg)
-	testing.expect(t, save_config(cfg, force=true), "first save should succeed")
+	testing.expect(t, save_config(cfg, force = true), "first save should succeed")
 
-	cfg2 := new_config([]string{"/home/user/.ssh/key2"})
+	cfg2 := new_config([]string{"/home/user/.ssh/key2"}, cfgPath)
 	defer delete_config(cfg2)
 	testing.expect(t, !save_config(cfg2), "second save without force should fail")
 }
 
 @(test)
 test_save_config_force_overwrites :: proc(t: ^testing.T) {
-	sync.mutex_lock(&home_mutex)
-	defer sync.mutex_unlock(&home_mutex)
-
-	old_home := os.get_env("HOME", context.temp_allocator)
-	defer {
-		if old_home != "" {
-			os.set_env("HOME", old_home)
-		}
-	}
-
 	base := fmt.tprintf("/tmp/envr-test-cfg-force-%d", os.get_pid())
 	os.mkdir_all(base)
 	defer os.remove_all(base)
-	os.set_env("HOME", base)
 
-	cfg := new_config([]string{"/home/user/.ssh/key1"})
+	cfgPath, err := filepath.join([]string{base, "config.json"}, context.temp_allocator)
+	testing.expect(t, err == nil, "cfgPath should build successfully")
+
+	cfg := new_config([]string{"/home/user/.ssh/key1"}, cfgPath)
 	defer delete_config(cfg)
-	testing.expect(t, save_config(cfg, force=true), "first save should succeed")
+	testing.expect(t, save_config(cfg, force = true), "first save should succeed")
 
-	cfg2 := new_config([]string{"/home/user/.ssh/key2"})
+	cfg2 := new_config([]string{"/home/user/.ssh/key2"}, cfgPath)
 	defer delete_config(cfg2)
-	testing.expect(t, save_config(cfg2, force=true), "force save should overwrite")
+	testing.expect(t, save_config(cfg2, force = true), "force save should overwrite")
 
-	loaded, ok := load_config()
+	loaded, ok := load_config(cfgPath)
 	testing.expect(t, ok, "load should succeed")
 	if !ok do return
 	defer delete_config(loaded)
 
 	testing.expect(t, len(loaded.Keys) == 1, "should have 1 key")
-	testing.expect(t, loaded.Keys[0].Private == "/home/user/.ssh/key2", "should be the overwritten key")
+	testing.expect(
+		t,
+		loaded.Keys[0].Private == "/home/user/.ssh/key2",
+		"should be the overwritten key",
+	)
 }
 
 @(test)
 test_envr_dir :: proc(t: ^testing.T) {
-	sync.mutex_lock(&home_mutex)
-	defer sync.mutex_unlock(&home_mutex)
-
-	old_home := os.get_env("HOME", context.temp_allocator)
-	defer {
-		if old_home != "" {
-			os.set_env("HOME", old_home)
-		}
-	}
-
-	os.set_env("HOME", "/tmp/envr-fake-home-envrdir")
-
-	dir := envr_dir()
-	testing.expectf(
-		t,
-		strings.has_suffix(dir, ".envr"),
-		"dir should end with .envr, got %s",
-		dir,
-	)
+	dir := envr_dir("/tmp/envr-fake-home-envrdir/.envr/config.json")
+	testing.expectf(t, strings.has_suffix(dir, ".envr"), "dir should end with .envr, got %s", dir)
 	testing.expectf(
 		t,
 		strings.contains(dir, "envr-fake-home-envrdir"),
@@ -215,19 +164,7 @@ test_envr_dir :: proc(t: ^testing.T) {
 
 @(test)
 test_data_encrypted_path :: proc(t: ^testing.T) {
-	sync.mutex_lock(&home_mutex)
-	defer sync.mutex_unlock(&home_mutex)
-
-	old_home := os.get_env("HOME", context.temp_allocator)
-	defer {
-		if old_home != "" {
-			os.set_env("HOME", old_home)
-		}
-	}
-
-	os.set_env("HOME", "/tmp/envr-fake-home-datapath")
-
-	p := data_encrypted_path()
+	p := data_encrypted_path("/tmp/envr-fake-home-datapath/config.json")
 	testing.expectf(t, strings.has_suffix(p, "data.envr"), "should end with data.envr, got %s", p)
 	testing.expectf(t, strings.contains(p, ".envr"), "should contain .envr dir, got %s", p)
 }
@@ -247,9 +184,7 @@ test_search_paths_expands_tilde :: proc(t: ^testing.T) {
 	os.set_env("HOME", "/tmp/envr-fake-home-search")
 
 	cfg := Config {
-		ScanConfig = ScanConfig {
-			Include = make([dynamic]string, 0, 1),
-		},
+		ScanConfig = ScanConfig{Include = make([dynamic]string, 0, 1)},
 	}
 	defer delete(cfg.ScanConfig.Include)
 	append(&cfg.ScanConfig.Include, "~")

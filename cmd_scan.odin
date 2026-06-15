@@ -14,7 +14,7 @@ cmd_scan :: proc(cmd: ^Command) {
 		return
 	}
 
-	db, db_ok := db_open()
+	db, db_ok := db_open(cmd.config_path)
 	if !db_ok {
 		return
 	}

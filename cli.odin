@@ -8,10 +8,11 @@ import "core:os"
 import "core:strings"
 
 Command :: struct {
-	name:     string,
-	args:     [dynamic]string,
-	flags:    map[string]string,
-	bool_set: map[string]bool,
+	name:        string,
+	args:        [dynamic]string,
+	flags:       map[string]string,
+	bool_set:    map[string]bool,
+	config_path: string,
 }
 
 CommandInfo :: struct {
@@ -94,6 +95,16 @@ parse_args :: proc(args: []string) -> (cmd: Command, ok: bool) {
 		}
 	}
 
+	if val, ok := cmd.flags["config-file"]; ok {
+		cmd.config_path = val
+	} else if val, ok := cmd.flags["c"]; ok {
+		cmd.config_path = val
+	} else {
+		// FIXME: Handle err
+		home, _ := os.user_home_dir(context.allocator)
+		cmd.config_path = default_config_path(home)
+	}
+
 	if has_flag(&cmd, "help") {
 		print_command_help(cmd.name)
 		return Command{}, false
@@ -146,7 +157,7 @@ write_command_help :: proc(name: string, w: io.Writer) -> bool {
 		fmt.wprintf(w, "\n%s\n", info.long, flush = false)
 	}
 
-	fmt.wprintf(w, "\nFlags:\n  -h, --help   help for %s\n", info.name, flush = false)
+	fmt.wprintf(w, "\nFlags:\n  -h, --help   help for %s\n  -c, --config-file <path>   config file (default \"~/.envr/config.json\")\n", info.name, flush = false)
 	return true
 }
 
@@ -227,6 +238,7 @@ Available Commands:
 		`
 Flags:
   -h, --help   help for envr
+  -c, --config-file <path>   config file (default "~/.envr/config.json")
 
 Use "envr [command] --help" for more information about a command.
 `,

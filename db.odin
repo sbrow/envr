@@ -48,13 +48,13 @@ make_temp_path :: proc() -> string {
 	return strings.to_string(b)
 }
 
-db_open :: proc() -> (Db, bool) {
-	cfg, ok := load_config()
+db_open :: proc(cfg_path: string) -> (Db, bool) {
+	cfg, ok := load_config(cfg_path)
 	if !ok {
 		return Db{}, false
 	}
 
-	data_path := data_encrypted_path()
+	data_path := data_encrypted_path(cfg.config_path)
 	_, stat_err := os.stat(data_path, context.allocator)
 
 	db: ^rawptr
@@ -108,8 +108,8 @@ db_close :: proc(d: ^Db) {
 			return
 		}
 
-		data_path := data_encrypted_path()
-		envr_d := envr_dir()
+		data_path := data_encrypted_path(d.cfg.config_path)
+		envr_d := envr_dir(d.cfg.config_path)
 		os.mkdir_all(envr_d)
 
 		write_err := os.write_entire_file(data_path, encrypted)
@@ -186,7 +186,7 @@ db_vacuum_to_file :: proc(db: ^rawptr, path: string) -> bool {
 }
 
 db_restore_from_encrypted :: proc(db: ^rawptr, cfg: Config) -> bool {
-	data_path := data_encrypted_path()
+	data_path := data_encrypted_path(cfg.config_path)
 	encrypted_data, read_err := os.read_entire_file_from_path(data_path, context.temp_allocator)
 	if read_err != nil {
 		fmt.printf("Error reading encrypted database: %v\n", read_err)

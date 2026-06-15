@@ -28,7 +28,7 @@ cmd_remove :: proc(cmd: ^Command) {
         abs_path = resolved
     }
 
-    db, db_ok := db_open()
+    db, db_ok := db_open(cmd.config_path)
     if !db_ok {
         return
     }

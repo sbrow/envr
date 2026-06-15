@@ -5,7 +5,7 @@ import "core:fmt"
 cmd_init :: proc(cmd: ^Command) {
 	force := has_flag(cmd, "force") || has_flag(cmd, "f")
 
-	_, cfg_exists := load_config()
+	_, cfg_exists := load_config(cmd.config_path)
 	if cfg_exists && !force {
 		fmt.println("You have already initialized envr.")
 		fmt.println("Run again with the --force flag if you want to reinitialize.")
@@ -41,7 +41,7 @@ cmd_init :: proc(cmd: ^Command) {
 		return
 	}
 
-	cfg := new_config(selected_paths[:])
+	cfg := new_config(selected_paths[:], cmd.config_path)
 	if !save_config(cfg, force = force) {
 		return
 	}

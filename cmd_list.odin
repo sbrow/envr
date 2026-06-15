@@ -14,7 +14,7 @@ ListEntry :: struct {
 }
 
 cmd_list :: proc(cmd: ^Command) {
-	db, db_ok := db_open()
+	db, db_ok := db_open(cmd.config_path)
 	if !db_ok {
 		return
 	}
