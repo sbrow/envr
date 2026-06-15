@@ -1,5 +1,10 @@
 package main
 
+import "core:fmt"
+import "core:io"
+import "core:os"
+import "core:terminal"
+
 cmd_deps :: proc(cmd: ^Command) {
 	feats := check_features()
 
@@ -18,6 +23,12 @@ cmd_deps :: proc(cmd: ^Command) {
 		append(&rows, []string{"fd", "\u2717 Missing"})
 	}
 
-	render_table(headers, rows[:])
+	if terminal.is_terminal(os.stdout) {
+		render_table(headers, rows[:])
+	} else {
+		w := io.to_writer(os.to_writer(os.stdout))
+		render_json_rows(w, headers, rows[:])
+		io.write_string(w, "\n")
+	}
 }
 

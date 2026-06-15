@@ -3,18 +3,9 @@ package main
 import "core:encoding/json"
 import "core:fmt"
 import "core:io"
-import "core:os"
 import "core:strings"
-import "core:terminal"
 
 render_table :: proc(headers: []string, rows: [][]string) {
-	if !terminal.is_terminal(os.stdout) {
-		w := io.to_writer(os.to_writer(os.stdout))
-		render_json_rows(w, headers, rows)
-		io.write_string(w, "\n")
-		return
-	}
-
 	col_widths := make([dynamic]int, 0, len(headers))
 	for i in 0 ..< len(headers) {
 		append(&col_widths, strings.rune_count(headers[i]))
