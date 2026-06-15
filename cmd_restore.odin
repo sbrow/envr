@@ -7,13 +7,13 @@ import "core:strings"
 
 cmd_restore :: proc(cmd: ^Command) {
 	if len(cmd.args) != 1 {
-		print_command_help("restore")
+		print_command_help(cmd)
 		return
 	}
 
 	path := cmd.args[0]
 	if len(strings.trim_space(path)) == 0 {
-		fmt.println("Error: No path provided")
+		fmt.wprintln(cmd.err, "Error: No path provided", flush = false)
 		return
 	}
 
@@ -24,7 +24,7 @@ cmd_restore :: proc(cmd: ^Command) {
 	} else {
 		resolved, abs_err := filepath.abs(path)
 		if abs_err != nil {
-			fmt.printf("Error getting absolute path: %v\n", abs_err)
+			fmt.wprintf(cmd.err, "Error getting absolute path: %v\n", abs_err, flush = false)
 			return
 		}
 		abs_path = resolved
@@ -46,10 +46,10 @@ cmd_restore :: proc(cmd: ^Command) {
 
 	write_err := os.write_entire_file(file.Path, file.contents)
 	if write_err != nil {
-		fmt.printf("Error writing file: %v\n", write_err)
+		fmt.wprintf(cmd.err, "Error writing file: %v\n", write_err, flush = false)
 		return
 	}
 
-	fmt.printf("Restored %s\n", file.Path)
+	fmt.wprintf(cmd.out, "Restored %s\n", file.Path, flush = false)
 }
 

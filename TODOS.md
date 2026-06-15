@@ -32,8 +32,6 @@ Note: These todos can wait until all the subcommands have been ported.
 
 35. **prompt.odin:124** — `make([dynamic]bool, len(options))` creates N zero-initialized elements. Works because `false` is the default, but same footgun as original issue 1. Should be `make([dynamic]bool, 0, len(options))`.
 
-39. Lots of memory leaks to fix.
-
 ## LOW
 
 15. **db.odin:115** — `json.unmarshal_string` error not checked. Malformed JSON silently produces empty/partial data.

@@ -2,7 +2,6 @@ package main
 
 import "core:encoding/json"
 import "core:fmt"
-import "core:io"
 import "core:os"
 import "core:strings"
 import "core:terminal"
@@ -84,15 +83,14 @@ cmd_sync :: proc(cmd: ^Command) {
 			append(&table_rows, row_slice)
 		}
 
-		w := io.to_writer(os.to_writer(os.stdout))
-		render_table(w, headers, table_rows[:])
+		render_table(cmd.out, headers, table_rows[:])
 	} else {
 		data, marshal_err := json.marshal(results[:])
 		if marshal_err != nil {
-			fmt.printf("Error marshaling JSON: %v\n", marshal_err)
+			fmt.wprintf(cmd.err, "Error marshaling JSON: %v\n", marshal_err, flush = false)
 			return
 		}
-		fmt.println(string(data))
+		fmt.wprintln(cmd.out, string(data), flush = false)
 	}
 }
 

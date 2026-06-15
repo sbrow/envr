@@ -6,7 +6,7 @@ import "core:os"
 cmd_edit_config :: proc(cmd: ^Command) {
 	editor := os.get_env("EDITOR", context.allocator)
 	if len(editor) == 0 {
-		fmt.println("Error: $EDITOR environment variable is not set")
+		fmt.wprintln(cmd.err, "Error: $EDITOR environment variable is not set", flush = false)
 		return
 	}
 
@@ -14,7 +14,12 @@ cmd_edit_config :: proc(cmd: ^Command) {
 
 	_, stat_err := os.stat(config_path, context.allocator)
 	if stat_err != nil {
-		fmt.printf("Config file does not exist at %s. Run 'envr init' first.\n", config_path)
+		fmt.wprintf(
+			cmd.err,
+			"Config file does not exist at %s. Run 'envr init' first.\n",
+			config_path,
+			flush = false,
+		)
 		return
 	}
 
@@ -28,13 +33,13 @@ cmd_edit_config :: proc(cmd: ^Command) {
 
 	p, start_err := os.process_start(desc)
 	if start_err != nil {
-		fmt.printf("Error running editor: %v\n", start_err)
+		fmt.wprintf(cmd.err, "Error running editor: %v\n", start_err, flush = false)
 		return
 	}
 
 	state, wait_err := os.process_wait(p)
 	if wait_err != nil {
-		fmt.printf("Error waiting for editor: %v\n", wait_err)
+		fmt.wprintf(cmd.err, "Error waiting for editor: %v\n", wait_err, flush = false)
 		return
 	}
 	if state.exit_code != 0 {

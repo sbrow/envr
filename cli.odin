@@ -3,7 +3,6 @@ package main
 import "core:bufio"
 import "core:fmt"
 import "core:io"
-import "core:mem"
 import "core:os"
 import "core:strings"
 
@@ -13,6 +12,9 @@ Command :: struct {
 	flags:       map[string]string,
 	bool_set:    map[string]bool,
 	config_path: string,
+	out_buf:     ^bufio.Writer,
+	out:         io.Writer,
+	err:         io.Writer,
 }
 
 CommandInfo :: struct {
@@ -28,7 +30,10 @@ COMMANDS := []CommandInfo {
 		"init",
 		"envr init",
 		"Set up envr",
-		"The init command generates your initial config and saves it to\n~/.envr/config in JSON format.\n\nDuring setup, you will be prompted to select one or more ssh keys with which to\nencrypt your databse. **Make 100% sure** that you have **a remote copy** of this\nkey somewhere, otherwise your data could be lost forever.",
+		`The init command generates your initial config and saves it to
+~/.envr/config in JSON format.\n\nDuring setup, you will be prompted to select one or more ssh keys with which to
+encrypt your databse. **Make 100% sure** that you have **a remote copy** of this
+key somewhere, otherwise your data could be lost forever.`,
 		{},
 	},
 	{"scan", "envr scan", "Find and select .env files for backup", "", {}},
@@ -60,15 +65,23 @@ delete_command :: proc(cmd: ^Command) {
 	delete(cmd.args)
 	delete(cmd.flags)
 	delete(cmd.bool_set)
-	// delete(cmd.config_path)
+	bufio.writer_destroy(cmd.out_buf)
+	free(cmd.out_buf)
 }
 
 // Caller is responsible for calling delete_command(cmd).
 // FIXME: Works in kinda a wonky and awkward way.
-parse_args :: proc(args: []string) -> (cmd: Command, ok: bool) {
+parse_args :: proc(args: []string, out: io.Stream, err: io.Stream) -> (cmd: Command, ok: bool) {
+	{
+		cmd.out_buf = new(bufio.Writer)
+		bufio.writer_init(cmd.out_buf, out)
+		cmd.out = bufio.writer_to_writer(cmd.out_buf)
+		cmd.err = err
+	}
+
 	if len(args) < 2 || args[1] == "--help" || args[1] == "-h" {
-		print_usage()
-		return Command{}, false
+		write_usage(cmd.out)
+		return cmd, false
 	}
 
 	cmd.name = args[1]
@@ -117,8 +130,8 @@ parse_args :: proc(args: []string) -> (cmd: Command, ok: bool) {
 	}
 
 	if has_flag(&cmd, "help") {
-		print_command_help(cmd.name)
-		return Command{}, false
+		print_command_help(&cmd)
+		return cmd, false
 	}
 
 	return cmd, true
@@ -177,18 +190,12 @@ write_command_help :: proc(name: string, w: io.Writer) -> bool {
 	return true
 }
 
-print_command_help :: proc(name: string) {
-	bw: bufio.Writer
-	bufio.writer_init(&bw, io.to_writer(os.to_writer(os.stdout)), mem.DEFAULT_PAGE_SIZE)
-	defer bufio.writer_destroy(&bw)
-
-	w := bufio.writer_to_writer(&bw)
-	ok := write_command_help(name, w)
+print_command_help :: proc(cmd: ^Command) {
+	ok := write_command_help(cmd.name, cmd.out)
 	if !ok {
-		fmt.printf("Unknown command: %s\n", name)
-		print_usage()
+		fmt.wprintf(cmd.err, "Unknown command: %s\n", cmd.name)
+		write_usage(cmd.out)
 	}
-	bufio.writer_flush(&bw)
 }
 
 // TODO: command args should be shown in usage.
@@ -261,15 +268,5 @@ Use "envr [command] --help" for more information about a command.
 `,
 		flush = false,
 	)
-}
-
-// TODO: Look at usages,might want to pass a writer
-print_usage :: proc() {
-	bw: bufio.Writer
-	bufio.writer_init(&bw, io.to_writer(os.to_writer(os.stdout)), mem.DEFAULT_PAGE_SIZE)
-	defer bufio.writer_destroy(&bw)
-	defer bufio.writer_flush(&bw)
-
-	write_usage(bufio.writer_to_writer(&bw))
 }
 

@@ -5,13 +5,13 @@ import "core:strings"
 
 cmd_backup :: proc(cmd: ^Command) {
 	if len(cmd.args) != 1 {
-		print_command_help("backup")
+		print_command_help(cmd)
 		return
 	}
 
 	path := cmd.args[0]
 	if len(strings.trim_space(path)) == 0 {
-		fmt.println("Error: No path provided")
+		fmt.wprintln(cmd.err, "Error: No path provided", flush = false)
 		return
 	}
 
@@ -30,6 +30,6 @@ cmd_backup :: proc(cmd: ^Command) {
 		return
 	}
 
-	fmt.printf("Saved %s into the database\n", path)
+	fmt.wprintf(cmd.out, "Saved %s into the database\n", path, flush = false)
 }
 

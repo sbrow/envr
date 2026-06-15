@@ -5,13 +5,15 @@ import "core:fmt"
 cmd_init :: proc(cmd: ^Command) {
 	force := has_flag(cmd, "force") || has_flag(cmd, "f")
 
-	fmt.println(cmd.config_path)
+	fmt.wprintln(cmd.out, cmd.config_path, flush = false)
 
 	_, cfg_exists := load_config(cmd.config_path)
 	if cfg_exists && !force {
-		fmt.println(
+		fmt.wprintln(
+			cmd.out,
 			`You have already initialized envr.
 Run again with the --force flag if you want to reinitialize.`,
+			flush = false,
 		)
 		return
 	}
@@ -22,15 +24,15 @@ Run again with the --force flag if you want to reinitialize.`,
 	}
 
 	if len(keys) == 0 {
-		fmt.println(`No ssh-ed25519 keys found in ~/.ssh
-Generate one with: ssh-keygen -t ed25519`)
+		fmt.wprintln(cmd.err, `No ssh-ed25519 keys found in ~/.ssh
+Generate one with: ssh-keygen -t ed25519`, flush = false)
 		return
 	}
 
 	selected, result := multi_select("Select SSH private keys:", keys[:])
 	defer delete(selected)
 	if result == .Cancel {
-		fmt.println("\x1b[2mCancelled.\x1b[0m")
+		fmt.wprintln(cmd.out, "\x1b[2mCancelled.\x1b[0m", flush = false)
 		return
 	}
 
@@ -42,7 +44,7 @@ Generate one with: ssh-keygen -t ed25519`)
 	}
 
 	if len(selected_paths) == 0 {
-		fmt.println("No SSH keys selected - Config not created")
+		fmt.wprintln(cmd.err, "No SSH keys selected - Config not created", flush = false)
 		return
 	}
 
@@ -51,9 +53,10 @@ Generate one with: ssh-keygen -t ed25519`)
 		return
 	}
 
-	fmt.printf(
+	fmt.wprintf(
+		cmd.out,
 		"Config initialized with %d SSH key(s). You are ready to use envr.\n",
 		len(selected_paths),
+		flush = false,
 	)
 }
-

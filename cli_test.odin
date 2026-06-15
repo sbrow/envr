@@ -2,6 +2,7 @@
 
 package main
 
+import "core:bufio"
 import "core:fmt"
 import "core:strings"
 import "core:testing"
@@ -189,9 +190,35 @@ test_has_flag_empty_command :: proc(t: ^testing.T) {
 	testing.expect(t, !has_flag(&cmd, "anything"), "empty command should have no flags")
 }
 
+test_parse_args :: proc(
+	args: []string,
+) -> (
+	cmd: Command,
+	ok: bool,
+	out_text: string,
+	err_text: string,
+) {
+	out_b: strings.Builder
+	strings.builder_init(&out_b)
+	defer strings.builder_destroy(&out_b)
+	err_b: strings.Builder
+	strings.builder_init(&err_b)
+	defer strings.builder_destroy(&err_b)
+
+	cmd, ok = parse_args(args, strings.to_stream(&out_b), strings.to_stream(&err_b))
+
+	if ok {
+		bufio.writer_flush(cmd.out_buf)
+		out_text = strings.to_string(out_b)
+		err_text = strings.to_string(err_b)
+	}
+
+	return
+}
+
 @(test)
 test_parse_args_bare_command :: proc(t: ^testing.T) {
-	cmd, ok := parse_args([]string{"envr", "list"})
+	cmd, ok, _, _ := test_parse_args([]string{"envr", "list"})
 	testing.expect(t, ok, "should succeed")
 	if !ok do return
 	defer delete_command(&cmd)
@@ -204,10 +231,9 @@ test_parse_args_bare_command :: proc(t: ^testing.T) {
 
 @(test)
 test_parse_args_positional :: proc(t: ^testing.T) {
-	cmd, ok := parse_args([]string{"envr", "backup", "/project/.env"})
-	testing.expect(t, ok, "should succeed")
-	if !ok do return
+	cmd, ok, _, _ := test_parse_args([]string{"envr", "backup", "/project/.env"})
 	defer delete_command(&cmd)
+	testing.expect(t, ok, "should succeed")
 
 	testing.expect(t, cmd.name == "backup")
 	testing.expect(t, len(cmd.args) == 1)
@@ -216,7 +242,7 @@ test_parse_args_positional :: proc(t: ^testing.T) {
 
 @(test)
 test_parse_args_long_flag_with_value :: proc(t: ^testing.T) {
-	cmd, ok := parse_args([]string{"envr", "sync", "--config", "x.json"})
+	cmd, ok, _, _ := test_parse_args([]string{"envr", "sync", "--config", "x.json"})
 	testing.expect(t, ok, "should succeed")
 	if !ok do return
 	defer delete_command(&cmd)
@@ -226,7 +252,7 @@ test_parse_args_long_flag_with_value :: proc(t: ^testing.T) {
 
 @(test)
 test_parse_args_short_flag_with_value :: proc(t: ^testing.T) {
-	cmd, ok := parse_args([]string{"envr", "sync", "-c", "x.json"})
+	cmd, ok, _, _ := test_parse_args([]string{"envr", "sync", "-c", "x.json"})
 	testing.expect(t, ok, "should succeed")
 	if !ok do return
 	defer delete_command(&cmd)
@@ -236,7 +262,7 @@ test_parse_args_short_flag_with_value :: proc(t: ^testing.T) {
 
 @(test)
 test_parse_args_long_bool_flag :: proc(t: ^testing.T) {
-	cmd, ok := parse_args([]string{"envr", "init", "--force"})
+	cmd, ok, _, _ := test_parse_args([]string{"envr", "init", "--force"})
 	testing.expect(t, ok, "should succeed")
 	if !ok do return
 	defer delete_command(&cmd)
@@ -246,7 +272,7 @@ test_parse_args_long_bool_flag :: proc(t: ^testing.T) {
 
 @(test)
 test_parse_args_short_bool_flag :: proc(t: ^testing.T) {
-	cmd, ok := parse_args([]string{"envr", "version", "-l"})
+	cmd, ok, _, _ := test_parse_args([]string{"envr", "version", "-l"})
 	testing.expect(t, ok, "should succeed")
 	if !ok do return
 	defer delete_command(&cmd)
@@ -256,7 +282,7 @@ test_parse_args_short_bool_flag :: proc(t: ^testing.T) {
 
 @(test)
 test_parse_args_multiple_positionals :: proc(t: ^testing.T) {
-	cmd, ok := parse_args([]string{"envr", "backup", "a", "b"})
+	cmd, ok, _, _ := test_parse_args([]string{"envr", "backup", "a", "b"})
 	testing.expect(t, ok, "should succeed")
 	if !ok do return
 	defer delete_command(&cmd)
@@ -268,7 +294,7 @@ test_parse_args_multiple_positionals :: proc(t: ^testing.T) {
 
 @(test)
 test_parse_args_mixed_flags_and_positionals :: proc(t: ^testing.T) {
-	cmd, ok := parse_args([]string{"envr", "backup", "/project/.env", "--force"})
+	cmd, ok, _, _ := test_parse_args([]string{"envr", "backup", "/project/.env", "--force"})
 	testing.expect(t, ok, "should succeed")
 	if !ok do return
 	defer delete_command(&cmd)
@@ -280,16 +306,16 @@ test_parse_args_mixed_flags_and_positionals :: proc(t: ^testing.T) {
 
 @(test)
 test_parse_args_no_args :: proc(t: ^testing.T) {
-	_, ok := parse_args([]string{"envr"})
+	cmd, ok, _, _ := test_parse_args([]string{"envr"})
+	defer delete_command(&cmd)
 	testing.expect(t, !ok, "no args should return false")
 }
 
 @(test)
 test_parse_args_flag_then_positional_then_flag :: proc(t: ^testing.T) {
-	cmd, ok := parse_args([]string{"envr", "backup", "a.env", "--force", "--verbose"})
-	testing.expect(t, ok, "should succeed")
-	if !ok do return
+	cmd, ok, _, _ := test_parse_args([]string{"envr", "backup", "a.env", "--force", "--verbose"})
 	defer delete_command(&cmd)
+	testing.expect(t, ok, "should succeed")
 
 	testing.expect(t, cmd.bool_set["force"] == true)
 	testing.expect(t, cmd.bool_set["verbose"] == true)
@@ -299,7 +325,9 @@ test_parse_args_flag_then_positional_then_flag :: proc(t: ^testing.T) {
 
 @(test)
 test_parse_args_config_file_long_flag :: proc(t: ^testing.T) {
-	cmd, ok := parse_args([]string{"envr", "list", "--config-file", "/custom/config.json"})
+	cmd, ok, _, _ := test_parse_args(
+		[]string{"envr", "list", "--config-file", "/custom/config.json"},
+	)
 	testing.expect(t, ok, "should succeed")
 	if !ok do return
 	defer delete_command(&cmd)
@@ -313,7 +341,7 @@ test_parse_args_config_file_long_flag :: proc(t: ^testing.T) {
 
 @(test)
 test_parse_args_config_file_short_flag :: proc(t: ^testing.T) {
-	cmd, ok := parse_args([]string{"envr", "list", "-c", "/custom/config.json"})
+	cmd, ok, _, _ := test_parse_args([]string{"envr", "list", "-c", "/custom/config.json"})
 	testing.expect(t, ok, "should succeed")
 	if !ok do return
 	defer delete_command(&cmd)
@@ -327,7 +355,7 @@ test_parse_args_config_file_short_flag :: proc(t: ^testing.T) {
 
 @(test)
 test_parse_args_config_file_defaults :: proc(t: ^testing.T) {
-	cmd, ok := parse_args([]string{"envr", "list"})
+	cmd, ok, _, _ := test_parse_args([]string{"envr", "list"})
 	testing.expect(t, ok, "should succeed")
 	if !ok do return
 	defer delete_command(&cmd)

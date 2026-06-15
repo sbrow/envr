@@ -1,6 +1,6 @@
 package main
 
-import "core:io"
+import "core:fmt"
 import "core:os"
 import "core:terminal"
 
@@ -24,12 +24,10 @@ cmd_deps :: proc(cmd: ^Command) {
 	}
 
 	if terminal.is_terminal(os.stdout) {
-		w := io.to_writer(os.to_writer(os.stdout))
-		render_table(w, headers, rows[:])
+		render_table(cmd.out, headers, rows[:])
 	} else {
-		w := io.to_writer(os.to_writer(os.stdout))
-		render_json_rows(w, headers, rows[:])
-		io.write_string(w, "\n")
+		render_json_rows(cmd.out, headers, rows[:])
+		fmt.wprint(cmd.out, "\n", flush = false)
 	}
 }
 

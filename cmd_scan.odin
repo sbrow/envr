@@ -8,8 +8,10 @@ import "core:terminal"
 cmd_scan :: proc(cmd: ^Command) {
 	feats := check_features()
 	if cant_scan(feats) {
-		fmt.println(
+		fmt.wprintln(
+			cmd.err,
 			"Error: please install fd to use the scan command (https://github.com/sharkdp/fd)",
+			flush = false,
 		)
 		return
 	}
@@ -22,7 +24,11 @@ cmd_scan :: proc(cmd: ^Command) {
 
 	search_dirs := search_paths(db.cfg)
 	if len(search_dirs) == 0 {
-		fmt.println("No search paths configured. Please run `envr init -f` or edit your config.")
+		fmt.wprintln(
+			cmd.err,
+			"No search paths configured. Please run `envr init -f` or edit your config.",
+			flush = false,
+		)
 		return
 	}
 
@@ -31,7 +37,7 @@ cmd_scan :: proc(cmd: ^Command) {
 	for dir in search_dirs {
 		found, scan_ok := scan_path(dir, db.cfg)
 		if !scan_ok {
-			fmt.printf("Error scanning %s\n", dir)
+			fmt.wprintf(cmd.err, "Error scanning %s\n", dir, flush = false)
 			continue
 		}
 		for f in found {
@@ -47,24 +53,29 @@ cmd_scan :: proc(cmd: ^Command) {
 	files := find_unbacked(all_files[:], db_files[:])
 
 	if len(files) == 0 {
-		fmt.println("No .env files found to add.")
+		fmt.wprintln(cmd.out, "No .env files found to add.", flush = false)
 		return
 	}
 
 	if !terminal.is_terminal(os.stdout) {
 		output, marshal_err := json.marshal(files[:])
 		if marshal_err != nil {
-			fmt.printf("Error marshaling files to JSON: %v\n", marshal_err)
+			fmt.wprintf(
+				cmd.err,
+				"Error marshaling files to JSON: %v\n",
+				marshal_err,
+				flush = false,
+			)
 			return
 		}
-		fmt.println(string(output))
+		fmt.wprintln(cmd.out, string(output), flush = false)
 		return
 	}
 
 	selected, result := multi_select("Select .env files to backup:", files[:])
 	defer delete(selected)
 	if result == .Cancel {
-		fmt.println("\x1b[2mCancelled.\x1b[0m")
+		fmt.wprintln(cmd.out, "\x1b[2mCancelled.\x1b[0m", flush = false)
 		return
 	}
 
@@ -75,20 +86,25 @@ cmd_scan :: proc(cmd: ^Command) {
 		}
 		env_file, ok := new_env_file(files[i])
 		if !ok {
-			fmt.printf("Error reading %s\n", files[i])
+			fmt.wprintf(cmd.err, "Error reading %s\n", files[i], flush = false)
 			continue
 		}
 		if !db_insert(&db, env_file) {
-			fmt.printf("Error adding %s\n", files[i])
+			fmt.wprintf(cmd.err, "Error adding %s\n", files[i], flush = false)
 			continue
 		}
 		added_count += 1
 	}
 
 	if added_count > 0 {
-		fmt.printf("\x1b[1;32mSuccessfully added %d file(s) to backup.\x1b[0m\n", added_count)
+		fmt.wprintf(
+			cmd.out,
+			"\x1b[1;32mSuccessfully added %d file(s) to backup.\x1b[0m\n",
+			added_count,
+			flush = false,
+		)
 	} else {
-		fmt.println("\x1b[2mNo files were added.\x1b[0m")
+		fmt.wprintln(cmd.out, "\x1b[2mNo files were added.\x1b[0m", flush = false)
 	}
 }
 

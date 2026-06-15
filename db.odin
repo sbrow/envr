@@ -51,7 +51,6 @@ delete_envfile :: proc(f: ^EnvFile) {
 	delete(f.contents)
 }
 
-// TODO: Leak?
 make_temp_path :: proc() -> string {
 	ts := time.time_to_unix(time.now())
 	b: strings.Builder

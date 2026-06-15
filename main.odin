@@ -1,10 +1,12 @@
 package main
 
+import "core:bufio"
 import "core:fmt"
 import "core:os"
 
 main :: proc() {
-	cmd, ok := parse_args(os.args)
+	cmd, ok := parse_args(os.args, os.to_writer(os.stdout), os.to_writer(os.stderr))
+	defer bufio.writer_flush(cmd.out_buf)
 	if !ok {
 		return
 	}
@@ -35,10 +37,9 @@ main :: proc() {
 	case "nushell-completion":
 		cmd_nushell_completion(&cmd)
 	case:
-		fmt.printf("Unknown command: %s\n", cmd.name)
-		print_usage()
+		fmt.wprintf(cmd.err, "Unknown command: %s\n", cmd.name)
+		write_usage(cmd.out)
 		os.exit(1)
 	}
 }
-
 

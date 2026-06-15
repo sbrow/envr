@@ -13,7 +13,7 @@ cmd_check :: proc(cmd: ^Command) {
 	} else {
 		cwd, cwd_err := os.get_working_directory(context.temp_allocator)
 		if cwd_err != nil {
-			fmt.printf("Error getting current directory: %v\n", cwd_err)
+			fmt.wprintf(cmd.err, "Error getting current directory: %v\n", cwd_err, flush = false)
 			return
 		}
 		check_path = cwd
@@ -25,7 +25,7 @@ cmd_check :: proc(cmd: ^Command) {
 	} else {
 		resolved, abs_err := filepath.abs(check_path)
 		if abs_err != nil {
-			fmt.printf("Error getting absolute path: %v\n", abs_err)
+			fmt.wprintf(cmd.err, "Error getting absolute path: %v\n", abs_err, flush = false)
 			return
 		}
 		abs_path = resolved
@@ -43,15 +43,17 @@ cmd_check :: proc(cmd: ^Command) {
 
 	if is_dir {
 		if cant_scan(feats) {
-			fmt.println(
+			fmt.wprintln(
+				cmd.err,
 				"Error: please install fd to use the check command (https://github.com/sharkdp/fd)",
+				flush = false,
 			)
 			return
 		}
 
 		scanned, scan_ok := scan_path(abs_path, db.cfg)
 		if !scan_ok {
-			fmt.println("Error scanning directory for .env files")
+			fmt.wprintln(cmd.err, "Error scanning directory for .env files", flush = false)
 			return
 		}
 		files_in_path = scanned
@@ -68,16 +70,15 @@ cmd_check :: proc(cmd: ^Command) {
 
 	if len(not_backed) == 0 {
 		if len(files_in_path) == 0 {
-			fmt.println("No .env files found in the specified directory.")
+			fmt.wprintln(cmd.out, "No .env files found in the specified directory.", flush = false)
 		} else {
-			fmt.println("✓ All .env files in the directory are backed up.")
+			fmt.wprintln(cmd.out, "✓ All .env files in the directory are backed up.", flush = false)
 		}
 	} else {
-		fmt.printf("Found %d .env file(s) that are not backed up:\n", len(not_backed))
+		fmt.wprintf(cmd.out, "Found %d .env file(s) that are not backed up:\n", len(not_backed), flush = false)
 		for file in not_backed {
-			fmt.printf("  %s\n", file)
+			fmt.wprintf(cmd.out, "  %s\n", file, flush = false)
 		}
-		fmt.println("\nRun 'envr sync' to back up these files.")
+		fmt.wprintln(cmd.out, "\nRun 'envr sync' to back up these files.", flush = false)
 	}
 }
-
