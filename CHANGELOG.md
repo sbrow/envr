@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.0](https://github.com/sbrow/envr/compare/v0.2.1...v0.3.0) (2026-06-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* The encryption format of databases has changed. Age encryption is no longer supported, and no automatic migration path was implemented.
+
+### Features
+
+* All encryption/decryption now happens in-memory. ([fe2b256](https://github.com/sbrow/envr/commit/fe2b256bd61eaf551d53faf3893b473a64a94667))
+* Config can be loaded from any path with `--config-file (-c)` flag. ([4a26ee8](https://github.com/sbrow/envr/commit/4a26ee814591e6aab0eb99d2359d51b31011edfe))
+* Switched from age to libsodium. ([23b8c2d](https://github.com/sbrow/envr/commit/23b8c2dc671a23cf76cf6746b33806ded9381486))
+
+
+### Performance Improvements
+
+* Improved writer performance. ([365e914](https://github.com/sbrow/envr/commit/365e9149b1a738ac9119bb5f74dc7e047ecfed5b))
+
 ## [0.2.1](https://github.com/sbrow/envr/compare/v0.2.0...v0.2.1) (2026-01-12)
 
 
