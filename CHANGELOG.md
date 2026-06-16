@@ -2,6 +2,10 @@
 
 ## [0.3.0](https://github.com/sbrow/envr/compare/v0.2.1...v0.3.0) (2026-06-16)
 
+Version 0.3.0 represents a significant departure (and improvement) for envr.
+The entire codebase was rewritten in [Odin](https://odin-lang.org/) (from Go).
+This reduced the binary size from over 17MB to under 600k, improved performance,
+and significantly reduced the number of project dependencies from 69 to just 2.
 
 ### ⚠ BREAKING CHANGES
 

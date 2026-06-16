@@ -1,6 +1,5 @@
 # TODOs
 
-
 1. Consider giving db its own allocator
 
 2. **db.odin:324-327** — Map iteration (`remote_set`) is non-deterministic. Same file can produce different JSON on each backup, causing spurious DB diffs. Sort remotes before storing.
