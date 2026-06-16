@@ -75,7 +75,7 @@ envr_dir :: proc(config_path: string) -> string {
 	return filepath.dir(config_path)
 }
 
-data_encrypted_path :: proc(config_path: string) -> string {
+data_path :: proc(config_path: string) -> string {
 	path, _ := filepath.join([]string{envr_dir(config_path), "data.envr"})
 	return path
 }

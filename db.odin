@@ -66,7 +66,7 @@ db_open :: proc(cfg_path: string) -> (Db, bool) {
 		return Db{}, false
 	}
 
-	data_path := data_encrypted_path(cfg.config_path)
+	data_path := data_path(cfg.config_path)
 	_, stat_err := os.stat(data_path, context.allocator)
 
 	db: ^rawptr
@@ -95,32 +95,31 @@ db_open :: proc(cfg_path: string) -> (Db, bool) {
 }
 
 db_close :: proc(d: ^Db) {
+	defer sqlite.db_close(d.db)
+
 	if d.changed {
-		tmp_path := make_temp_path()
-
-		if !db_vacuum_to_file(d.db, tmp_path) {
-			os.remove(tmp_path)
-			sqlite.db_close(d.db)
+		rc := sqlite.db_exec(d.db, "VACUUM", nil, nil, nil)
+		if rc != sqlite.OK {
+			fmt.printf("Error vacuuming database: %s\n", sqlite.db_errmsg(d.db))
 			return
 		}
 
-		sqlite_data, read_err := os.read_entire_file_from_path(tmp_path, context.allocator)
-		os.remove(tmp_path)
-		if read_err != nil {
-			fmt.printf("Error reading vacuumed database: %v\n", read_err)
-			sqlite.db_close(d.db)
+		sz: i64
+		data := sqlite.serialize(d.db, "main", &sz, 0)
+		if data == nil {
+			fmt.println("Error: failed to serialize database")
 			return
 		}
+		defer sqlite.free(data)
 
+		sqlite_data := data[:sz]
 		encrypted, enc_ok := encrypt(sqlite_data, d.cfg.Keys[:])
-		delete(sqlite_data)
 		if !enc_ok {
 			fmt.println("Error: encryption failed")
-			sqlite.db_close(d.db)
 			return
 		}
 
-		data_path := data_encrypted_path(d.cfg.config_path)
+		data_path := data_path(d.cfg.config_path)
 		envr_d := envr_dir(d.cfg.config_path)
 		os.mkdir_all(envr_d)
 
@@ -128,13 +127,11 @@ db_close :: proc(d: ^Db) {
 		delete(encrypted)
 		if write_err != nil {
 			fmt.printf("Error writing encrypted database: %v\n", write_err)
-			sqlite.db_close(d.db)
 			return
 		}
 
 		d.changed = false
 	}
-	sqlite.db_close(d.db)
 }
 
 // Caller is responsible for calling:
@@ -192,22 +189,12 @@ db_list :: proc(d: ^Db, allocator := context.allocator) -> (results: [dynamic]En
 	return
 }
 
-db_vacuum_to_file :: proc(db: ^rawptr, path: string) -> bool {
-	b: strings.Builder
-	strings.builder_init(&b)
-	defer strings.builder_destroy(&b)
-	fmt.sbprintf(&b, "VACUUM INTO '%s'", path)
-	rc := sqlite.db_exec(db, to_cstring(&b), nil, nil, nil)
-	if rc != sqlite.OK {
-		fmt.printf("Error vacuuming database: %s\n", sqlite.db_errmsg(db))
-		return false
-	}
-	return true
-}
-
 db_restore_from_encrypted :: proc(db: ^rawptr, cfg: Config) -> bool {
-	data_path := data_encrypted_path(cfg.config_path)
-	encrypted_data, read_err := os.read_entire_file_from_path(data_path, context.temp_allocator)
+	encrypted_data, read_err := os.read_entire_file_from_path(
+		data_path(cfg.config_path),
+		context.allocator,
+	)
+	defer delete(encrypted_data)
 	if read_err != nil {
 		fmt.printf("Error reading encrypted database: %v\n", read_err)
 		return false
@@ -220,49 +207,31 @@ db_restore_from_encrypted :: proc(db: ^rawptr, cfg: Config) -> bool {
 	}
 	defer delete(plaintext)
 
-	tmp_path := make_temp_path()
-	write_err := os.write_entire_file(tmp_path, plaintext)
-	if write_err != nil {
-		fmt.printf("Error writing temp database: %v\n", write_err)
+	n := i64(len(plaintext))
+	buf := sqlite.malloc64(n)
+	if buf == nil {
+		fmt.println("Error: failed to allocate buffer for deserialization")
 		return false
 	}
-	defer os.remove(tmp_path)
+	copy(buf[:len(plaintext)], plaintext)
 
-	if !db_attach_and_copy(db, tmp_path) {
-		return false
-	}
-
-	return true
-}
-
-db_attach_and_copy :: proc(mem_db: ^rawptr, src_path: string) -> bool {
-	b: strings.Builder
-	strings.builder_init(&b)
-	defer strings.builder_destroy(&b)
-	fmt.sbprintf(&b, "ATTACH DATABASE '%s' AS source", src_path)
-
-	rc := sqlite.db_exec(mem_db, to_cstring(&b), nil, nil, nil)
-	if rc != sqlite.OK {
-		fmt.printf("Error attaching database: %s\n", sqlite.db_errmsg(mem_db))
-		return false
-	}
-
-	rc = sqlite.db_exec(
-		mem_db,
-		"INSERT INTO main.envr_env_files SELECT * FROM source.envr_env_files",
-		nil,
-		nil,
-		nil,
+	rc := sqlite.deserialize(
+		db,
+		"main",
+		buf,
+		n,
+		n,
+		sqlite.DESERIALIZE_FREEONCLOSE | sqlite.DESERIALIZE_RESIZEABLE,
 	)
 	if rc != sqlite.OK {
-		fmt.printf("Error copying data: %s\n", sqlite.db_errmsg(mem_db))
-		sqlite.db_exec(mem_db, "DETACH DATABASE source", nil, nil, nil)
+		sqlite.free(buf)
+		fmt.printf("Error deserializing database: %s\n", sqlite.db_errmsg(db))
 		return false
 	}
 
-	sqlite.db_exec(mem_db, "DETACH DATABASE source", nil, nil, nil)
 	return true
 }
+
 
 get_git_remotes :: proc(dir: string) -> [dynamic]string {
 	remotes: [dynamic]string

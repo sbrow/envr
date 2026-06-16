@@ -11,11 +11,12 @@
   };
 
   outputs =
-    inputs@{ flake-parts
-    , nixpkgs
-    , nixpkgs-unstable
-    , self
-    , treefmt-nix
+    inputs@{
+      flake-parts,
+      nixpkgs,
+      nixpkgs-unstable,
+      self,
+      treefmt-nix,
     }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
@@ -29,7 +30,18 @@
       ];
 
       perSystem =
-        { pkgs, system, inputs', ... }: {
+        {
+          pkgs,
+          system,
+          inputs',
+          ...
+        }:
+      let
+        mysqlite = pkgs.sqlite.overrideAttrs (old: {
+                configureFlags = (old.configureFlags or [ ]) ++ [ "--enable-deserialize" ];
+              });
+      in
+        {
           _module.args.pkgs = import nixpkgs {
             inherit system;
             config.allowUnfree = true;
@@ -64,7 +76,7 @@
 
             buildInputs = [
               pkgs.libsodium
-              pkgs.sqlite
+              mysqlite
             ];
 
             buildPhase = ''
@@ -87,7 +99,7 @@
               nushell
 
               libsodium
-              sqlite
+              mysqlite
               unstable.odin
               unstable.ols
 

@@ -215,7 +215,7 @@ test_db_delete_sets_changed :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_db_vacuum_to_file :: proc(t: ^testing.T) {
+test_db_serialize :: proc(t: ^testing.T) {
 	d, ok := make_test_db()
 	testing.expect(t, ok, "failed to create test db")
 	if !ok do return
@@ -225,20 +225,13 @@ test_db_vacuum_to_file :: proc(t: ^testing.T) {
 	defer delete(f.Remotes)
 	db_insert(&d, f)
 
-	vacuum_path := fmt.tprintf("/tmp/envr-test-vacuum-%d.db", os.get_pid())
-	defer os.remove(vacuum_path)
+	sz: i64
+	data := sqlite.serialize(d.db, "main", &sz, 0)
+	testing.expect(t, data != nil, "serialize should return non-nil")
+	if data == nil do return
+	defer sqlite.free(data)
 
-	testing.expect(t, db_vacuum_to_file(d.db, vacuum_path), "vacuum should succeed")
-
-	info, stat_err := os.stat(vacuum_path, context.allocator)
-	defer os.file_info_delete(info, context.allocator)
-	testing.expect(t, stat_err == nil, "vacuumed file should exist")
-
-	data, read_err := os.read_entire_file_from_path(vacuum_path, context.allocator)
-	testing.expect(t, read_err == nil, "should read vacuumed file")
-	defer delete(data)
-
-	testing.expect(t, len(data) > 0, "vacuumed file should be non-empty")
+	testing.expect(t, sz > 0, "serialized size should be > 0")
 }
 
 @(test)

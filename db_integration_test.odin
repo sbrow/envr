@@ -136,7 +136,7 @@ test_encrypt_write_read_decrypt :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_decrypt_then_attach_sqlite :: proc(t: ^testing.T) {
+test_decrypt_then_deserialize_sqlite :: proc(t: ^testing.T) {
 	cfg := fixture_config()
 	defer {
 		delete(cfg.Keys)
@@ -164,14 +164,6 @@ test_decrypt_then_attach_sqlite :: proc(t: ^testing.T) {
 	}
 	defer delete(plaintext)
 
-	tmp_db_path := fmt.tprintf("/tmp/envr-test-attach-%d.db", os.get_pid())
-	write_err := os.write_entire_file(tmp_db_path, plaintext)
-	testing.expectf(t, write_err == nil, "failed to write temp db: %v", write_err)
-	if write_err != nil {
-		return
-	}
-	defer os.remove(tmp_db_path)
-
 	mem_db: ^rawptr
 	rc := sqlite.db_open(":memory:", &mem_db)
 	testing.expectf(t, rc == sqlite.OK, "failed to open in-memory db")
@@ -180,12 +172,25 @@ test_decrypt_then_attach_sqlite :: proc(t: ^testing.T) {
 	}
 	defer sqlite.db_close(mem_db)
 
-	create_sql: cstring = "CREATE TABLE IF NOT EXISTS envr_env_files (path TEXT PRIMARY KEY NOT NULL, remotes TEXT, sha256 TEXT NOT NULL, contents TEXT NOT NULL)"
-	rc = sqlite.db_exec(mem_db, create_sql, nil, nil, nil)
-	testing.expect(t, rc == sqlite.OK, "failed to create table")
+	n := i64(len(plaintext))
+	buf := sqlite.malloc64(n)
+	testing.expect(t, buf != nil, "malloc64 should succeed")
+	if buf == nil do return
+	copy(buf[:len(plaintext)], plaintext)
 
-	attach_ok := db_attach_and_copy(mem_db, tmp_db_path)
-	testing.expect(t, attach_ok, "failed to attach and copy")
+	rc = sqlite.deserialize(
+		mem_db,
+		"main",
+		buf,
+		n,
+		n,
+		sqlite.DESERIALIZE_FREEONCLOSE | sqlite.DESERIALIZE_RESIZEABLE,
+	)
+	testing.expect(t, rc == sqlite.OK, "deserialize should succeed")
+	if rc != sqlite.OK {
+		sqlite.free(buf)
+		return
+	}
 
 	sql: cstring = "SELECT path FROM envr_env_files"
 	stmt: ^rawptr

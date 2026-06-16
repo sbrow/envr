@@ -163,8 +163,8 @@ test_envr_dir :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_data_encrypted_path :: proc(t: ^testing.T) {
-	p := data_encrypted_path("/tmp/envr-fake-home-datapath/config.json")
+test_data_path :: proc(t: ^testing.T) {
+	p := data_path("/tmp/envr-fake-home-datapath/config.json")
 	defer delete(p)
 	testing.expectf(t, strings.has_suffix(p, "data.envr"), "should end with data.envr, got %s", p)
 	testing.expectf(t, strings.contains(p, ".envr"), "should contain .envr dir, got %s", p)

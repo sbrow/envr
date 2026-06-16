@@ -8,6 +8,9 @@ OK :: 0
 ROW :: 100
 DONE :: 101
 
+DESERIALIZE_FREEONCLOSE :: 1
+DESERIALIZE_RESIZEABLE :: 2
+
 foreign lib {
     @(link_name="sqlite3_open")
     db_open          :: proc(filename: cstring, ppDb: ^^rawptr) -> c.int ---
@@ -31,4 +34,12 @@ foreign lib {
     bind_text        :: proc(stmt: ^rawptr, idx: c.int, val: cstring, n: c.int, destructor: rawptr) -> c.int ---
     @(link_name="sqlite3_changes")
     changes          :: proc(db: ^rawptr) -> c.int ---
+    @(link_name="sqlite3_serialize")
+    serialize        :: proc(db: ^rawptr, zSchema: cstring, piSize: ^i64, mFlags: u32) -> [^]u8 ---
+    @(link_name="sqlite3_deserialize")
+    deserialize      :: proc(db: ^rawptr, zSchema: cstring, pData: [^]u8, szDb: i64, szBuf: i64, mFlags: u32) -> c.int ---
+    @(link_name="sqlite3_malloc64")
+    malloc64         :: proc(n: i64) -> [^]u8 ---
+    @(link_name="sqlite3_free")
+    free             :: proc(p: rawptr) ---
 }
