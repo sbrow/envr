@@ -3,36 +3,9 @@ package main
 import "core:fmt"
 import "core:sys/posix"
 
-Raw_State :: struct {
-	original: posix.termios,
-	fd:       posix.FD,
-}
-
-enable_raw_mode :: proc(fd: posix.FD) -> (Raw_State, bool) {
-	state: Raw_State
-	state.fd = fd
-
-	if posix.tcgetattr(fd, &state.original) != .OK {
-		return state, false
-	}
-
-	attr: posix.termios = state.original
-	attr.c_lflag -= {.ICANON, .ECHO, .ISIG, .IEXTEN}
-	attr.c_iflag -= {.IXON, .ICRNL, .BRKINT, .INPCK, .ISTRIP}
-	attr.c_oflag -= {.OPOST}
-	attr.c_cflag += {.CS8}
-	attr.c_cc[.VMIN] = 1
-	attr.c_cc[.VTIME] = 0
-
-	if posix.tcsetattr(fd, .TCSAFLUSH, &attr) != .OK {
-		return state, false
-	}
-
-	return state, true
-}
-
-disable_raw_mode :: proc(state: ^Raw_State) {
-	posix.tcsetattr(state.fd, .TCSAFLUSH, &state.original)
+MultiSelect_Result :: enum {
+	Confirm,
+	Cancel,
 }
 
 Key :: enum {
@@ -44,71 +17,9 @@ Key :: enum {
 	Unknown,
 }
 
-read_key :: proc() -> Key {
-	buf: [3]u8
-
-	n := posix.read(posix.STDIN_FILENO, &buf[0], 1)
-	if n <= 0 {
-		return .Unknown
-	}
-
-	switch buf[0] {
-	case ' ':
-		return .Space
-	case '\n', '\r':
-		return .Enter
-	case 0x03:
-		return .Escape
-	case 0x1b:
-		tv: posix.timeval
-		tv.tv_sec = 0
-		tv.tv_usec = posix.suseconds_t(100000)
-
-		set: posix.fd_set
-		posix.FD_ZERO(&set)
-		posix.FD_SET(posix.STDIN_FILENO, &set)
-
-		ready := posix.select(1, &set, nil, nil, &tv)
-		if ready <= 0 {
-			return .Escape
-		}
-
-		n2 := posix.read(posix.STDIN_FILENO, &buf[1], 1)
-		if n2 <= 0 || buf[1] != '[' {
-			return .Escape
-		}
-
-		posix.FD_ZERO(&set)
-		posix.FD_SET(posix.STDIN_FILENO, &set)
-		tv.tv_sec = 0
-		tv.tv_usec = posix.suseconds_t(100000)
-
-		ready = posix.select(1, &set, nil, nil, &tv)
-		if ready <= 0 {
-			return .Escape
-		}
-
-		n3 := posix.read(posix.STDIN_FILENO, &buf[2], 1)
-		if n3 <= 0 {
-			return .Escape
-		}
-
-		switch buf[2] {
-		case 'A':
-			return .Up
-		case 'B':
-			return .Down
-		case:
-			return .Escape
-		}
-	case:
-		return .Unknown
-	}
-}
-
-MultiSelect_Result :: enum {
-	Confirm,
-	Cancel,
+Raw_State :: struct {
+	original: posix.termios,
+	fd:       posix.FD,
 }
 
 MAX_VISIBLE :: 7
@@ -125,7 +36,7 @@ multi_select :: proc(
 		return
 	}
 
-	selected = make([dynamic]bool, len(options))
+	selected = make([dynamic]bool, 0, len(options))
 	cursor: int = 0
 	scroll_offset: int = 0
 
@@ -197,5 +108,94 @@ render_options :: proc(
 	}
 
 	return end - scroll_offset
+}
+
+enable_raw_mode :: proc(fd: posix.FD) -> (Raw_State, bool) {
+	state: Raw_State
+	state.fd = fd
+
+	if posix.tcgetattr(fd, &state.original) != .OK {
+		return state, false
+	}
+
+	attr: posix.termios = state.original
+	attr.c_lflag -= {.ICANON, .ECHO, .ISIG, .IEXTEN}
+	attr.c_iflag -= {.IXON, .ICRNL, .BRKINT, .INPCK, .ISTRIP}
+	attr.c_oflag -= {.OPOST}
+	attr.c_cflag += {.CS8}
+	attr.c_cc[.VMIN] = 1
+	attr.c_cc[.VTIME] = 0
+
+	if posix.tcsetattr(fd, .TCSAFLUSH, &attr) != .OK {
+		return state, false
+	}
+
+	return state, true
+}
+
+disable_raw_mode :: proc(state: ^Raw_State) {
+	posix.tcsetattr(state.fd, .TCSAFLUSH, &state.original)
+}
+
+read_key :: proc() -> Key {
+	buf: [3]u8
+
+	n := posix.read(posix.STDIN_FILENO, &buf[0], 1)
+	if n <= 0 {
+		return .Unknown
+	}
+
+	switch buf[0] {
+	case ' ':
+		return .Space
+	case '\n', '\r':
+		return .Enter
+	case 0x03:
+		return .Escape
+	case 0x1b:
+		tv: posix.timeval
+		tv.tv_sec = 0
+		tv.tv_usec = posix.suseconds_t(100000)
+
+		set: posix.fd_set
+		posix.FD_ZERO(&set)
+		posix.FD_SET(posix.STDIN_FILENO, &set)
+
+		ready := posix.select(1, &set, nil, nil, &tv)
+		if ready <= 0 {
+			return .Escape
+		}
+
+		n2 := posix.read(posix.STDIN_FILENO, &buf[1], 1)
+		if n2 <= 0 || buf[1] != '[' {
+			return .Escape
+		}
+
+		posix.FD_ZERO(&set)
+		posix.FD_SET(posix.STDIN_FILENO, &set)
+		tv.tv_sec = 0
+		tv.tv_usec = posix.suseconds_t(100000)
+
+		ready = posix.select(1, &set, nil, nil, &tv)
+		if ready <= 0 {
+			return .Escape
+		}
+
+		n3 := posix.read(posix.STDIN_FILENO, &buf[2], 1)
+		if n3 <= 0 {
+			return .Escape
+		}
+
+		switch buf[2] {
+		case 'A':
+			return .Up
+		case 'B':
+			return .Down
+		case:
+			return .Escape
+		}
+	case:
+		return .Unknown
+	}
 }
 

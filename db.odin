@@ -382,18 +382,34 @@ db_insert :: proc(d: ^Db, file: EnvFile) -> bool {
 	cpath := to_cstring(file.Path)
 	defer delete(cpath)
 	rc = sqlite.bind_text(stmt, 1, cpath, -1, nil)
+	if rc != sqlite.OK {
+		fmt.printf("Error binding path: %s\n", sqlite.db_errmsg(d.db))
+		return false
+	}
 
 	cremotes := to_cstring(string(remotes_json))
 	defer delete(cremotes)
 	rc = sqlite.bind_text(stmt, 2, cremotes, -1, nil)
+	if rc != sqlite.OK {
+		fmt.printf("Error binding remotes: %s\n", sqlite.db_errmsg(d.db))
+		return false
+	}
 
 	csha := to_cstring(file.Sha256)
 	defer delete(csha)
 	rc = sqlite.bind_text(stmt, 3, csha, -1, nil)
+	if rc != sqlite.OK {
+		fmt.printf("Error binding sha256: %s\n", sqlite.db_errmsg(d.db))
+		return false
+	}
 
 	ccontents := to_cstring(file.contents)
 	defer delete(ccontents)
 	rc = sqlite.bind_text(stmt, 4, ccontents, -1, nil)
+	if rc != sqlite.OK {
+		fmt.printf("Error binding contents: %s\n", sqlite.db_errmsg(d.db))
+		return false
+	}
 
 	rc = sqlite.step(stmt)
 	if rc != sqlite.DONE {
@@ -418,6 +434,10 @@ db_fetch :: proc(d: ^Db, path: string, allocator := context.allocator) -> (EnvFi
 	cpath := to_cstring(path, allocator)
 	defer delete(cpath, allocator)
 	rc = sqlite.bind_text(stmt, 1, cpath, -1, nil)
+	if rc != sqlite.OK {
+		fmt.printf("Error binding path: %s\n", sqlite.db_errmsg(d.db))
+		return EnvFile{}, false
+	}
 	rc = sqlite.step(stmt)
 	if rc == sqlite.DONE {
 		fmt.printf("No file found with path: %s\n", path)
@@ -459,6 +479,10 @@ db_delete :: proc(d: ^Db, path: string) -> bool {
 	cpath := to_cstring(path)
 	defer delete(cpath)
 	rc = sqlite.bind_text(stmt, 1, cpath, -1, nil)
+	if rc != sqlite.OK {
+		fmt.printf("Error binding path: %s\n", sqlite.db_errmsg(d.db))
+		return false
+	}
 	rc = sqlite.step(stmt)
 	if rc != sqlite.DONE {
 		fmt.printf("Error deleting: %s\n", sqlite.db_errmsg(d.db))

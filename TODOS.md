@@ -1,12 +1,7 @@
-# TODO
+# TODOs
 
-Note: These todos can wait until all the subcommands have been ported.
 
-## HIGH
-
-1. **db.odin:380-383, 405, 446** — `sqlite.bind_text` return values overwritten but never checked. A failed bind means `sqlite.step` operates on unbound params.
-
-## MEDIUM
+1. Encrypt/decrypt the database in memory.
 
 2. **db.odin:324-327** — Map iteration (`remote_set`) is non-deterministic. Same file can produce different JSON on each backup, causing spurious DB diffs. Sort remotes before storing.
 
@@ -18,21 +13,13 @@ Note: These todos can wait until all the subcommands have been ported.
 
 6. **cmd_restore.odin:44** — `os.mkdir_all` error silently discarded. Subsequent write failure will be confusing.
 
-7. **cmd_edit_config.odin:27** — `$EDITOR` used as single binary name. Breaks for multi-word values like `"code -w"`. Needs `strings.fields()`.
-
 8. **config.odin:178** — `search_paths` silently ignores `os.user_home_dir` error. If home is empty, `~` isn't expanded. Same class of bug as issue 3.
-
-9. **prompt.odin:124** — `make([dynamic]bool, len(options))` creates N zero-initialized elements. Works because `false` is the default, but same footgun as original issue 1. Should be `make([dynamic]bool, 0, len(options))`.
-
-## LOW
 
 10. **db.odin:115** — `json.unmarshal_string` error not checked. Malformed JSON silently produces empty/partial data.
 
 11. **db.odin:352-353** — `hex.encode` error ignored. `string(hex_bytes)` aliases the byte slice.
 
 12. **cmd_sync.odin:80, cmd_list.odin:33, cmd_deps.odin:9** — `make([]string, 2)` for table rows never freed. Leaks per row. Defer to memory pass.
-
-## REFACTOR
 
 13. **cmd_list.odin** — Non-TTY branch builds `ListEntry` structs and marshals JSON separately. Now that `render_json_rows` (issue 1) accepts an `io.Writer` and uses `json.marshal`, unify both branches to use it. Note: will change JSON keys from `"directory"/"path"` to `"Directory"/"Path"`.
 
@@ -53,6 +40,8 @@ Note: These todos can wait until all the subcommands have been ported.
 21. Replace `testing.expect` calls with `testing.expect_value` calls where appropriate.
 
 22. Change struct field names from PascalCase to snake_case.
+
+23. procedures should be ordered by use, main at the top, then in the order they are called from main.
 
 ## Double-check AI output
 

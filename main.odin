@@ -5,6 +5,8 @@ import "core:fmt"
 import "core:os"
 
 main :: proc() {
+	defer free_all(context.temp_allocator)
+
 	cmd, ok := parse_args(os.args, os.to_writer(os.stdout), os.to_writer(os.stderr))
 	defer bufio.writer_flush(cmd.out_buf)
 	if !ok {

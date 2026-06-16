@@ -126,6 +126,7 @@ find_ssh_private_keys :: proc() -> (keys: [dynamic]string, ok: bool) {
 	return
 }
 
+// Caller is responsible for calling delete_config()
 new_config :: proc(
 	private_key_paths: []string,
 	cfg_path: string = "~/.envr/config.json",
