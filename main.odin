@@ -18,8 +18,6 @@ main :: proc() {
 		cmd_init(&cmd)
 	case "version":
 		cmd_version(&cmd)
-	case "deps":
-		cmd_deps(&cmd)
 	case "list":
 		cmd_list(&cmd)
 	case "backup", "add":

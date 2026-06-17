@@ -319,11 +319,85 @@ test_shares_remote_both_empty :: proc(t: ^testing.T) {
 	testing.expect(t, !shares_remote(&f, remotes), "both empty should not share")
 }
 
+delete_remotes :: proc(remotes: [dynamic]string) {
+	for &r in remotes {
+		delete(r)
+	}
+	delete(remotes)
+}
+
 @(test)
-test_make_temp_path_format :: proc(t: ^testing.T) {
-	p := make_temp_path()
-	testing.expect(t, strings.has_suffix(p, ".db"), "should end with .db")
-	testing.expect(t, strings.contains(p, fmt.tprintf("%d", os.get_pid())), "should contain PID")
+test_get_git_remotes_single :: proc(t: ^testing.T) {
+	base := fmt.tprintf("/tmp/envr-test-remotes-%d", os.get_pid())
+	os.mkdir_all(base)
+	defer os.remove_all(base)
+
+	git_dir := fmt.tprintf("%s/.git", base)
+	os.mkdir_all(git_dir)
+
+	config_content := "[core]\n\trepositoryformatversion = 0\n[remote \"origin\"]\n\turl = git@github.com:user/repo.git\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n"
+	config_path := fmt.tprintf("%s/config", git_dir)
+	err := os.write_entire_file(config_path, transmute([]u8)config_content)
+	testing.expect(t, err == nil, "should write .git/config")
+
+	remotes := get_git_remotes(base)
+	defer delete_remotes(remotes)
+
+	testing.expect(t, len(remotes) == 1, "should find 1 remote")
+	if len(remotes) != 1 do return
+	testing.expect_value(t, remotes[0], "git@github.com:user/repo.git")
+}
+
+@(test)
+test_get_git_remotes_multiple :: proc(t: ^testing.T) {
+	base := fmt.tprintf("/tmp/envr-test-remotes-multi-%d", os.get_pid())
+	os.mkdir_all(base)
+	defer os.remove_all(base)
+
+	git_dir := fmt.tprintf("%s/.git", base)
+	os.mkdir_all(git_dir)
+
+	config_content := "[remote \"origin\"]\n\turl = git@github.com:user/repo.git\n[remote \"upstream\"]\n\turl = https://gitlab.com/upstream/repo.git\n"
+	config_path := fmt.tprintf("%s/config", git_dir)
+	err := os.write_entire_file(config_path, transmute([]u8)config_content)
+	testing.expect(t, err == nil, "should write .git/config")
+
+	remotes := get_git_remotes(base)
+	defer delete_remotes(remotes)
+
+	testing.expect(t, len(remotes) == 2, "should find 2 remotes")
+}
+
+@(test)
+test_get_git_remotes_no_config :: proc(t: ^testing.T) {
+	base := fmt.tprintf("/tmp/envr-test-remotes-none-%d", os.get_pid())
+	os.mkdir_all(base)
+	defer os.remove_all(base)
+
+	remotes := get_git_remotes(base)
+	defer delete_remotes(remotes)
+
+	testing.expect(t, len(remotes) == 0, "should return empty when no .git/config")
+}
+
+@(test)
+test_get_git_remotes_no_remotes :: proc(t: ^testing.T) {
+	base := fmt.tprintf("/tmp/envr-test-remotes-empty-%d", os.get_pid())
+	os.mkdir_all(base)
+	defer os.remove_all(base)
+
+	git_dir := fmt.tprintf("%s/.git", base)
+	os.mkdir_all(git_dir)
+
+	config_content := "[core]\n\trepositoryformatversion = 0\n\tbare = false\n"
+	config_path := fmt.tprintf("%s/config", git_dir)
+	err := os.write_entire_file(config_path, transmute([]u8)config_content)
+	testing.expect(t, err == nil, "should write .git/config")
+
+	remotes := get_git_remotes(base)
+	defer delete_remotes(remotes)
+
+	testing.expect(t, len(remotes) == 0, "should return empty when no remote sections")
 }
 
 @(test)

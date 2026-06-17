@@ -12,14 +12,13 @@ the tool [of your choosing](#backup-options).
 
 ## Features
 
-- 🔐 **Encrypted Storage**: All `.env` files are encrypted using your ssh key and
-[libsodium](https://github.com/jedisct1/libsodium) encryption.
-- 🔄 **Automatic Sync**: Update the database with one command, which can easily
+- **Encrypted Storage**: All `.env` files are encrypted using your ssh key and
+[libsodium](https://github.com/jedisct1/libsodium). 
+- **Automatic Sync**: Update the database with one command, which can easily
 be run on a cron.
-- 🔍 **Smart Scanning**: Automatically discover and import `.env` files in your
+- **Smart Scanning**: Automatically discover and import `.env` files in your
 home directory.
-- ✨ **Interactive CLI**: User-friendly prompts for file selection and management.
-- 🗂️ **Rename Detection**: Automatically finds and updates renamed/moved
+- **Rename Detection**: Automatically find and updates renamed/moved
 repositories.
 
 ## TODOS
@@ -28,14 +27,10 @@ repositories.
 - [x] Allow configuration of ssh key.
 - [x] Allow multiple ssh keys.
 
-## Prerequisites
-
-- An SSH key pair (for encryption/decryption)
-- The following binaries:
-   - [fd](https://github.com/sharkdp/fd)
-   - [git](https://git-scm.com)
-
 ## Installation
+
+You will need an SSH key pair for encryption and decryption. You can generate one
+with `ssh-keygen -t ed25519`. It will be saved to `~/.ssh/id_ed25519`.
 
 ### With Odin
 
@@ -96,7 +91,12 @@ The configuration file is created during initialization:
   ],
   "scan": {
     "matcher": "\\.env",
-    "exclude": "*.envrc",
+    "exclude": [
+      "*\\.envrc",
+      "\\.local/",
+      "node_modules",
+      "vendor"       
+    ],
     "include": "~"
   }
 }

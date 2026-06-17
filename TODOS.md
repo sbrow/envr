@@ -2,6 +2,8 @@
 
 1. Consider giving db its own allocator
 
+25. Generate md and man pages again.
+
 2. **db.odin:324-327** — Map iteration (`remote_set`) is non-deterministic. Same file can produce different JSON on each backup, causing spurious DB diffs. Sort remotes before storing.
 
 3. **db.odin:135, 250** — String interpolation into SQL (`VACUUM INTO '%s'`, `ATTACH DATABASE '%s'`). Currently safe because input is controlled, but fragile.
@@ -38,7 +40,9 @@
 
 23. procedures should be ordered by use, main at the top, then in the order they are called from main.
 
-24. Remove git dependency.
+24. Shell completion
+
+25. Bring back windows support / cross-compilation.
 
 ## Double-check AI output
 
@@ -66,8 +70,6 @@
 - [ ] db.odin
 - [ ] db_integration_test.odin
 - [ ] db_test.odin
-- [x] features.odin
-- [x] features_test.odin
 - [x] main.odin
 - [x] prompt.odin
 - [ ] scan.odin

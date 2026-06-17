@@ -43,13 +43,6 @@ key somewhere, otherwise your data could be lost forever.`,
 	{"list", "envr list", "View your tracked files", "", {}},
 	{"remove", "envr remove <path>", "Remove a .env file from your database", "", {}},
 	{"check", "envr check [path]", "Check if files are backed up", "", {}},
-	{
-		"deps",
-		"envr deps",
-		"Check for missing binaries",
-		"envr relies on external binaries for certain functionality.\n\nThe check command reports on which binaries are available and which are not.",
-		{},
-	},
 	{"version", "envr version", "Show envr's version", "", {}},
 	{"edit-config", "envr edit-config", "Edit your config with your default editor", "", {}},
 	{

@@ -35,13 +35,7 @@ Stdout will be captured by redirecting `os.stdout` to a pipe.
 
 ## Hard to test (interactive / external deps)
 
-### `cmd_deps` (cmd_deps.odin)
-- Needs `git` and/or `fd` in PATH
-- Test TTY and non-TTY paths
-- Skip if dependencies not available (with `#assert` like TODO 28 suggests)
-
 ### `cmd_scan` (cmd_scan.odin)
-- Needs `fd` installed
 - Test with fixture git repo containing `.env` files
 - Test `find_unbacked` integration (already partially tested in `cmd_check_test.odin`)
 - Non-TTY JSON output path
@@ -66,5 +60,4 @@ Stdout will be captured by redirecting `os.stdout` to a pipe.
 
 - DB integration tests should use in-memory SQLite (`:memory:`) where possible.
 - Temp dir fixtures should follow the pattern in `scan_test.odin`.
-- External dependency tests (`fd`, `git`) should use `#assert` to ensure the dependency is present rather than silently skipping (TODO 28).
 - Tests that manipulate the `HOME` env var must use a mutex to prevent races with parallel test execution.

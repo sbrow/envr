@@ -2,12 +2,12 @@ package main
 
 import "core:crypto/hash"
 import "core:encoding/hex"
+import "core:encoding/ini"
 import "core:encoding/json"
 import "core:fmt"
 import "core:os"
 import "core:path/filepath"
 import "core:strings"
-import "core:time"
 
 import "sqlite"
 
@@ -51,14 +51,6 @@ delete_envfile :: proc(f: ^EnvFile) {
 	delete(f.contents)
 }
 
-make_temp_path :: proc() -> string {
-	ts := time.time_to_unix(time.now())
-	b: strings.Builder
-	strings.builder_init(&b)
-	defer strings.builder_destroy(&b)
-	fmt.sbprintf(&b, "/tmp/envr-%d-%d.db", os.get_pid(), ts)
-	return strings.to_string(b)
-}
 
 db_open :: proc(cfg_path: string) -> (Db, bool) {
 	cfg, ok := load_config(cfg_path)
@@ -236,59 +228,24 @@ db_restore_from_encrypted :: proc(db: ^rawptr, cfg: Config) -> bool {
 get_git_remotes :: proc(dir: string) -> [dynamic]string {
 	remotes: [dynamic]string
 	remote_set: map[string]bool
+	defer delete(remote_set)
 
-	b: strings.Builder
-	strings.builder_init(&b)
-	defer strings.builder_destroy(&b)
-	fmt.sbprintf(&b, "%s-git-remotes", make_temp_path())
-	tmp_path := strings.to_string(b)
-	tmp_file, tmp_err := os.open(tmp_path, os.O_CREATE | os.O_WRONLY | os.O_TRUNC)
-	if tmp_err != nil {
+	config_path, _ := filepath.join({dir, ".git", "config"}, context.temp_allocator)
+	m, _, ok := ini.load_map_from_path(config_path, context.allocator)
+	if !ok {
 		return remotes
 	}
+	defer ini.delete_map(m)
 
-	args := []string{"git", "remote", "-v"}
-	desc := os.Process_Desc {
-		command     = args,
-		stdout      = tmp_file,
-		stderr      = nil,
-		working_dir = dir,
-	}
-
-	p, start_err := os.process_start(desc)
-	os.close(tmp_file)
-	if start_err != nil {
-		os.remove(tmp_path)
-		return remotes
-	}
-
-	state, wait_err := os.process_wait(p)
-	if wait_err != nil || state.exit_code != 0 {
-		os.remove(tmp_path)
-		return remotes
-	}
-
-	data, read_err := os.read_entire_file_from_path(tmp_path, context.allocator)
-	defer delete(data)
-	os.remove(tmp_path)
-	if read_err != nil {
-		return remotes
-	}
-
-	lines := strings.split(string(data), "\n")
-
-	for &line in lines {
-		line = strings.trim_space(line)
-		if len(line) == 0 {
-			continue
-		}
-		parts := strings.fields(line)
-		if len(parts) >= 2 {
-			remote_set[parts[1]] = true
+	for section_name, section in m {
+		if strings.has_prefix(section_name, "remote ") {
+			if url, ok := section["url"]; ok {
+				remote_set[url] = true
+			}
 		}
 	}
 
-	for remote, _ in remote_set {
+	for remote in remote_set {
 		cloned, _ := strings.clone(remote)
 		append(&remotes, cloned)
 	}
@@ -516,12 +473,6 @@ update_dir :: proc(f: ^EnvFile, new_dir: string) {
 }
 
 find_moved_dirs :: proc(d: ^Db, f: ^EnvFile) -> ([dynamic]string, bool) {
-	feats := check_features()
-	if .Git not_in feats {
-		fmt.println("Error: git is required for moved dir detection")
-		return {}, false
-	}
-
 	roots, roots_ok := find_git_roots(d.cfg)
 	if !roots_ok {
 		return {}, false
