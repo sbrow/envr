@@ -26,8 +26,6 @@
 
 15. Add a text filter to the multi_select.
 
-16. Create backup / fallback fd.
-
 17. Add tests for untested commands.
 
 18. 2 scan tests silently skip when fd isn't installed, tests pass without actually testing anything. These should use #assert to be sure that fd is in path.
@@ -39,6 +37,8 @@
 22. Change struct field names from PascalCase to snake_case.
 
 23. procedures should be ordered by use, main at the top, then in the order they are called from main.
+
+24. Remove git dependency.
 
 ## Double-check AI output
 
@@ -78,3 +78,11 @@
 - [ ] ssh_test.odin
 - [ ] table.odin
 - [ ] table_test.odin
+- [ ] findr/findr_test.odin
+- [ ] findr/gitignore.odin
+- [ ] findr/gitignore_test.odin
+- [ ] findr/glob.odin
+- [ ] findr/glob_test.odin
+- [ ] findr/repos.odin
+- [ ] findr/test_env.odin
+- [ ] findr/walker.odin
