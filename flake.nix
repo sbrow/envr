@@ -95,7 +95,6 @@
 
           devShells.default = pkgs.mkShell {
             buildInputs = with pkgs; [
-              fd
               nushell
 
               libsodium
@@ -105,6 +104,10 @@
 
               # Build tools
               zip
+
+              # Helper tools
+              delta
+              hyperfine
 
               # IDE
               unstable.helix

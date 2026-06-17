@@ -6,16 +6,6 @@ import "core:os"
 import "core:terminal"
 
 cmd_scan :: proc(cmd: ^Command) {
-	feats := check_features()
-	if cant_scan(feats) {
-		fmt.wprintln(
-			cmd.err,
-			"Error: please install fd to use the scan command (https://github.com/sharkdp/fd)",
-			flush = false,
-		)
-		return
-	}
-
 	db, db_ok := db_open(cmd.config_path)
 	if !db_ok {
 		return

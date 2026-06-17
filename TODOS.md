@@ -32,8 +32,6 @@
 
 18. 2 scan tests silently skip when fd isn't installed, tests pass without actually testing anything. These should use #assert to be sure that fd is in path.
 
-19. Try to do all encryption / decryption in memory - only read / write encrypted data to disk.
-
 20. add --format -f flag to commands that draw tables.
 
 21. Replace `testing.expect` calls with `testing.expect_value` calls where appropriate.

@@ -6,6 +6,8 @@ import "core:os"
 import "core:path/filepath"
 import "core:strings"
 
+import "findr"
+
 SshKeyPair :: struct {
 	Private: string `json:"private"`,
 	Public:  string `json:"public"`,
@@ -218,22 +220,7 @@ search_paths :: proc(cfg: Config) -> (paths: [dynamic]string) {
 
 find_git_roots :: proc(cfg: Config) -> (roots: [dynamic]string, ok: bool) {
 	paths := search_paths(cfg)
-
-	for sp in paths {
-		args := []string{"fd", "-H", "-t", "d", "^\\.git$", sp}
-		lines, fd_ok := run_fd(args)
-		if !fd_ok {
-			return
-		}
-
-		for line in lines {
-			cleaned, _ := filepath.clean(line)
-			parent := filepath.dir(cleaned)
-			cloned, _ := strings.clone(parent)
-			append(&roots, cloned)
-		}
-	}
-
+	findr.find_repos(paths[:], &roots, os.get_processor_core_count())
 	ok = true
 	return
 }

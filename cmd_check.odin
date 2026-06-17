@@ -5,8 +5,6 @@ import "core:os"
 import "core:path/filepath"
 
 cmd_check :: proc(cmd: ^Command) {
-	feats := check_features()
-
 	check_path: string
 	if len(cmd.args) > 0 {
 		check_path = cmd.args[0]
@@ -42,15 +40,6 @@ cmd_check :: proc(cmd: ^Command) {
 	files_in_path: [dynamic]string
 
 	if is_dir {
-		if cant_scan(feats) {
-			fmt.wprintln(
-				cmd.err,
-				"Error: please install fd to use the check command (https://github.com/sharkdp/fd)",
-				flush = false,
-			)
-			return
-		}
-
 		scanned, scan_ok := scan_path(abs_path, db.cfg)
 		if !scan_ok {
 			fmt.wprintln(cmd.err, "Error scanning directory for .env files", flush = false)

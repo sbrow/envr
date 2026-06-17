@@ -7,8 +7,12 @@ list.json
 man 
 
 # build artifacts
+*.spall
 builds
 envr
 envr-go
+findr/findr
+findr/findr-prof
+findr/bench-*.md
 result
 version.odin

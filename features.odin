@@ -7,7 +7,6 @@ import "core:strings"
 
 Feature :: enum {
 	Git,
-	Fd,
 }
 
 AvailableFeatures :: bit_set[Feature]
@@ -26,9 +25,6 @@ check_features :: proc() -> AvailableFeatures {
 
 	if find_binary(paths, "git") != "" {
 		feats += {.Git}
-	}
-	if find_binary(paths, "fd") != "" {
-		feats += {.Fd}
 	}
 
 	return feats

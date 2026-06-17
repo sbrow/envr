@@ -17,12 +17,6 @@ cmd_deps :: proc(cmd: ^Command) {
 		append(&rows, []string{"Git", "\u2717 Missing"})
 	}
 
-	if .Fd in feats {
-		append(&rows, []string{"fd", "\u2713 Available"})
-	} else {
-		append(&rows, []string{"fd", "\u2717 Missing"})
-	}
-
 	if terminal.is_terminal(os.stdout) {
 		render_table(cmd.out, headers, rows[:])
 	} else {

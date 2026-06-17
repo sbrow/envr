@@ -3,14 +3,10 @@ package main
 import "core:fmt"
 import "core:os"
 import "core:path/filepath"
-import "core:strings"
 import "core:testing"
 
 @(test)
 test_scan_path_finds_gitignored_env_files :: proc(t: ^testing.T) {
-	feats := check_features()
-	testing.expect(t, cant_scan(feats) == false)
-
 	base := fmt.tprintf("/tmp/envr-scan-test-%d", os.get_pid())
 	os.mkdir_all(base)
 	defer os.remove_all(base)
@@ -42,7 +38,12 @@ test_scan_path_finds_gitignored_env_files :: proc(t: ^testing.T) {
 	}
 
 	results, ok := scan_path(base, cfg)
-	defer delete(results)
+	defer {
+		for path in results {
+			delete(path)
+		}
+		delete(results)
+	}
 	testing.expect(t, ok, "scan_path should succeed")
 
 	found_env := false
@@ -69,9 +70,6 @@ test_scan_path_finds_gitignored_env_files :: proc(t: ^testing.T) {
 
 @(test)
 test_scan_path_empty_dir :: proc(t: ^testing.T) {
-	feats := check_features()
-	testing.expect(t, cant_scan(feats) == false)
-
 	base := fmt.tprintf("/tmp/envr-scan-empty-%d", os.get_pid())
 	os.mkdir_all(base)
 	defer os.remove_all(base)
@@ -85,12 +83,3 @@ test_scan_path_empty_dir :: proc(t: ^testing.T) {
 	testing.expect(t, ok, "scan_path should succeed")
 	testing.expect(t, len(results) == 0, fmt.tprintf("expected 0 results, got %d", len(results)))
 }
-
-@(test)
-test_scan_meets_expectations :: proc(t: ^testing.T) {
-	testing.expect(t, cant_scan({}), "no features should mean can't scan")
-	testing.expect(t, cant_scan({.Git}), "Git alone should mean can't scan")
-	testing.expect(t, !cant_scan({.Fd}), "having Fd should mean can scan")
-	testing.expect(t, !cant_scan({.Fd, .Git}), "both Fd and Git should mean can scan")
-}
-
