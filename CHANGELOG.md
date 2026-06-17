@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/sbrow/envr/compare/v0.3.0...v0.3.1) (2026-06-17)
+
+
+### Performance Improvements
+
+* Replaced `fd` with custom internals. ([2ef733f](https://github.com/sbrow/envr/commit/2ef733fe58594b0a0b6e3ef85142b74af445ccb8))
+
 ## [0.3.0](https://github.com/sbrow/envr/compare/v0.2.1...v0.3.0) (2026-06-16)
 
 Version 0.3.0 represents a significant departure (and improvement) for envr.
