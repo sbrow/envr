@@ -187,32 +187,40 @@ find_ssh_private_keys :: proc() -> (keys: [dynamic]string, ok: bool) {
 	return
 }
 
-find_git_roots :: proc(cfg: Config) -> (roots: [dynamic]string, ok: bool) {
-	paths := search_paths(cfg)
+find_git_roots :: proc(
+	cfg: Config,
+	allocator := context.temp_allocator,
+) -> (
+	roots: [dynamic]string,
+	ok: bool,
+) {
+	paths := search_paths(cfg, allocator)
+	// TODO: Pass allocator to findr
+	// findr.find_repos(paths[:], &roots, os.get_processor_core_count(), allocator)
 	findr.find_repos(paths[:], &roots, os.get_processor_core_count())
 	ok = true
 	return
 }
 
-search_paths :: proc(cfg: Config) -> (paths: [dynamic]string) {
-	// TODO: Is this okay?
+search_paths :: proc(cfg: Config, allocator := context.allocator) -> [dynamic]string {
 	// TODO: handle error
 	home, _ := os.user_home_dir(context.temp_allocator)
 
-	for include in cfg.ScanConfig.Include {
+	paths, _ := new_clone(cfg.ScanConfig.Include, allocator)
+
+	for &include in paths {
 		// TODO: Do we need to manually expand ~/ in odin?
-		expanded, _ := strings.replace(include, "~", home, 1)
+		expanded, _ := strings.replace(include, "~", home, 1, allocator)
 		if filepath.is_abs(expanded) {
-			append(&paths, expanded)
+			include = expanded
 		} else {
-			defer delete(expanded)
-			resolved, err := filepath.abs(expanded)
+			resolved, err := filepath.abs(expanded, allocator)
 			if err == nil {
-				append(&paths, resolved)
+				include = resolved
 			}
 		}
 	}
-	return
+	return paths^
 }
 
 envr_dir :: proc(config_path: string) -> string {

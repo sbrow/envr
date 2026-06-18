@@ -6,7 +6,7 @@ import "core:io"
 import "core:strings"
 
 render_table :: proc(w: io.Writer, headers: []string, rows: [][]string) {
-	col_widths := make([dynamic]int, 0, len(headers))
+	col_widths := make([dynamic]int, 0, len(headers), context.temp_allocator)
 	for i in 0 ..< len(headers) {
 		append(&col_widths, strings.rune_count(headers[i]))
 	}
@@ -20,11 +20,14 @@ render_table :: proc(w: io.Writer, headers: []string, rows: [][]string) {
 	}
 
 	b: strings.Builder
-	strings.builder_init(&b)
-	defer strings.builder_destroy(&b)
-	defer delete(col_widths)
+	strings.builder_init(&b, context.temp_allocator)
 
-	hline :: proc(w: io.Writer, b: ^strings.Builder, left, mid, right: string, widths: [dynamic]int) {
+	hline :: proc(
+		w: io.Writer,
+		b: ^strings.Builder,
+		left, mid, right: string,
+		widths: [dynamic]int,
+	) {
 		strings.write_string(b, left)
 		for i in 0 ..< len(widths) {
 			for _ in 0 ..< widths[i] + 2 {

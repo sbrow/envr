@@ -12,7 +12,7 @@ cmd_scan :: proc(cmd: ^Command) {
 	}
 	defer db_close(&db)
 
-	search_dirs := search_paths(db.cfg)
+	search_dirs := search_paths(db.cfg, context.temp_allocator)
 	if len(search_dirs) == 0 {
 		fmt.wprintln(
 			cmd.err,

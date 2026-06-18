@@ -24,63 +24,42 @@ cmd_sync :: proc(cmd: ^Command) {
 	if !list_ok {
 		return
 	}
-	defer delete(files)
 
-	// TODO: Set sane default size
-	results: [dynamic]SyncEntry
-	defer delete(results)
+	results := make([]SyncEntry, len(files), context.temp_allocator)
 
-	for &file in files {
-		old_path: string
-		old_path, _ = strings.clone(file.Path, context.temp_allocator)
-
-		result, err_msg := db_sync(&db, &file)
+	for &file, i in files {
+		result, err := db_sync(&db, &file)
 
 		status: string
-		is_dir_updated := .DirUpdated in result
-
-		switch {
-		case .Error in result:
-			if len(err_msg) > 0 {
-				status = err_msg
-			} else {
-				status = "error"
-			}
-		case .BackedUp in result:
-			status = "Backed Up"
-		case .Restored in result:
-			status = "Restored"
-		case .DirUpdated in result:
+		if err != .None {
+			status = sync_error_message(err)
+		} else if .BackedUp in result {
+			status = .DirUpdated in result ? "Moved & Backed Up" : "Backed Up"
+		} else if .Restored in result {
+			status = .DirUpdated in result ? "Moved & Restored" : "Restored"
+		} else if .DirUpdated in result {
 			status = "Moved"
-		case:
+		} else {
 			status = "OK"
 		}
 
-		if is_dir_updated {
-			if !db_delete(&db, old_path) {
-				return
-			}
+		// TODO: Handle errors
+		path_str, _ := strings.clone(file.Path, context.temp_allocator)
+		status_str, _ := strings.clone(status, context.temp_allocator)
+		results[i] = SyncEntry {
+			Path   = path_str,
+			Status = status_str,
 		}
-		if db_update_required(result) {
-			if !db_insert(&db, file) {
-				return
-			}
-		}
-
-		path_str, _ := strings.clone(file.Path)
-		status_str, _ := strings.clone(status)
-		append(&results, SyncEntry{Path = path_str, Status = status_str})
 	}
 
 	if terminal.is_terminal(os.stdout) {
 		headers := []string{"File", "Status"}
-		table_rows := make([dynamic][]string, 0, len(results))
+		// TODO: Use [2]string instead of slice here
+		table_rows := make([dynamic][]string, 0, len(results), context.temp_allocator)
 
 		for res in results {
-			row_slice := make([]string, 2)
-			row_slice[0] = res.Path
-			row_slice[1] = res.Status
-			append(&table_rows, row_slice)
+			row_slice := [2]string{res.Path, res.Status}
+			append(&table_rows, row_slice[:])
 		}
 
 		render_table(cmd.out, headers, table_rows[:])
@@ -92,5 +71,25 @@ cmd_sync :: proc(cmd: ^Command) {
 		}
 		fmt.wprintln(cmd.out, string(data), flush = false)
 	}
+}
+
+sync_error_message :: proc(e: SyncError) -> string {
+	switch e {
+	case .None:
+		return ""
+	case .DirMissing:
+		return "directory missing"
+	case .MultipleDirs:
+		return "multiple directories found"
+	case .GitRootFailed:
+		return "failed to find git roots"
+	case .WriteFailed:
+		return "failed to write file"
+	case .ReadFailed:
+		return "failed to read file"
+	case .DbFailed:
+		return "failed to update database"
+	}
+	return "unknown error"
 }
 

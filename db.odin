@@ -13,14 +13,22 @@ import "core:strings"
 import "sqlite"
 
 SyncFlagEnum :: enum {
-	Noop,
 	DirUpdated,
 	Restored,
 	BackedUp,
-	Error,
 }
 
 SyncFlag :: bit_set[SyncFlagEnum]
+
+SyncError :: enum {
+	None,
+	DirMissing,
+	MultipleDirs,
+	GitRootFailed,
+	WriteFailed,
+	ReadFailed,
+	DbFailed,
+}
 
 Db :: struct {
 	// Pointer to the sqlite db
@@ -387,7 +395,8 @@ new_env_file :: proc(path: string) -> (EnvFile, bool) {
 
 	dir := filepath.dir(abs_path)
 
-	remotes := get_git_remotes(dir)
+	// TODO: Should we use the db allocator here?
+	remotes := get_git_remotes(dir, context.allocator)
 
 	data, read_err := os.read_entire_file_from_path(abs_path, context.allocator)
 	defer delete(data)
@@ -410,109 +419,106 @@ new_env_file :: proc(path: string) -> (EnvFile, bool) {
 		true
 }
 
-// If SyncFlag is .BackedUp, Caller is responsible for calling delete on f.contents and f.Sha256
-db_sync :: proc(d: ^Db, f: ^EnvFile) -> (SyncFlag, string) {
+// Reconciles `f` with the filesystem and persists changes to the database.
+db_sync :: proc(d: ^Db, f: ^EnvFile) -> (SyncFlag, SyncError) {
+	allocator := db_allocator(d)
 	result: SyncFlag = {}
+	old_path := f.Path
 
 	if !os.exists(f.Dir) {
-		assert(d != nil)
-		moved_dirs, dirs_ok := find_moved_dirs(d, f)
-		if !dirs_ok {
-			return {.Error}, "failed to find moved dirs"
+		moved, err := try_move_dir(d, f, allocator)
+		if !moved {
+			return {}, err
 		}
-
-		switch len(moved_dirs) {
-		case 0:
-			return {.Error}, "directory missing"
-		case 1:
-			update_dir(f, moved_dirs[0])
-			result = {.DirUpdated}
-		case:
-			return {.Error}, "multiple directories found"
-		}
+		result += {.DirUpdated}
 	}
 
 	if !os.exists(f.Path) {
 		write_err := os.write_entire_file(f.Path, f.contents)
 		if write_err != nil {
-			msg, _ := strings.concatenate({"failed to write file: ", fmt.tprintf("%v", write_err)})
-			return {.Error}, msg
+			fmt.eprintf("db_sync: failed to write %s: %v\n", f.Path, write_err)
+			return result, .WriteFailed
 		}
 
-		return result + {.Restored}, ""
+		if !db_persist(d, f, old_path) {
+			return result, .DbFailed
+		}
+		return result + {.Restored}, .None
 	}
 
-	// TODO: Use temp allocator?
-	data, read_err := os.read_entire_file_from_path(f.Path, context.allocator)
-	defer delete(data)
+	data, read_err := os.read_entire_file_from_path(f.Path, allocator)
 	if read_err != nil {
-		msg, _ := strings.concatenate(
-			{"failed to read file for SHA comparison: ", fmt.tprintf("%v", read_err)},
-		)
-		return {.Error}, msg
+		fmt.eprintf("db_sync: failed to read %s: %v\n", f.Path, read_err)
+		return result, .ReadFailed
 	}
 
-	digest := hash.hash_bytes(hash.Algorithm.SHA256, data)
-	// TODO: Handle error
-	hex_bytes, _ := hex.encode(digest)
+	digest := hash.hash_bytes(hash.Algorithm.SHA256, data, context.temp_allocator)
+	hex_bytes, hex_err := hex.encode(digest, allocator)
+	if hex_err != nil {
+		fmt.eprintf("db_sync: failed to encode hash for %s: %v\n", f.Path, hex_err)
+		return result, .ReadFailed
+	}
 	current_sha := string(hex_bytes)
 
 	if current_sha == f.Sha256 {
-		return result, ""
-	}
-
-	if env_file_backup(f) {
-		return result + {.BackedUp}, ""
-	} else {
-		return {.Error}, "failed to backup file"
-	}
-
-}
-
-find_moved_dirs :: proc(d: ^Db, f: ^EnvFile) -> ([dynamic]string, bool) {
-	roots, roots_ok := find_git_roots(d.cfg)
-	if !roots_ok {
-		return {}, false
-	}
-
-	moved: [dynamic]string
-	for root in roots {
-		remotes := get_git_remotes(root)
-		if shares_remote(f, remotes[:]) {
-			cloned, _ := strings.clone(root)
-			append(&moved, cloned)
+		if !db_persist(d, f, old_path) {
+			return result, .DbFailed
 		}
-	}
-	return moved, true
-}
-
-update_dir :: proc(f: ^EnvFile, new_dir: string) {
-	f.Dir = new_dir
-	base := filepath.base(f.Path)
-	new_path, _ := filepath.join({new_dir, base})
-	f.Path = new_path
-	f.Remotes = get_git_remotes(new_dir)
-}
-
-// Loads the contents of the the file at f.Path into f.contents
-//
-// Caller is responsible for calling delete on f.contents and f.Sha256
-env_file_backup :: proc(f: ^EnvFile) -> bool {
-	data, read_err := os.read_entire_file_from_path(f.Path, context.allocator)
-	if read_err != nil {
-		fmt.printf("Error reading file %s: %v\n", f.Path, read_err)
-		return false
+		return result, .None
 	}
 
 	f.contents = string(data)
-	digest := hash.hash_bytes(hash.Algorithm.SHA256, data, context.temp_allocator)
-	hex_bytes, alloc_err := hex.encode(digest)
-	if alloc_err != nil {
-		fmt.printf("Error generating hash for file %s: %v\n", f.Path, alloc_err)
-		return false
+	f.Sha256 = current_sha
+	if !db_persist(d, f, old_path) {
+		return result, .DbFailed
 	}
-	f.Sha256 = string(hex_bytes)
-	return true
+	return result + {.BackedUp}, .None
+}
+
+db_persist :: proc(d: ^Db, f: ^EnvFile, old_path: string) -> bool {
+	if f.Path != old_path {
+		if !db_delete(d, old_path) {
+			return false
+		}
+	}
+	return db_insert(d, f^)
+}
+
+try_move_dir :: proc(d: ^Db, f: ^EnvFile, allocator: mem.Allocator) -> (bool, SyncError) {
+	roots, ok := find_git_roots(d.cfg)
+	if !ok {
+		return false, .GitRootFailed
+	}
+	defer {
+		for root in roots {
+			delete(root)
+		}
+		delete(roots)
+	}
+
+	match_count := 0
+	matched_dir: string
+	for root in roots {
+		remotes := get_git_remotes(root, context.temp_allocator)
+		if shares_remote(f, remotes[:]) {
+			match_count += 1
+			matched_dir = root
+		}
+	}
+
+	switch match_count {
+	case 0:
+		return false, .DirMissing
+	case 1:
+		f.Dir, _ = strings.clone(matched_dir, allocator)
+		base := filepath.base(f.Path)
+		new_path, _ := filepath.join({f.Dir, base}, allocator)
+		f.Path = new_path
+		f.Remotes = get_git_remotes(f.Dir, allocator)
+		return true, .None
+	case:
+		return false, .MultipleDirs
+	}
 }
 
 shares_remote :: proc(f: ^EnvFile, remotes: []string) -> bool {
@@ -526,7 +532,7 @@ shares_remote :: proc(f: ^EnvFile, remotes: []string) -> bool {
 	return false
 }
 
-get_git_remotes :: proc(dir: string) -> [dynamic]string {
+get_git_remotes :: proc(dir: string, allocator: mem.Allocator) -> [dynamic]string {
 	config_path, _ := filepath.join({dir, ".git", "config"}, context.temp_allocator)
 	// TODO: Handle error
 	m, _, ok := ini.load_map_from_path(config_path, context.temp_allocator)
@@ -534,7 +540,7 @@ get_git_remotes :: proc(dir: string) -> [dynamic]string {
 		return nil
 	}
 
-	remotes := make([dynamic]string, 0, 1)
+	remotes := make([dynamic]string, 0, 1, allocator)
 
 	for section_name, section in m {
 		if strings.has_prefix(section_name, "remote ") {
@@ -544,7 +550,7 @@ get_git_remotes :: proc(dir: string) -> [dynamic]string {
 					if r == url {found = true; break}
 				}
 				if !found {
-					cloned, _ := strings.clone(url)
+					cloned, _ := strings.clone(url, allocator)
 					append(&remotes, cloned)
 				}
 			}
@@ -552,10 +558,6 @@ get_git_remotes :: proc(dir: string) -> [dynamic]string {
 	}
 
 	return remotes
-}
-
-db_update_required :: proc(status: SyncFlag) -> bool {
-	return .BackedUp in status || .DirUpdated in status
 }
 
 to_cstring :: proc {

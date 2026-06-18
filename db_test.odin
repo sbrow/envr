@@ -1,5 +1,7 @@
 package main
 
+import "core:crypto/hash"
+import "core:encoding/hex"
 import "core:fmt"
 import "core:os"
 import "core:path/filepath"
@@ -14,7 +16,7 @@ make_test_env_file :: proc(path, sha, contents: string, remotes: []string = {}) 
 		Dir      = "",
 		Sha256   = sha,
 		contents = contents,
-		Remotes  = make([dynamic]string, 0, len(remotes)),
+		Remotes  = make([dynamic]string, 0, len(remotes), context.temp_allocator),
 	}
 	for r in remotes {
 		append(&f.Remotes, r)
@@ -202,37 +204,6 @@ test_db_serialize :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_db_update_required_noop :: proc(t: ^testing.T) {
-	testing.expect(t, !db_update_required({}), "Noop should not require update")
-}
-
-@(test)
-test_db_update_required_backed_up :: proc(t: ^testing.T) {
-	testing.expect(t, db_update_required({.BackedUp}), "BackedUp should require update")
-}
-
-@(test)
-test_db_update_required_dir_updated :: proc(t: ^testing.T) {
-	testing.expect(t, db_update_required({.DirUpdated}), "DirUpdated should require update")
-}
-
-@(test)
-test_db_update_required_restored :: proc(t: ^testing.T) {
-	testing.expect(t, !db_update_required({.Restored}), "Restored alone should not require update")
-}
-
-@(test)
-test_db_update_required_error :: proc(t: ^testing.T) {
-	testing.expect(t, !db_update_required({.Error}), "Error alone should not require update")
-}
-
-@(test)
-test_db_update_required_combined :: proc(t: ^testing.T) {
-	combined := SyncFlag{.DirUpdated, .Restored}
-	testing.expect(t, db_update_required(combined), "DirUpdated|Restored should require update")
-}
-
-@(test)
 test_shares_remote_overlap :: proc(t: ^testing.T) {
 	f := EnvFile {
 		Remotes = make([dynamic]string, 2, context.temp_allocator),
@@ -307,8 +278,7 @@ test_get_git_remotes_single :: proc(t: ^testing.T) {
 	err := os.write_entire_file(config_path, transmute([]u8)config_content)
 	testing.expect(t, err == nil, "should write .git/config")
 
-	remotes := get_git_remotes(base)
-	defer delete_remotes(remotes)
+	remotes := get_git_remotes(base, context.temp_allocator)
 
 	testing.expect(t, len(remotes) == 1, "should find 1 remote")
 	if len(remotes) != 1 do return
@@ -329,8 +299,7 @@ test_get_git_remotes_multiple :: proc(t: ^testing.T) {
 	err := os.write_entire_file(config_path, transmute([]u8)config_content)
 	testing.expect(t, err == nil, "should write .git/config")
 
-	remotes := get_git_remotes(base)
-	defer delete_remotes(remotes)
+	remotes := get_git_remotes(base, context.temp_allocator)
 
 	testing.expect(t, len(remotes) == 2, "should find 2 remotes")
 }
@@ -341,8 +310,7 @@ test_get_git_remotes_no_config :: proc(t: ^testing.T) {
 	os.mkdir_all(base)
 	defer os.remove_all(base)
 
-	remotes := get_git_remotes(base)
-	defer delete_remotes(remotes)
+	remotes := get_git_remotes(base, context.temp_allocator)
 
 	testing.expect(t, len(remotes) == 0, "should return empty when no .git/config")
 }
@@ -361,8 +329,7 @@ test_get_git_remotes_no_remotes :: proc(t: ^testing.T) {
 	err := os.write_entire_file(config_path, transmute([]u8)config_content)
 	testing.expect(t, err == nil, "should write .git/config")
 
-	remotes := get_git_remotes(base)
-	defer delete_remotes(remotes)
+	remotes := get_git_remotes(base, context.temp_allocator)
 
 	testing.expect(t, len(remotes) == 0, "should return empty when no remote sections")
 }
@@ -394,49 +361,6 @@ test_new_env_file :: proc(t: ^testing.T) {
 test_new_env_file_missing :: proc(t: ^testing.T) {
 	_, ok := new_env_file("/tmp/envr-nonexistent-envfile/path/.env")
 	testing.expect(t, !ok, "missing file should return false")
-}
-
-@(test)
-test_env_file_backup :: proc(t: ^testing.T) {
-	base := fmt.tprintf("/tmp/envr-test-backup-%d", os.get_pid())
-	os.mkdir_all(base)
-	defer os.remove_all(base)
-
-	env_path := fmt.tprintf("%s/.env", base)
-	err := os.write_entire_file(env_path, "KEY=12345\n")
-	testing.expect(t, err == nil, ".env file should exist")
-
-	f := EnvFile {
-		Path = env_path,
-	}
-	defer delete(f.contents)
-	defer delete(f.Sha256)
-	testing.expect(t, env_file_backup(&f), "backup should succeed")
-	testing.expect_value(t, f.contents, "KEY=12345\n")
-	testing.expect_value(t, len(f.Sha256), 64)
-}
-
-@(test)
-test_env_file_backup_missing :: proc(t: ^testing.T) {
-	f := EnvFile {
-		Path = "/tmp/envr-nonexistent-backup/.env",
-	}
-	testing.expect(t, !env_file_backup(&f), "missing file should return false")
-}
-
-@(test)
-test_update_dir :: proc(t: ^testing.T) {
-	f := EnvFile {
-		Path    = "/old/project/.env",
-		Dir     = "/old/project",
-		Remotes = make([dynamic]string, 0, context.temp_allocator),
-	}
-	defer delete_envfile(&f)
-
-	update_dir(&f, "/new/location")
-
-	testing.expect_value(t, f.Dir, "/new/location")
-	testing.expect_value(t, f.Path, "/new/location/.env")
 }
 
 @(test)
@@ -493,5 +417,152 @@ test_open_existing_db_has_no_leaks :: proc(t: ^testing.T) {
 	testing.expect(t, ok2, "db should open existing")
 	if !ok2 do return
 	db_close(&db2)
+}
+
+@(test)
+test_db_sync_noop :: proc(t: ^testing.T) {
+	base := fmt.tprintf("/tmp/envr-test-sync-noop-%d", os.get_pid())
+	os.mkdir_all(base)
+	defer os.remove_all(base)
+
+	env_path := fmt.tprintf("%s/.env", base)
+	content := "KEY=value\n"
+	write_err := os.write_entire_file(env_path, transmute([]u8)content)
+	testing.expect(t, write_err == nil, "should write .env file")
+
+	digest := hash.hash_bytes(
+		hash.Algorithm.SHA256,
+		transmute([]u8)content,
+		context.temp_allocator,
+	)
+	hex_bytes, _ := hex.encode(digest, context.temp_allocator)
+	sha := string(hex_bytes)
+
+	d, ok := db_init()
+	testing.expect(t, ok, "failed to create test db")
+	defer db_close(&d)
+
+	f := make_test_env_file(env_path, sha, content)
+	f.Dir = base
+	db_insert(&d, f)
+
+	result, sync_err := db_sync(&d, &f)
+	testing.expect(t, sync_err == .None, "sync should not error")
+	testing.expect(t, result == {}, "should be noop")
+}
+
+@(test)
+test_db_sync_backed_up :: proc(t: ^testing.T) {
+	base := fmt.tprintf("/tmp/envr-test-sync-backup-%d", os.get_pid())
+	os.mkdir_all(base)
+	defer os.remove_all(base)
+
+	env_path := fmt.tprintf("%s/.env", base)
+	changed_content := "KEY=changed\n"
+	write_err := os.write_entire_file(env_path, transmute([]u8)changed_content)
+	testing.expect(t, write_err == nil, "should write .env file")
+
+	d, ok := db_init()
+	testing.expect(t, ok, "failed to create test db")
+	defer db_close(&d)
+
+	f := make_test_env_file(env_path, "old_sha", "KEY=original")
+	f.Dir = base
+	db_insert(&d, f)
+
+	result, sync_err := db_sync(&d, &f)
+	testing.expect(t, sync_err == .None, "sync should not error")
+	testing.expect(t, .BackedUp in result, "should be backed up")
+}
+
+@(test)
+test_db_sync_restored :: proc(t: ^testing.T) {
+	base := fmt.tprintf("/tmp/envr-test-sync-restore-%d", os.get_pid())
+	os.mkdir_all(base)
+	defer os.remove_all(base)
+
+	env_path := fmt.tprintf("%s/.env", base)
+
+	d, ok := db_init()
+	testing.expect(t, ok, "failed to create test db")
+	defer db_close(&d)
+
+	f := make_test_env_file(env_path, "some_sha", "SECRET=value")
+	f.Dir = base
+	defer delete(f.Remotes)
+	db_insert(&d, f)
+
+	result, err := db_sync(&d, &f)
+	testing.expect(t, err == .None, "sync should not error")
+	testing.expect(t, .Restored in result, "should be restored")
+
+	data, read_err := os.read_entire_file_from_path(env_path, context.temp_allocator)
+	testing.expect(t, read_err == nil, "file should exist after restore")
+	if read_err == nil {
+		testing.expect_value(t, string(data), "SECRET=value")
+	}
+}
+
+@(test)
+test_db_sync_dir_missing :: proc(t: ^testing.T) {
+	d, ok := db_init()
+	testing.expect(t, ok, "failed to create test db")
+	defer db_close(&d)
+
+	f := make_test_env_file("/nonexistent/path/.env", "sha", "KEY=val")
+	db_insert(&d, f)
+
+	result, err := db_sync(&d, &f)
+	testing.expect(t, err == .DirMissing, "should return DirMissing error")
+}
+
+@(test)
+test_db_sync_moved :: proc(t: ^testing.T) {
+	base := fmt.tprintf("/tmp/envr-test-sync-moved-%d", os.get_pid())
+	search_root := fmt.tprintf("%s/search", base)
+	repo_dir := fmt.tprintf("%s/myproject", search_root)
+	git_dir := fmt.tprintf("%s/.git", repo_dir)
+	defer os.remove_all(base)
+
+	os.mkdir_all(git_dir)
+
+	config_content := "[remote \"origin\"]\n\turl = git@github.com:user/repo.git\n"
+	config_path := fmt.tprintf("%s/config", git_dir)
+	write_err := os.write_entire_file(config_path, transmute([]u8)config_content)
+	testing.expect(t, write_err == nil, "should write .git/config")
+
+	d, ok := db_init()
+	testing.expect(t, ok, "failed to create test db")
+	defer db_close(&d)
+
+	d.cfg.ScanConfig.Include = make([dynamic]string, 0, 1, context.temp_allocator)
+	append(&d.cfg.ScanConfig.Include, search_root)
+
+	f := make_test_env_file(
+		"/old/nonexistent/path/.env",
+		"some_sha",
+		"SECRET=value",
+		[]string{"git@github.com:user/repo.git"},
+	)
+	testing.expect(t, db_insert(&d, f), "insert should succeed")
+
+	result, err := db_sync(&d, &f)
+	testing.expect(t, err == .None, "sync should not error")
+	if err != .None do return
+	testing.expect(t, .DirUpdated in result, "should have DirUpdated flag")
+	testing.expect(t, .Restored in result, "should have Restored flag")
+
+	expected_path := fmt.tprintf("%s/.env", repo_dir)
+	testing.expect_value(t, f.Path, expected_path)
+	testing.expect_value(t, f.Dir, repo_dir)
+
+	_, old_exists := db_fetch(&d, "/old/nonexistent/path/.env")
+	testing.expect(t, !old_exists, "old path should be deleted from db")
+
+	new_fetched, new_ok := db_fetch(&d, expected_path)
+	testing.expect(t, new_ok, "new path should exist in db")
+	if new_ok {
+		testing.expect_value(t, new_fetched.contents, "SECRET=value")
+	}
 }
 

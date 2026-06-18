@@ -187,14 +187,10 @@ test_search_paths_expands_tilde :: proc(t: ^testing.T) {
 	cfg := Config {
 		ScanConfig = ScanConfig{Include = make([dynamic]string, 0, 1)},
 	}
-	defer delete(cfg.ScanConfig.Include)
 	append(&cfg.ScanConfig.Include, "~")
+	defer delete(cfg.ScanConfig.Include)
 
-	paths := search_paths(cfg)
-	defer delete(paths)
-	for path in paths {
-		defer delete(path)
-	}
+	paths := search_paths(cfg, context.temp_allocator)
 
 	testing.expect(t, len(paths) == 1, "should have 1 path")
 	if len(paths) > 0 {
