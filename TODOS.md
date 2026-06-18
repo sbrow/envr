@@ -2,13 +2,11 @@
 
 1. Consider giving db its own allocator
 
-25. Generate md and man pages again.
+2. Generate md and man pages again.
 
-2. **db.odin:324-327** — Map iteration (`remote_set`) is non-deterministic. Same file can produce different JSON on each backup, causing spurious DB diffs. Sort remotes before storing.
+3. **db.odin:324-327** — Map iteration (`remote_set`) is non-deterministic. Same file can produce different JSON on each backup, causing spurious DB diffs. Sort remotes before storing.
 
-3. **db.odin:135, 250** — String interpolation into SQL (`VACUUM INTO '%s'`, `ATTACH DATABASE '%s'`). Currently safe because input is controlled, but fragile.
-
-4. **features.odin:30-41** — `find_binary` uses `strings.join` instead of `filepath.join`, uses `os.stat` instead of checking executability, hardcodes `:` as PATH separator (wrong on Windows).
+4. Make sure official path separators are used when appropriate, rather than '/'.
 
 5. **cmd_restore.odin:20-30 & cmd_remove.odin:19-29** — Identical path-resolution block copy-pasted. `is_abs` guard is redundant since `filepath.abs` is a no-op on absolute paths. Extract a helper.
 
@@ -20,7 +18,7 @@
 
 11. **db.odin:352-353** — `hex.encode` error ignored. `string(hex_bytes)` aliases the byte slice.
 
-12. **cmd_sync.odin:80, cmd_list.odin:33, cmd_deps.odin:9** — `make([]string, 2)` for table rows never freed. Leaks per row. Defer to memory pass.
+12. **cmd_sync.odin:80, cmd_list.odin:33** — `make([]string, 2)` for table rows never freed. Leaks per row. Defer to memory pass.
 
 13. **cmd_list.odin** — Non-TTY branch builds `ListEntry` structs and marshals JSON separately. Now that `render_json_rows` (issue 1) accepts an `io.Writer` and uses `json.marshal`, unify both branches to use it. Note: will change JSON keys from `"directory"/"path"` to `"Directory"/"Path"`.
 
@@ -44,6 +42,8 @@
 
 25. Bring back windows support / cross-compilation.
 
+26. Test all cmds / terminal branches.
+
 ## Double-check AI output
 
 - [ ] cli.odin
@@ -51,7 +51,6 @@
 - [x] cmd_backup.odin
 - [x] cmd_check.odin
 - [ ] cmd_check_test.odin
-- [x] cmd_deps.odin
 - [ ] cmd_edit_config.odin
 - [x] cmd_init.odin
 - [x] cmd_list.odin
