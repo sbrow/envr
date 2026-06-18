@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.4.0](https://github.com/sbrow/envr/compare/v0.3.0...v0.4.0) (2026-06-18)
+
+
+### Features
+
+* Removed runtime git dependency. ([12574e1](https://github.com/sbrow/envr/commit/12574e123bdedba3aca813143e906ec5e0b95719))
+
+
+### Bug Fixes
+
+* Fixed memory leaks in the db. ([5059572](https://github.com/sbrow/envr/commit/5059572951b3ec20b3d2027032a9c3be5cb14dba))
+
+
+### Performance Improvements
+
+* Replaced `fd` with custom internals. ([2ef733f](https://github.com/sbrow/envr/commit/2ef733fe58594b0a0b6e3ef85142b74af445ccb8))
+
 ## [0.3.0](https://github.com/sbrow/envr/compare/v0.2.1...v0.3.0) (2026-06-16)
 
 Version 0.3.0 represents a significant departure (and improvement) for envr.
