@@ -2,6 +2,7 @@ package main
 
 import "core:fmt"
 import "core:mem"
+import "core:os"
 
 MAGIC :: "ENVR"
 MAGIC_BYTES := [4]u8{u8('E'), u8('N'), u8('V'), u8('R')}
@@ -25,13 +26,14 @@ X25519Keypair :: struct {
 	Private: [CRYPTO_BOX_SECRETKEY_BYTES]u8,
 }
 
-sodium_initialized: bool
+@(init)
+init_sodium :: proc "contextless" () {
+	if sodium_init() < 0 {
+		os.exit(1)
+	}
+}
 
 encrypt :: proc(plaintext: []u8, keys: []SshKeyPair) -> (ciphertext: []u8, ok: bool) {
-	if !ensure_sodium() {
-		return
-	}
-
 	x25519_pairs, pairs_ok := ssh_to_x25519(keys)
 	if !pairs_ok {
 		return
@@ -131,10 +133,6 @@ encrypt :: proc(plaintext: []u8, keys: []SshKeyPair) -> (ciphertext: []u8, ok: b
 }
 
 decrypt :: proc(ciphertext: []u8, keys: []SshKeyPair) -> (plaintext: []u8, ok: bool) {
-	if !ensure_sodium() {
-		return
-	}
-
 	if len(ciphertext) < HEADER_SIZE {
 		fmt.println("Error: ciphertext too short (header)")
 		return
@@ -323,15 +321,3 @@ ssh_to_x25519 :: proc(keys: []SshKeyPair) -> (pairs: []X25519Keypair, ok: bool) 
 	return
 }
 
-ensure_sodium :: proc() -> bool {
-	if sodium_initialized {
-		return true
-	}
-	rc := sodium_init()
-	if rc < 0 {
-		fmt.println("Error: libsodium initialization failed")
-		return false
-	}
-	sodium_initialized = true
-	return true
-}
