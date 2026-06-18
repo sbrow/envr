@@ -26,6 +26,7 @@ cmd_list :: proc(cmd: ^Command) {
 		return
 	}
 	defer delete(rows)
+	defer for &row in rows {delete_envfile(&row)}
 
 	if terminal.is_terminal(os.stdout) {
 		headers := []string{"Directory", "Path"}
@@ -34,7 +35,7 @@ cmd_list :: proc(cmd: ^Command) {
 		for row in rows {
 			dir_str := strings.concatenate({row.Dir, "/"}, context.temp_allocator)
 			filename := filepath.base(row.Path)
-			row_slice := make([]string, 2)
+			row_slice := make([]string, 2, context.temp_allocator)
 			row_slice[0] = dir_str
 			row_slice[1] = filename
 			append(&table_rows, row_slice)

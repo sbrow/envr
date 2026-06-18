@@ -1,5 +1,6 @@
 package findr
 
+import "core:bytes"
 import "core:fmt"
 import "core:os"
 import "core:strings"
@@ -54,19 +55,26 @@ Collector_Data :: struct {
 collect_worker :: proc(t: ^thread.Thread) {
 	data := cast(^Collector_Data)t.data
 	for {
-		batch, ok := chan.recv(data.ch)
-		if !ok do break
+		batch := chan.recv(data.ch) or_break
+		defer delete(batch)
+
 		start := 0
-		for i in 0 ..< len(batch) {
-			if batch[i] == '\n' {
-				if i > start {
-					s, _ := strings.clone(string(batch[start:i]))
-					append(data.results, s)
-				}
-				start = i + 1
+		for {
+			remaining: []u8
+			#no_bounds_check {remaining = batch[start:]}
+
+			idx := bytes.index_byte(remaining, '\n')
+			if idx < 0 do break
+
+			i := start + idx
+			if i > start {
+				segment: []u8
+				#no_bounds_check {segment = batch[start:i]}
+				s, _ := strings.clone(string(segment))
+				append(data.results, s)
 			}
+			start = i + 1
 		}
-		delete(batch)
 	}
 }
 
@@ -447,3 +455,4 @@ join_path :: proc(parent, child: string) -> string {
 	copy(buf[pos:], child)
 	return string(buf)
 }
+

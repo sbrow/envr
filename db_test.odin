@@ -472,3 +472,51 @@ test_update_dir :: proc(t: ^testing.T) {
 	testing.expect_value(t, f.Path, "/new/location/.env")
 }
 
+@(test)
+test_closing_db_has_no_leaks :: proc(t: ^testing.T) {
+	base := fmt.tprintf("/tmp/envr-test-leak-%d", os.get_pid())
+	os.mkdir_all(base)
+	defer os.remove_all(base)
+
+	cfg_path, err := filepath.join([]string{base, "config.json"}, context.temp_allocator)
+	testing.expect(t, err == nil, "cfgPath should build successfully")
+
+	cfg := new_config([]string{"fixtures/keys/insecure-test-key"}, cfg_path)
+	defer delete_config(&cfg)
+	testing.expect(t, save_config(cfg, force = true), "save should succeed")
+
+	db, ok := db_open(cfg_path)
+	testing.expect(t, ok, "db should open")
+	if !ok do return
+	db_close(&db)
+}
+
+@(test)
+test_open_existing_db_has_no_leaks :: proc(t: ^testing.T) {
+	base := fmt.tprintf("/tmp/envr-test-leak-existing-%d", os.get_pid())
+	os.mkdir_all(base)
+	defer os.remove_all(base)
+
+	cfg_path, err := filepath.join([]string{base, "config.json"}, context.temp_allocator)
+	testing.expect(t, err == nil, "cfgPath should build successfully")
+
+	cfg := new_config([]string{"fixtures/keys/insecure-test-key"}, cfg_path)
+	defer delete_config(&cfg)
+	testing.expect(t, save_config(cfg, force = true), "save should succeed")
+
+	// First open/close creates data.envr on disk
+	db, ok := db_open(cfg_path)
+	testing.expect(t, ok, "db should open")
+	if !ok do return
+	f := make_test_env_file("/project/.env", "abc123", "SECRET=value", []string{"git@github.com:user/repo.git"})
+	defer delete(f.Remotes)
+	testing.expect(t, db_insert(&db, f), "insert should succeed")
+	db_close(&db)
+
+	// Second open exercises db_restore_from_encrypted
+	db2, ok2 := db_open(cfg_path)
+	testing.expect(t, ok2, "db should open existing")
+	if !ok2 do return
+	db_close(&db2)
+}
+

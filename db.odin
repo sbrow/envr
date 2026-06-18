@@ -51,52 +51,51 @@ delete_envfile :: proc(f: ^EnvFile) {
 	delete(f.contents)
 }
 
-db_open :: proc(cfg_path: string) -> (Db, bool) {
-	cfg, ok := load_config(cfg_path)
-	if !ok {
-		return Db{}, false
-	}
+db_open :: proc(cfg_path: string) -> (database: Db, ok: bool) {
+	database.cfg = load_config(cfg_path) or_return
 
-	data_path := data_path(cfg.config_path)
-	_, stat_err := os.stat(data_path, context.allocator)
-
-	db: ^rawptr
-	rc := sqlite.db_open(":memory:", &db)
-	if rc != sqlite.OK {
-		fmt.printf("Error opening in-memory database: %s\n", sqlite.db_errmsg(db))
-		return Db{}, false
-	}
-
-	create_sql: cstring = "CREATE TABLE IF NOT EXISTS envr_env_files (path TEXT PRIMARY KEY NOT NULL, remotes TEXT, sha256 TEXT NOT NULL, contents TEXT NOT NULL)"
-	rc = sqlite.db_exec(db, create_sql, nil, nil, nil)
-	if rc != sqlite.OK {
-		fmt.printf("Error creating table: %s\n", sqlite.db_errmsg(db))
-		sqlite.db_close(db)
-		return Db{}, false
-	}
-
-	if stat_err == nil {
-		if !db_restore_from_encrypted(db, cfg) {
-			sqlite.db_close(db)
-			return Db{}, false
+	{
+		db: ^rawptr
+		rc := sqlite.db_open(":memory:", &db)
+		if rc != sqlite.OK {
+			fmt.printf("Error opening in-memory database: %s\n", sqlite.db_errmsg(db))
+			return
 		}
+
+		create_sql: cstring = "CREATE TABLE IF NOT EXISTS envr_env_files (path TEXT PRIMARY KEY NOT NULL, remotes TEXT, sha256 TEXT NOT NULL, contents TEXT NOT NULL)"
+		rc = sqlite.db_exec(db, create_sql, nil, nil, nil)
+		if rc != sqlite.OK {
+			fmt.printf("Error creating table: %s\n", sqlite.db_errmsg(db))
+			sqlite.db_close(db)
+			return
+		}
+		database.db = db
 	}
 
-	return Db{db = db, cfg = cfg, changed = stat_err != nil}, true
+	// TODO: Use different allocators?
+	data_path := data_path(database.cfg.config_path, context.temp_allocator)
+	if os.exists(data_path) {
+		if ok = db_restore_from_encrypted(&database, data_path); !ok {
+			sqlite.db_close(database.db)
+			return
+		}
+	} else {
+		// DB was created
+		database.changed = true
+	}
+
+	return database, true
 }
 
-db_restore_from_encrypted :: proc(db: ^rawptr, cfg: Config) -> bool {
-	encrypted_data, read_err := os.read_entire_file_from_path(
-		data_path(cfg.config_path),
-		context.allocator,
-	)
+db_restore_from_encrypted :: proc(db: ^Db, data_path: string) -> bool {
+	encrypted_data, read_err := os.read_entire_file_from_path(data_path, context.allocator)
 	defer delete(encrypted_data)
 	if read_err != nil {
 		fmt.printf("Error reading encrypted database: %v\n", read_err)
 		return false
 	}
 
-	plaintext, dec_ok := decrypt(encrypted_data, cfg.Keys[:])
+	plaintext, dec_ok := decrypt(encrypted_data, db.cfg.Keys[:])
 	if !dec_ok {
 		fmt.println("Error: decryption failed")
 		return false
@@ -112,7 +111,7 @@ db_restore_from_encrypted :: proc(db: ^rawptr, cfg: Config) -> bool {
 	copy(buf[:len(plaintext)], plaintext)
 
 	rc := sqlite.deserialize(
-		db,
+		db.db,
 		"main",
 		buf,
 		n,
@@ -121,7 +120,7 @@ db_restore_from_encrypted :: proc(db: ^rawptr, cfg: Config) -> bool {
 	)
 	if rc != sqlite.OK {
 		sqlite.free(buf)
-		fmt.printf("Error deserializing database: %s\n", sqlite.db_errmsg(db))
+		fmt.printf("Error deserializing database: %s\n", sqlite.db_errmsg(db.db))
 		return false
 	}
 
@@ -130,6 +129,7 @@ db_restore_from_encrypted :: proc(db: ^rawptr, cfg: Config) -> bool {
 
 db_close :: proc(d: ^Db) {
 	defer sqlite.db_close(d.db)
+	defer delete_config(&d.cfg)
 
 	if d.changed {
 		rc := sqlite.db_exec(d.db, "VACUUM", nil, nil, nil)
@@ -566,6 +566,7 @@ string_to_cstring :: proc(s: string, allocator := context.allocator) -> cstring 
 	return cs
 }
 
+// Caller is responsible for freeing the result
 clone_cstring :: proc(c: cstring, allocator := context.allocator) -> string {
 	str, err := strings.clone_from_cstring(c, allocator)
 	if err != nil {
@@ -576,3 +577,4 @@ clone_cstring :: proc(c: cstring, allocator := context.allocator) -> string {
 
 	return str
 }
+

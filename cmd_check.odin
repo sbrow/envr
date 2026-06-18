@@ -54,6 +54,8 @@ cmd_check :: proc(cmd: ^Command) {
 	if !list_ok {
 		return
 	}
+	defer delete(db_files)
+	defer for &file in db_files {delete_envfile(&file)}
 
 	not_backed := find_unbacked(files_in_path[:], db_files[:])
 
@@ -61,13 +63,23 @@ cmd_check :: proc(cmd: ^Command) {
 		if len(files_in_path) == 0 {
 			fmt.wprintln(cmd.out, "No .env files found in the specified directory.", flush = false)
 		} else {
-			fmt.wprintln(cmd.out, "✓ All .env files in the directory are backed up.", flush = false)
+			fmt.wprintln(
+				cmd.out,
+				"✓ All .env files in the directory are backed up.",
+				flush = false,
+			)
 		}
 	} else {
-		fmt.wprintf(cmd.out, "Found %d .env file(s) that are not backed up:\n", len(not_backed), flush = false)
+		fmt.wprintf(
+			cmd.out,
+			"Found %d .env file(s) that are not backed up:\n",
+			len(not_backed),
+			flush = false,
+		)
 		for file in not_backed {
 			fmt.wprintf(cmd.out, "  %s\n", file, flush = false)
 		}
 		fmt.wprintln(cmd.out, "\nRun 'envr sync' to back up these files.", flush = false)
 	}
 }
+

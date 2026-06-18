@@ -59,7 +59,7 @@ key somewhere, otherwise your data could be lost forever.`,
 parse_args :: proc(args: []string, out: io.Stream, err: io.Stream) -> (cmd: Command, ok: bool) {
 	{
 		cmd.out_buf = new(bufio.Writer)
-		bufio.writer_init(cmd.out_buf, out)
+		bufio.writer_init(cmd.out_buf, out, allocator = context.allocator)
 		cmd.out = bufio.writer_to_writer(cmd.out_buf)
 		cmd.err = err
 	}
@@ -256,9 +256,11 @@ has_flag :: proc(cmd: ^Command, name: string) -> bool {
 }
 
 delete_command :: proc(cmd: ^Command) {
+	bufio.writer_flush(cmd.out_buf)
 	delete(cmd.args)
 	delete(cmd.flags)
 	delete(cmd.bool_set)
 	bufio.writer_destroy(cmd.out_buf)
 	free(cmd.out_buf)
 }
+

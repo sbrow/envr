@@ -2,6 +2,8 @@
 
 1. Consider giving db its own allocator
 
+27. Commands are still leaking.
+
 2. Generate md and man pages again.
 
 3. **db.odin:324-327** — Map iteration (`remote_set`) is non-deterministic. Same file can produce different JSON on each backup, causing spurious DB diffs. Sort remotes before storing.

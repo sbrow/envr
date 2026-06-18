@@ -1,14 +1,31 @@
 package main
 
-import "core:bufio"
 import "core:fmt"
+import "core:mem"
 import "core:os"
 
 main :: proc() {
+	when ODIN_DEBUG {
+		heap_track: mem.Tracking_Allocator
+		mem.tracking_allocator_init(&heap_track, context.allocator)
+		defer mem.tracking_allocator_destroy(&heap_track)
+		defer if len(heap_track.allocation_map) > 0 {
+			for _, leak in heap_track.allocation_map {
+				fmt.eprintf("LEAK: %v leaked %m\n", leak.location, leak.size)
+			}
+		}
+		context.allocator = mem.tracking_allocator(&heap_track)
+
+		temp_track: mem.Tracking_Allocator
+		mem.tracking_allocator_init(&temp_track, context.temp_allocator)
+		defer mem.tracking_allocator_destroy(&temp_track)
+		context.temp_allocator = mem.tracking_allocator(&temp_track)
+	}
+
 	defer free_all(context.temp_allocator)
 
 	cmd, ok := parse_args(os.args, os.to_writer(os.stdout), os.to_writer(os.stderr))
-	defer bufio.writer_flush(cmd.out_buf)
+	defer delete_command(&cmd) // delete flushes automatically
 	if !ok {
 		return
 	}

@@ -220,7 +220,9 @@ envr_dir :: proc(config_path: string) -> string {
 	return filepath.dir(config_path)
 }
 
-data_path :: proc(config_path: string) -> string {
-	path, _ := filepath.join([]string{envr_dir(config_path), "data.envr"})
+// User is responsible for freeing the path
+data_path :: proc(config_path: string, allocator := context.allocator) -> string {
+	path, _ := filepath.join([]string{envr_dir(config_path), "data.envr"}, allocator)
 	return path
 }
+
