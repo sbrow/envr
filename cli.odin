@@ -54,14 +54,6 @@ key somewhere, otherwise your data could be lost forever.`,
 	},
 }
 
-delete_command :: proc(cmd: ^Command) {
-	delete(cmd.args)
-	delete(cmd.flags)
-	delete(cmd.bool_set)
-	bufio.writer_destroy(cmd.out_buf)
-	free(cmd.out_buf)
-}
-
 // Caller is responsible for calling delete_command(cmd).
 // FIXME: Works in kinda a wonky and awkward way.
 parse_args :: proc(args: []string, out: io.Stream, err: io.Stream) -> (cmd: Command, ok: bool) {
@@ -130,27 +122,12 @@ parse_args :: proc(args: []string, out: io.Stream, err: io.Stream) -> (cmd: Comm
 	return cmd, true
 }
 
-has_flag :: proc(cmd: ^Command, name: string) -> bool {
-	_, ok := cmd.flags[name]
-	if ok {
-		return true
+print_command_help :: proc(cmd: ^Command) {
+	ok := write_command_help(cmd.name, cmd.out)
+	if !ok {
+		fmt.wprintf(cmd.err, "Unknown command: %s\n", cmd.name)
+		write_usage(cmd.out)
 	}
-	_, ok2 := cmd.bool_set[name]
-	return ok2
-}
-
-find_command :: proc(name: string) -> (CommandInfo, bool) {
-	for c in COMMANDS {
-		if c.name == name {
-			return c, true
-		}
-		for a in c.aliases {
-			if a == name {
-				return c, true
-			}
-		}
-	}
-	return CommandInfo{}, false
 }
 
 write_command_help :: proc(name: string, w: io.Writer) -> bool {
@@ -183,12 +160,18 @@ write_command_help :: proc(name: string, w: io.Writer) -> bool {
 	return true
 }
 
-print_command_help :: proc(cmd: ^Command) {
-	ok := write_command_help(cmd.name, cmd.out)
-	if !ok {
-		fmt.wprintf(cmd.err, "Unknown command: %s\n", cmd.name)
-		write_usage(cmd.out)
+find_command :: proc(name: string) -> (CommandInfo, bool) {
+	for c in COMMANDS {
+		if c.name == name {
+			return c, true
+		}
+		for a in c.aliases {
+			if a == name {
+				return c, true
+			}
+		}
 	}
+	return CommandInfo{}, false
 }
 
 // TODO: command args should be shown in usage.
@@ -263,3 +246,19 @@ Use "envr [command] --help" for more information about a command.
 	)
 }
 
+has_flag :: proc(cmd: ^Command, name: string) -> bool {
+	_, ok := cmd.flags[name]
+	if ok {
+		return true
+	}
+	_, ok2 := cmd.bool_set[name]
+	return ok2
+}
+
+delete_command :: proc(cmd: ^Command) {
+	delete(cmd.args)
+	delete(cmd.flags)
+	delete(cmd.bool_set)
+	bufio.writer_destroy(cmd.out_buf)
+	free(cmd.out_buf)
+}

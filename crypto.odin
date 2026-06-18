@@ -20,74 +20,12 @@ RecipientEntry :: struct {
 	EncryptedKey: [CRYPTO_SECRETBOX_KEY_BYTES + CRYPTO_BOX_MAC_BYTES]u8,
 }
 
-sodium_initialized: bool
-
-ensure_sodium :: proc() -> bool {
-	if sodium_initialized {
-		return true
-	}
-	rc := sodium_init()
-	if rc < 0 {
-		fmt.println("Error: libsodium initialization failed")
-		return false
-	}
-	sodium_initialized = true
-	return true
-}
-
 X25519Keypair :: struct {
 	Public:  [CRYPTO_BOX_PUBLICKEY_BYTES]u8,
 	Private: [CRYPTO_BOX_SECRETKEY_BYTES]u8,
 }
 
-ssh_to_x25519 :: proc(keys: []SshKeyPair) -> (pairs: []X25519Keypair, ok: bool) {
-	if len(keys) == 0 {
-		return
-	}
-
-	pairs = make([]X25519Keypair, len(keys))
-
-	for i in 0 ..< len(keys) {
-		ssh_kp, parse_ok := parse_ssh_private_key(keys[i].Private)
-		if !parse_ok {
-			fmt.printf("Error: failed to parse SSH private key: %s\n", keys[i].Private)
-			delete(pairs)
-			return
-		}
-
-		ssh_pub, pub_ok := parse_ssh_public_key(keys[i].Public)
-		if !pub_ok {
-			fmt.printf("Error: failed to parse SSH public key: %s\n", keys[i].Public)
-			delete(pairs)
-			return
-		}
-
-		pk_rc := crypto_sign_ed25519_pk_to_curve25519(&pairs[i].Public[0], &ssh_pub[0])
-		if pk_rc != 0 {
-			fmt.println("Error: failed to convert ed25519 public key to curve25519")
-			delete(pairs)
-			return
-		}
-
-		ed25519_sk: [64]u8
-		for j in 0 ..< 32 {
-			ed25519_sk[j] = ssh_kp.Private[j]
-		}
-		for j in 0 ..< 32 {
-			ed25519_sk[32 + j] = ssh_kp.Public[j]
-		}
-
-		sk_rc := crypto_sign_ed25519_sk_to_curve25519(&pairs[i].Private[0], &ed25519_sk[0])
-		if sk_rc != 0 {
-			fmt.println("Error: failed to convert ed25519 private key to curve25519")
-			delete(pairs)
-			return
-		}
-	}
-
-	ok = true
-	return
-}
+sodium_initialized: bool
 
 encrypt :: proc(plaintext: []u8, keys: []SshKeyPair) -> (ciphertext: []u8, ok: bool) {
 	if !ensure_sodium() {
@@ -336,3 +274,64 @@ decrypt :: proc(ciphertext: []u8, keys: []SshKeyPair) -> (plaintext: []u8, ok: b
 	return
 }
 
+ssh_to_x25519 :: proc(keys: []SshKeyPair) -> (pairs: []X25519Keypair, ok: bool) {
+	if len(keys) == 0 {
+		return
+	}
+
+	pairs = make([]X25519Keypair, len(keys))
+
+	for i in 0 ..< len(keys) {
+		ssh_kp, parse_ok := parse_ssh_private_key(keys[i].Private)
+		if !parse_ok {
+			fmt.printf("Error: failed to parse SSH private key: %s\n", keys[i].Private)
+			delete(pairs)
+			return
+		}
+
+		ssh_pub, pub_ok := parse_ssh_public_key(keys[i].Public)
+		if !pub_ok {
+			fmt.printf("Error: failed to parse SSH public key: %s\n", keys[i].Public)
+			delete(pairs)
+			return
+		}
+
+		pk_rc := crypto_sign_ed25519_pk_to_curve25519(&pairs[i].Public[0], &ssh_pub[0])
+		if pk_rc != 0 {
+			fmt.println("Error: failed to convert ed25519 public key to curve25519")
+			delete(pairs)
+			return
+		}
+
+		ed25519_sk: [64]u8
+		for j in 0 ..< 32 {
+			ed25519_sk[j] = ssh_kp.Private[j]
+		}
+		for j in 0 ..< 32 {
+			ed25519_sk[32 + j] = ssh_kp.Public[j]
+		}
+
+		sk_rc := crypto_sign_ed25519_sk_to_curve25519(&pairs[i].Private[0], &ed25519_sk[0])
+		if sk_rc != 0 {
+			fmt.println("Error: failed to convert ed25519 private key to curve25519")
+			delete(pairs)
+			return
+		}
+	}
+
+	ok = true
+	return
+}
+
+ensure_sodium :: proc() -> bool {
+	if sodium_initialized {
+		return true
+	}
+	rc := sodium_init()
+	if rc < 0 {
+		fmt.println("Error: libsodium initialization failed")
+		return false
+	}
+	sodium_initialized = true
+	return true
+}

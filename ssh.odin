@@ -12,24 +12,6 @@ Ed25519Keypair :: struct {
 	Private: [32]u8,
 }
 
-read_wire_string :: proc(data: []u8, offset: ^int) -> (s: string, ok: bool) {
-	if offset^ + 4 > len(data) {
-		return
-	}
-	length := u32(data[offset^]) << 24 | u32(data[offset^ + 1]) << 16 |
-		u32(data[offset^ + 2]) << 8 | u32(data[offset^ + 3])
-	offset^ += 4
-
-	if offset^ + int(length) > len(data) {
-		return
-	}
-
-	s = string(data[offset^ : offset^ + int(length)])
-	offset^ += int(length)
-	ok = true
-	return
-}
-
 parse_ssh_public_key :: proc(pub_path: string) -> (pub: [32]u8, ok: bool) {
 	data, err := os.read_entire_file_from_path(pub_path, context.temp_allocator)
 	if err != nil {
@@ -252,4 +234,22 @@ is_encrypted_key :: proc(priv_path: string) -> bool {
 	}
 
 	return ciphername != "none"
+}
+
+read_wire_string :: proc(data: []u8, offset: ^int) -> (s: string, ok: bool) {
+	if offset^ + 4 > len(data) {
+		return
+	}
+	length := u32(data[offset^]) << 24 | u32(data[offset^ + 1]) << 16 |
+		u32(data[offset^ + 2]) << 8 | u32(data[offset^ + 3])
+	offset^ += 4
+
+	if offset^ + int(length) > len(data) {
+		return
+	}
+
+	s = string(data[offset^ : offset^ + int(length)])
+	offset^ += int(length)
+	ok = true
+	return
 }

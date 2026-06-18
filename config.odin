@@ -25,14 +25,6 @@ Config :: struct {
 	config_path: string `json:"-"`,
 }
 
-default_config_path :: proc(home: string, allocator := context.allocator) -> string {
-	path, err := filepath.join([]string{home, ".envr", "config.json"}, allocator)
-	if err != nil {
-		panic("Ran out of memory when building config path")
-	}
-	return path
-}
-
 load_config :: proc(config_path: string) -> (Config, bool) {
 	data, read_err := os.read_entire_file_from_path(config_path, context.allocator)
 	if read_err != nil {
@@ -51,6 +43,14 @@ load_config :: proc(config_path: string) -> (Config, bool) {
 	cfg.config_path = config_path
 
 	return cfg, true
+}
+
+default_config_path :: proc(home: string, allocator := context.allocator) -> string {
+	path, err := filepath.join([]string{home, ".envr", "config.json"}, allocator)
+	if err != nil {
+		panic("Ran out of memory when building config path")
+	}
+	return path
 }
 
 delete_config :: proc(cfg: ^Config) {
@@ -73,13 +73,73 @@ delete_config :: proc(cfg: ^Config) {
 	delete(cfg.ScanConfig.Include)
 }
 
-envr_dir :: proc(config_path: string) -> string {
-	return filepath.dir(config_path)
+save_config :: proc(cfg: Config, force: bool = false) -> bool {
+	config_dir := envr_dir(cfg.config_path)
+
+	if !os.exists(config_dir) {
+		mkdir_err := os.make_directory(config_dir)
+		if mkdir_err != nil {
+			fmt.printf("Error creating %s directory: %v\n", config_dir, mkdir_err)
+			return false
+		}
+	}
+
+	if os.exists(cfg.config_path) && !force {
+		info, stat_err := os.stat(cfg.config_path, context.allocator)
+		if stat_err == nil {
+			defer os.file_info_delete(info, context.allocator)
+			if info.size > 0 {
+				fmt.println("Config file already exists. Run again with --force to reinitialize.")
+				return false
+			}
+		}
+	}
+
+	data, marshal_err := json.marshal(cfg, {pretty = true, use_spaces = true, spaces = 2})
+	if marshal_err != nil {
+		fmt.printf("Error marshaling config: %v\n", marshal_err)
+		return false
+	}
+	defer delete(data)
+
+	write_err := os.write_entire_file(cfg.config_path, data)
+	if write_err != nil {
+		fmt.printf("Error writing config: %v\n", write_err)
+		return false
+	}
+
+	return true
 }
 
-data_path :: proc(config_path: string) -> string {
-	path, _ := filepath.join([]string{envr_dir(config_path), "data.envr"})
-	return path
+// Caller is responsible for calling delete_config()
+new_config :: proc(
+	private_key_paths: []string,
+	cfg_path: string = "~/.envr/config.json",
+) -> Config {
+	keys := make([dynamic]SshKeyPair, 0, len(private_key_paths))
+	for priv in private_key_paths {
+		// TODO: Is this bad?
+		priv_key := strings.clone(priv)
+		pub, _ := strings.concatenate([]string{priv_key, ".pub"})
+		append(&keys, SshKeyPair{Private = priv_key, Public = pub})
+	}
+
+	exclude := make([dynamic]string, 0, 4)
+	append(&exclude, strings.clone("*\\.envrc"))
+	append(&exclude, strings.clone("\\.local/"))
+	append(&exclude, strings.clone("node_modules"))
+	append(&exclude, strings.clone("vendor"))
+
+	include := make([dynamic]string, 0, 1)
+	append(&include, strings.clone("~"))
+
+	scan_cfg := ScanConfig {
+		Matcher = strings.clone("\\.env"),
+		Exclude = exclude,
+		Include = include,
+	}
+
+	return Config{Keys = keys, ScanConfig = scan_cfg, config_path = cfg_path}
 }
 
 find_ssh_private_keys :: proc() -> (keys: [dynamic]string, ok: bool) {
@@ -128,73 +188,11 @@ find_ssh_private_keys :: proc() -> (keys: [dynamic]string, ok: bool) {
 	return
 }
 
-// Caller is responsible for calling delete_config()
-new_config :: proc(
-	private_key_paths: []string,
-	cfg_path: string = "~/.envr/config.json",
-) -> Config {
-	keys := make([dynamic]SshKeyPair, 0, len(private_key_paths))
-	for priv in private_key_paths {
-		// TODO: Is this bad?
-		priv_key := strings.clone(priv)
-		pub, _ := strings.concatenate([]string{priv_key, ".pub"})
-		append(&keys, SshKeyPair{Private = priv_key, Public = pub})
-	}
-
-	exclude := make([dynamic]string, 0, 4)
-	append(&exclude, strings.clone("*\\.envrc"))
-	append(&exclude, strings.clone("\\.local/"))
-	append(&exclude, strings.clone("node_modules"))
-	append(&exclude, strings.clone("vendor"))
-
-	include := make([dynamic]string, 0, 1)
-	append(&include, strings.clone("~"))
-
-	scan_cfg := ScanConfig {
-		Matcher = strings.clone("\\.env"),
-		Exclude = exclude,
-		Include = include,
-	}
-
-	return Config{Keys = keys, ScanConfig = scan_cfg, config_path = cfg_path}
-}
-
-save_config :: proc(cfg: Config, force: bool = false) -> bool {
-	config_dir := envr_dir(cfg.config_path)
-
-	if !os.exists(config_dir) {
-		mkdir_err := os.make_directory(config_dir)
-		if mkdir_err != nil {
-			fmt.printf("Error creating %s directory: %v\n", config_dir, mkdir_err)
-			return false
-		}
-	}
-
-	if os.exists(cfg.config_path) && !force {
-		info, stat_err := os.stat(cfg.config_path, context.allocator)
-		if stat_err == nil {
-			defer os.file_info_delete(info, context.allocator)
-			if info.size > 0 {
-				fmt.println("Config file already exists. Run again with --force to reinitialize.")
-				return false
-			}
-		}
-	}
-
-	data, marshal_err := json.marshal(cfg, {pretty = true, use_spaces = true, spaces = 2})
-	if marshal_err != nil {
-		fmt.printf("Error marshaling config: %v\n", marshal_err)
-		return false
-	}
-	defer delete(data)
-
-	write_err := os.write_entire_file(cfg.config_path, data)
-	if write_err != nil {
-		fmt.printf("Error writing config: %v\n", write_err)
-		return false
-	}
-
-	return true
+find_git_roots :: proc(cfg: Config) -> (roots: [dynamic]string, ok: bool) {
+	paths := search_paths(cfg)
+	findr.find_repos(paths[:], &roots, os.get_processor_core_count())
+	ok = true
+	return
 }
 
 search_paths :: proc(cfg: Config) -> (paths: [dynamic]string) {
@@ -218,10 +216,11 @@ search_paths :: proc(cfg: Config) -> (paths: [dynamic]string) {
 	return
 }
 
-find_git_roots :: proc(cfg: Config) -> (roots: [dynamic]string, ok: bool) {
-	paths := search_paths(cfg)
-	findr.find_repos(paths[:], &roots, os.get_processor_core_count())
-	ok = true
-	return
+envr_dir :: proc(config_path: string) -> string {
+	return filepath.dir(config_path)
 }
 
+data_path :: proc(config_path: string) -> string {
+	path, _ := filepath.join([]string{envr_dir(config_path), "data.envr"})
+	return path
+}

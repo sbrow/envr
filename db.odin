@@ -51,7 +51,6 @@ delete_envfile :: proc(f: ^EnvFile) {
 	delete(f.contents)
 }
 
-
 db_open :: proc(cfg_path: string) -> (Db, bool) {
 	cfg, ok := load_config(cfg_path)
 	if !ok {
@@ -84,6 +83,49 @@ db_open :: proc(cfg_path: string) -> (Db, bool) {
 	}
 
 	return Db{db = db, cfg = cfg, changed = stat_err != nil}, true
+}
+
+db_restore_from_encrypted :: proc(db: ^rawptr, cfg: Config) -> bool {
+	encrypted_data, read_err := os.read_entire_file_from_path(
+		data_path(cfg.config_path),
+		context.allocator,
+	)
+	defer delete(encrypted_data)
+	if read_err != nil {
+		fmt.printf("Error reading encrypted database: %v\n", read_err)
+		return false
+	}
+
+	plaintext, dec_ok := decrypt(encrypted_data, cfg.Keys[:])
+	if !dec_ok {
+		fmt.println("Error: decryption failed")
+		return false
+	}
+	defer delete(plaintext)
+
+	n := i64(len(plaintext))
+	buf := sqlite.malloc64(n)
+	if buf == nil {
+		fmt.println("Error: failed to allocate buffer for deserialization")
+		return false
+	}
+	copy(buf[:len(plaintext)], plaintext)
+
+	rc := sqlite.deserialize(
+		db,
+		"main",
+		buf,
+		n,
+		n,
+		sqlite.DESERIALIZE_FREEONCLOSE | sqlite.DESERIALIZE_RESIZEABLE,
+	)
+	if rc != sqlite.OK {
+		sqlite.free(buf)
+		fmt.printf("Error deserializing database: %s\n", sqlite.db_errmsg(db))
+		return false
+	}
+
+	return true
 }
 
 db_close :: proc(d: ^Db) {
@@ -126,13 +168,6 @@ db_close :: proc(d: ^Db) {
 	}
 }
 
-// Caller is responsible for calling:
-// ```odin
-// delete(results)
-// for &result in results {
-// 	delete(&result)
-// }
-// ```
 db_list :: proc(d: ^Db, allocator := context.allocator) -> (results: [dynamic]EnvFile, ok: bool) {
 	stmt: ^rawptr
 	rc := sqlite.prepare_v2(
@@ -179,110 +214,6 @@ db_list :: proc(d: ^Db, allocator := context.allocator) -> (results: [dynamic]En
 
 	ok = true
 	return
-}
-
-db_restore_from_encrypted :: proc(db: ^rawptr, cfg: Config) -> bool {
-	encrypted_data, read_err := os.read_entire_file_from_path(
-		data_path(cfg.config_path),
-		context.allocator,
-	)
-	defer delete(encrypted_data)
-	if read_err != nil {
-		fmt.printf("Error reading encrypted database: %v\n", read_err)
-		return false
-	}
-
-	plaintext, dec_ok := decrypt(encrypted_data, cfg.Keys[:])
-	if !dec_ok {
-		fmt.println("Error: decryption failed")
-		return false
-	}
-	defer delete(plaintext)
-
-	n := i64(len(plaintext))
-	buf := sqlite.malloc64(n)
-	if buf == nil {
-		fmt.println("Error: failed to allocate buffer for deserialization")
-		return false
-	}
-	copy(buf[:len(plaintext)], plaintext)
-
-	rc := sqlite.deserialize(
-		db,
-		"main",
-		buf,
-		n,
-		n,
-		sqlite.DESERIALIZE_FREEONCLOSE | sqlite.DESERIALIZE_RESIZEABLE,
-	)
-	if rc != sqlite.OK {
-		sqlite.free(buf)
-		fmt.printf("Error deserializing database: %s\n", sqlite.db_errmsg(db))
-		return false
-	}
-
-	return true
-}
-
-
-get_git_remotes :: proc(dir: string) -> [dynamic]string {
-	remotes: [dynamic]string
-	remote_set: map[string]bool
-	defer delete(remote_set)
-
-	config_path, _ := filepath.join({dir, ".git", "config"}, context.temp_allocator)
-	m, _, ok := ini.load_map_from_path(config_path, context.allocator)
-	if !ok {
-		return remotes
-	}
-	defer ini.delete_map(m)
-
-	for section_name, section in m {
-		if strings.has_prefix(section_name, "remote ") {
-			if url, ok := section["url"]; ok {
-				remote_set[url] = true
-			}
-		}
-	}
-
-	for remote in remote_set {
-		cloned, _ := strings.clone(remote)
-		append(&remotes, cloned)
-	}
-
-	return remotes
-}
-
-new_env_file :: proc(path: string) -> (EnvFile, bool) {
-	abs_path, abs_err := filepath.abs(path)
-	if abs_err != nil {
-		fmt.printf("Error getting absolute path: %v\n", abs_err)
-		return EnvFile{}, false
-	}
-
-	dir := filepath.dir(abs_path)
-
-	remotes := get_git_remotes(dir)
-
-	data, read_err := os.read_entire_file_from_path(abs_path, context.allocator)
-	defer delete(data)
-	if read_err != nil {
-		fmt.printf("Error reading file %s: %v\n", abs_path, read_err)
-		return EnvFile{}, false
-	}
-
-	digest := hash.hash_bytes(hash.Algorithm.SHA256, data, context.temp_allocator)
-	// TODO: Handle error
-	hex_bytes, _ := hex.encode(digest)
-
-	return EnvFile {
-			Path = abs_path,
-			Dir = dir,
-			Remotes = remotes,
-			Sha256 = string(hex_bytes),
-			contents = string(data),
-		},
-		true
 }
 
 db_insert :: proc(d: ^Db, file: EnvFile) -> bool {
@@ -424,69 +355,36 @@ db_delete :: proc(d: ^Db, path: string) -> bool {
 	return true
 }
 
-to_cstring :: proc {
-	string_to_cstring,
-	strings.to_cstring,
-}
-
-string_to_cstring :: proc(s: string, allocator := context.allocator) -> cstring {
-	cs, err := strings.clone_to_cstring(s, allocator)
-	if err != nil {
-		fmt.printf("Failed to convert string to cstring: %v\n", err)
-		panic("Allocation Exception")
-	}
-	return cs
-}
-
-clone_cstring :: proc(c: cstring, allocator := context.allocator) -> string {
-	str, err := strings.clone_from_cstring(c, allocator)
-	if err != nil {
-		fmt.printf("Failed to convert string to cstring: %v\n", err)
-		delete(str)
-		panic("Allocation Exception")
+new_env_file :: proc(path: string) -> (EnvFile, bool) {
+	abs_path, abs_err := filepath.abs(path)
+	if abs_err != nil {
+		fmt.printf("Error getting absolute path: %v\n", abs_err)
+		return EnvFile{}, false
 	}
 
-	return str
-}
+	dir := filepath.dir(abs_path)
 
-db_update_required :: proc(status: SyncFlag) -> bool {
-	return .BackedUp in status || .DirUpdated in status
-}
+	remotes := get_git_remotes(dir)
 
-shares_remote :: proc(f: ^EnvFile, remotes: []string) -> bool {
-	for r1 in f.Remotes {
-		for r2 in remotes {
-			if r1 == r2 {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-update_dir :: proc(f: ^EnvFile, new_dir: string) {
-	f.Dir = new_dir
-	base := filepath.base(f.Path)
-	new_path, _ := strings.concatenate({new_dir, "/", base})
-	f.Path = new_path
-	f.Remotes = get_git_remotes(new_dir)
-}
-
-find_moved_dirs :: proc(d: ^Db, f: ^EnvFile) -> ([dynamic]string, bool) {
-	roots, roots_ok := find_git_roots(d.cfg)
-	if !roots_ok {
-		return {}, false
+	data, read_err := os.read_entire_file_from_path(abs_path, context.allocator)
+	defer delete(data)
+	if read_err != nil {
+		fmt.printf("Error reading file %s: %v\n", abs_path, read_err)
+		return EnvFile{}, false
 	}
 
-	moved: [dynamic]string
-	for root in roots {
-		remotes := get_git_remotes(root)
-		if shares_remote(f, remotes[:]) {
-			cloned, _ := strings.clone(root)
-			append(&moved, cloned)
-		}
-	}
-	return moved, true
+	digest := hash.hash_bytes(hash.Algorithm.SHA256, data, context.temp_allocator)
+	// TODO: Handle error
+	hex_bytes, _ := hex.encode(digest)
+
+	return EnvFile {
+			Path = abs_path,
+			Dir = dir,
+			Remotes = remotes,
+			Sha256 = string(hex_bytes),
+			contents = string(data),
+		},
+		true
 }
 
 db_sync :: proc(d: ^Db, f: ^EnvFile) -> (SyncFlag, string) {
@@ -565,6 +463,31 @@ env_file_sync :: proc(f: ^EnvFile, dir: SyncDirection, d: ^Db) -> (SyncFlag, str
 	return result, ""
 }
 
+find_moved_dirs :: proc(d: ^Db, f: ^EnvFile) -> ([dynamic]string, bool) {
+	roots, roots_ok := find_git_roots(d.cfg)
+	if !roots_ok {
+		return {}, false
+	}
+
+	moved: [dynamic]string
+	for root in roots {
+		remotes := get_git_remotes(root)
+		if shares_remote(f, remotes[:]) {
+			cloned, _ := strings.clone(root)
+			append(&moved, cloned)
+		}
+	}
+	return moved, true
+}
+
+update_dir :: proc(f: ^EnvFile, new_dir: string) {
+	f.Dir = new_dir
+	base := filepath.base(f.Path)
+	new_path, _ := strings.concatenate({new_dir, "/", base})
+	f.Path = new_path
+	f.Remotes = get_git_remotes(new_dir)
+}
+
 // Loads the contents of the the file at f.Path into f.contents
 //
 // Caller is responsible for calling delete on f.contents and f.Sha256
@@ -586,3 +509,70 @@ env_file_backup :: proc(f: ^EnvFile) -> bool {
 	return true
 }
 
+shares_remote :: proc(f: ^EnvFile, remotes: []string) -> bool {
+	for r1 in f.Remotes {
+		for r2 in remotes {
+			if r1 == r2 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+get_git_remotes :: proc(dir: string) -> [dynamic]string {
+	remotes: [dynamic]string
+	remote_set: map[string]bool
+	defer delete(remote_set)
+
+	config_path, _ := filepath.join({dir, ".git", "config"}, context.temp_allocator)
+	m, _, ok := ini.load_map_from_path(config_path, context.allocator)
+	if !ok {
+		return remotes
+	}
+	defer ini.delete_map(m)
+
+	for section_name, section in m {
+		if strings.has_prefix(section_name, "remote ") {
+			if url, ok := section["url"]; ok {
+				remote_set[url] = true
+			}
+		}
+	}
+
+	for remote in remote_set {
+		cloned, _ := strings.clone(remote)
+		append(&remotes, cloned)
+	}
+
+	return remotes
+}
+
+db_update_required :: proc(status: SyncFlag) -> bool {
+	return .BackedUp in status || .DirUpdated in status
+}
+
+to_cstring :: proc {
+	string_to_cstring,
+	strings.to_cstring,
+}
+
+string_to_cstring :: proc(s: string, allocator := context.allocator) -> cstring {
+	cs, err := strings.clone_to_cstring(s, allocator)
+	if err != nil {
+		fmt.printf("Failed to convert string to cstring: %v\n", err)
+		panic("Allocation Exception")
+	}
+	return cs
+}
+
+clone_cstring :: proc(c: cstring, allocator := context.allocator) -> string {
+	str, err := strings.clone_from_cstring(c, allocator)
+	if err != nil {
+		fmt.printf("Failed to convert string to cstring: %v\n", err)
+		delete(str)
+		panic("Allocation Exception")
+	}
+
+	return str
+}
