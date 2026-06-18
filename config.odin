@@ -25,17 +25,16 @@ Config :: struct {
 	config_path: string `json:"-"`,
 }
 
-load_config :: proc(config_path: string) -> (Config, bool) {
-	data, read_err := os.read_entire_file_from_path(config_path, context.allocator)
+load_config :: proc(config_path: string, allocator := context.allocator) -> (Config, bool) {
+	// TODO: Should we use context.allocator + defer delete()?
+	data, read_err := os.read_entire_file_from_path(config_path, context.temp_allocator)
 	if read_err != nil {
 		fmt.println("No config file found. Please run `envr init` to generate one.")
 		return Config{}, false
 	}
-	defer delete(data)
 
 	cfg: Config
-	// TODO: use json 5
-	err := json.unmarshal(data, &cfg)
+	err := json.unmarshal(data, &cfg, .JSON5, allocator)
 	if err != nil {
 		fmt.printf("Error parsing config: %v\n", err)
 		return Config{}, false
@@ -53,22 +52,22 @@ default_config_path :: proc(home: string, allocator := context.allocator) -> str
 	return path
 }
 
-delete_config :: proc(cfg: ^Config) {
+delete_config :: proc(cfg: ^Config, allocator := context.allocator) {
 	for key in cfg.Keys {
-		delete(key.Private)
-		delete(key.Public)
+		delete(key.Private, allocator)
+		delete(key.Public, allocator)
 	}
 	delete(cfg.Keys)
 
-	delete(cfg.ScanConfig.Matcher)
+	delete(cfg.ScanConfig.Matcher, allocator)
 
 	for exclude in cfg.ScanConfig.Exclude {
-		delete(exclude)
+		delete(exclude, allocator)
 	}
 	delete(cfg.ScanConfig.Exclude)
 
 	for include in cfg.ScanConfig.Include {
-		delete(include)
+		delete(include, allocator)
 	}
 	delete(cfg.ScanConfig.Include)
 }

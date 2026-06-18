@@ -4,6 +4,8 @@
 
 27. Commands are still leaking.
 
+28. **db.odin** — Inconsistencies in how struct vs sqlite are named.
+
 2. Generate md and man pages again.
 
 3. **db.odin:324-327** — Map iteration (`remote_set`) is non-deterministic. Same file can produce different JSON on each backup, causing spurious DB diffs. Sort remotes before storing.

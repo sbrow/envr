@@ -12,8 +12,7 @@ cmd_edit_config :: proc(cmd: ^Command) {
 
 	config_path := cmd.config_path
 
-	_, stat_err := os.stat(config_path, context.allocator)
-	if stat_err != nil {
+	if !os.exists(config_path) {
 		fmt.wprintf(
 			cmd.err,
 			"Config file does not exist at %s. Run 'envr init' first.\n",

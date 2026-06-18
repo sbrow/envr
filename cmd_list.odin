@@ -25,8 +25,6 @@ cmd_list :: proc(cmd: ^Command) {
 	if !list_ok {
 		return
 	}
-	defer delete(rows)
-	defer for &row in rows {delete_envfile(&row)}
 
 	if terminal.is_terminal(os.stdout) {
 		headers := []string{"Directory", "Path"}

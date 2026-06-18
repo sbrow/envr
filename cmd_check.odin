@@ -54,8 +54,6 @@ cmd_check :: proc(cmd: ^Command) {
 	if !list_ok {
 		return
 	}
-	defer delete(db_files)
-	defer for &file in db_files {delete_envfile(&file)}
 
 	not_backed := find_unbacked(files_in_path[:], db_files[:])
 

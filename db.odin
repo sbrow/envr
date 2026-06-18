@@ -5,6 +5,7 @@ import "core:encoding/hex"
 import "core:encoding/ini"
 import "core:encoding/json"
 import "core:fmt"
+import "core:mem"
 import "core:os"
 import "core:path/filepath"
 import "core:strings"
@@ -21,16 +22,12 @@ SyncFlagEnum :: enum {
 
 SyncFlag :: bit_set[SyncFlagEnum]
 
-SyncDirection :: enum {
-	TrustDatabase,
-	TrustFilesystem,
-}
-
 Db :: struct {
 	// Pointer to the sqlite db
 	db:      ^rawptr,
 	cfg:     Config,
 	changed: bool,
+	arena:   mem.Dynamic_Arena,
 }
 
 EnvFile :: struct {
@@ -41,6 +38,7 @@ EnvFile :: struct {
 	contents: string,
 }
 
+@(deprecated = "call db_close to clean up EnvFiles")
 delete_envfile :: proc(f: ^EnvFile) {
 	delete(f.Path)
 	for &remote in f.Remotes {
@@ -52,32 +50,15 @@ delete_envfile :: proc(f: ^EnvFile) {
 }
 
 db_open :: proc(cfg_path: string) -> (database: Db, ok: bool) {
-	database.cfg = load_config(cfg_path) or_return
-
-	{
-		db: ^rawptr
-		rc := sqlite.db_open(":memory:", &db)
-		if rc != sqlite.OK {
-			fmt.printf("Error opening in-memory database: %s\n", sqlite.db_errmsg(db))
-			return
-		}
-
-		create_sql: cstring = "CREATE TABLE IF NOT EXISTS envr_env_files (path TEXT PRIMARY KEY NOT NULL, remotes TEXT, sha256 TEXT NOT NULL, contents TEXT NOT NULL)"
-		rc = sqlite.db_exec(db, create_sql, nil, nil, nil)
-		if rc != sqlite.OK {
-			fmt.printf("Error creating table: %s\n", sqlite.db_errmsg(db))
-			sqlite.db_close(db)
-			return
-		}
-		database.db = db
-	}
+	database = db_init() or_return
+	database.cfg = load_config(cfg_path, db_allocator(&database)) or_return
 
 	// TODO: Use different allocators?
 	data_path := data_path(database.cfg.config_path, context.temp_allocator)
 	if os.exists(data_path) {
 		if ok = db_restore_from_encrypted(&database, data_path); !ok {
 			sqlite.db_close(database.db)
-			return
+			return database, false
 		}
 	} else {
 		// DB was created
@@ -87,14 +68,42 @@ db_open :: proc(cfg_path: string) -> (database: Db, ok: bool) {
 	return database, true
 }
 
+// Creates a database an allocator and fresh, empty table, with zero encryption.
+// In production, you most likely want to use `db_open`.
+db_init :: proc() -> (database: Db, ok: bool) {
+	db: ^rawptr
+	rc := sqlite.db_open(":memory:", &db)
+	if rc != sqlite.OK {
+		fmt.printf("Error opening in-memory database: %s\n", sqlite.db_errmsg(db))
+		return
+	}
+
+	create_sql: cstring = "CREATE TABLE IF NOT EXISTS envr_env_files (path TEXT PRIMARY KEY NOT NULL, remotes TEXT, sha256 TEXT NOT NULL, contents TEXT NOT NULL)"
+	rc = sqlite.db_exec(db, create_sql, nil, nil, nil)
+	if rc != sqlite.OK {
+		fmt.printf("Error creating table: %s\n", sqlite.db_errmsg(db))
+		sqlite.db_close(db)
+		return
+	}
+	database.db = db
+
+	mem.dynamic_arena_init(&database.arena)
+
+	return database, true
+}
+
+db_allocator :: proc(db: ^Db) -> mem.Allocator {
+	return mem.dynamic_arena_allocator(&db.arena)
+}
+
 db_restore_from_encrypted :: proc(db: ^Db, data_path: string) -> bool {
-	encrypted_data, read_err := os.read_entire_file_from_path(data_path, context.allocator)
-	defer delete(encrypted_data)
+	encrypted_data, read_err := os.read_entire_file_from_path(data_path, context.temp_allocator)
 	if read_err != nil {
 		fmt.printf("Error reading encrypted database: %v\n", read_err)
 		return false
 	}
 
+	// TODO: Use context.temp_allocator
 	plaintext, dec_ok := decrypt(encrypted_data, db.cfg.Keys[:])
 	if !dec_ok {
 		fmt.println("Error: decryption failed")
@@ -128,8 +137,15 @@ db_restore_from_encrypted :: proc(db: ^Db, data_path: string) -> bool {
 }
 
 db_close :: proc(d: ^Db) {
-	defer sqlite.db_close(d.db)
-	defer delete_config(&d.cfg)
+	allocator := db_allocator(d)
+
+	defer {
+		sqlite.db_close(d.db)
+
+		delete_config(&d.cfg, allocator)
+
+		mem.dynamic_arena_destroy(&d.arena)
+	}
 
 	if d.changed {
 		rc := sqlite.db_exec(d.db, "VACUUM", nil, nil, nil)
@@ -147,13 +163,14 @@ db_close :: proc(d: ^Db) {
 		defer sqlite.free(data)
 
 		sqlite_data := data[:sz]
+		// TODO: PAss allocator chain
 		encrypted, enc_ok := encrypt(sqlite_data, d.cfg.Keys[:])
 		if !enc_ok {
 			fmt.println("Error: encryption failed")
 			return
 		}
 
-		data_path := data_path(d.cfg.config_path)
+		data_path := data_path(d.cfg.config_path, allocator)
 		envr_d := envr_dir(d.cfg.config_path)
 		os.mkdir_all(envr_d)
 
@@ -168,7 +185,8 @@ db_close :: proc(d: ^Db) {
 	}
 }
 
-db_list :: proc(d: ^Db, allocator := context.allocator) -> (results: [dynamic]EnvFile, ok: bool) {
+// Results will be freed when `db_close` is called.
+db_list :: proc(d: ^Db) -> ([]EnvFile, bool) {
 	stmt: ^rawptr
 	rc := sqlite.prepare_v2(
 		d.db,
@@ -179,9 +197,12 @@ db_list :: proc(d: ^Db, allocator := context.allocator) -> (results: [dynamic]En
 	)
 	if rc != sqlite.OK {
 		fmt.printf("Error preparing query: %s\n", sqlite.db_errmsg(d.db))
-		return
+		return []EnvFile{}, false
 	}
 	defer sqlite.finalize(stmt)
+
+	allocator := db_allocator(d)
+	results := make([dynamic]EnvFile, 0, 10, allocator)
 
 	for {
 		rc = sqlite.step(stmt)
@@ -190,7 +211,7 @@ db_list :: proc(d: ^Db, allocator := context.allocator) -> (results: [dynamic]En
 		}
 		if rc != sqlite.ROW {
 			fmt.printf("Error stepping query: %s\n", sqlite.db_errmsg(d.db))
-			return
+			#no_bounds_check return results[:], false
 		}
 
 		remotes_json := string(sqlite.column_text(stmt, 1))
@@ -212,17 +233,16 @@ db_list :: proc(d: ^Db, allocator := context.allocator) -> (results: [dynamic]En
 		)
 	}
 
-	ok = true
-	return
+	#no_bounds_check return results[:], true
 }
 
+// TODO: Should we use context.temp_allocator for proc scoped lifetimes?
 db_insert :: proc(d: ^Db, file: EnvFile) -> bool {
-	remotes_json, marshal_err := json.marshal(file.Remotes)
+	remotes_json, marshal_err := json.marshal(file.Remotes, allocator = context.temp_allocator)
 	if marshal_err != nil {
 		fmt.printf("Error marshaling remotes: %v\n", marshal_err)
 		return false
 	}
-	defer delete(remotes_json)
 
 	sql: cstring =
 		"INSERT OR REPLACE INTO " +
@@ -278,7 +298,8 @@ db_insert :: proc(d: ^Db, file: EnvFile) -> bool {
 	return true
 }
 
-db_fetch :: proc(d: ^Db, path: string, allocator := context.allocator) -> (EnvFile, bool) {
+// Result will be freed when `db_close` is called.
+db_fetch :: proc(d: ^Db, path: string) -> (EnvFile, bool) {
 	sql: cstring = "SELECT path, remotes, sha256, contents FROM envr_env_files WHERE path = ?"
 	stmt: ^rawptr
 	rc := sqlite.prepare_v2(d.db, sql, -1, &stmt, nil)
@@ -287,6 +308,8 @@ db_fetch :: proc(d: ^Db, path: string, allocator := context.allocator) -> (EnvFi
 		return EnvFile{}, false
 	}
 	defer sqlite.finalize(stmt)
+
+	allocator := db_allocator(d)
 
 	cpath := to_cstring(path, allocator)
 	defer delete(cpath, allocator)
@@ -311,7 +334,7 @@ db_fetch :: proc(d: ^Db, path: string, allocator := context.allocator) -> (EnvFi
 		json.unmarshal_string(remotes_json, &remotes, allocator = allocator)
 	}
 
-	file_path := clone_cstring(sqlite.column_text(stmt, 0))
+	file_path := clone_cstring(sqlite.column_text(stmt, 0), allocator)
 
 	return EnvFile {
 			Path = file_path,
@@ -466,7 +489,7 @@ find_moved_dirs :: proc(d: ^Db, f: ^EnvFile) -> ([dynamic]string, bool) {
 update_dir :: proc(f: ^EnvFile, new_dir: string) {
 	f.Dir = new_dir
 	base := filepath.base(f.Path)
-	new_path, _ := strings.concatenate({new_dir, "/", base})
+	new_path, _ := filepath.join({new_dir, base})
 	f.Path = new_path
 	f.Remotes = get_git_remotes(new_dir)
 }
@@ -504,27 +527,28 @@ shares_remote :: proc(f: ^EnvFile, remotes: []string) -> bool {
 }
 
 get_git_remotes :: proc(dir: string) -> [dynamic]string {
-	remotes: [dynamic]string
-	remote_set: map[string]bool
-	defer delete(remote_set)
-
 	config_path, _ := filepath.join({dir, ".git", "config"}, context.temp_allocator)
-	m, _, ok := ini.load_map_from_path(config_path, context.allocator)
+	// TODO: Handle error
+	m, _, ok := ini.load_map_from_path(config_path, context.temp_allocator)
 	if !ok {
-		return remotes
+		return nil
 	}
+
+	remotes := make([dynamic]string, 0, 1)
 
 	for section_name, section in m {
 		if strings.has_prefix(section_name, "remote ") {
 			if url, ok := section["url"]; ok {
-				remote_set[url] = true
+				found := false
+				for r in remotes {
+					if r == url {found = true; break}
+				}
+				if !found {
+					cloned, _ := strings.clone(url)
+					append(&remotes, cloned)
+				}
 			}
 		}
-	}
-
-	for remote in remote_set {
-		cloned, _ := strings.clone(remote)
-		append(&remotes, cloned)
 	}
 
 	return remotes
@@ -548,7 +572,7 @@ string_to_cstring :: proc(s: string, allocator := context.allocator) -> cstring 
 	return cs
 }
 
-// Caller is responsible for freeing the result
+// Unless an explicit allocator is passed, caller is responsible for freeing the result
 clone_cstring :: proc(c: cstring, allocator := context.allocator) -> string {
 	str, err := strings.clone_from_cstring(c, allocator)
 	if err != nil {
