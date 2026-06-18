@@ -387,38 +387,29 @@ new_env_file :: proc(path: string) -> (EnvFile, bool) {
 		true
 }
 
-db_sync :: proc(d: ^Db, f: ^EnvFile) -> (SyncFlag, string) {
-	return env_file_sync(f, .TrustFilesystem, d)
-}
-
 // If SyncFlag is .BackedUp, Caller is responsible for calling delete on f.contents and f.Sha256
-env_file_sync :: proc(f: ^EnvFile, dir: SyncDirection, d: ^Db) -> (SyncFlag, string) {
+db_sync :: proc(d: ^Db, f: ^EnvFile) -> (SyncFlag, string) {
 	result: SyncFlag = {}
 
-	_, stat_err := os.stat(f.Dir, context.allocator)
-	if stat_err != nil {
-		moved_dirs: [dynamic]string
-
-		if d != nil {
-			dirs, dirs_ok := find_moved_dirs(d, f)
-			if !dirs_ok {
-				return {.Error}, "failed to find moved dirs"
-			}
-			moved_dirs = dirs
+	if !os.exists(f.Dir) {
+		assert(d != nil)
+		moved_dirs, dirs_ok := find_moved_dirs(d, f)
+		if !dirs_ok {
+			return {.Error}, "failed to find moved dirs"
 		}
 
-		if len(moved_dirs) == 0 {
+		switch len(moved_dirs) {
+		case 0:
 			return {.Error}, "directory missing"
-		} else if len(moved_dirs) == 1 {
+		case 1:
 			update_dir(f, moved_dirs[0])
 			result = {.DirUpdated}
-		} else {
+		case:
 			return {.Error}, "multiple directories found"
 		}
 	}
 
-	_, file_stat_err := os.stat(f.Path, context.allocator)
-	if file_stat_err != nil {
+	if !os.exists(f.Path) {
 		write_err := os.write_entire_file(f.Path, f.contents)
 		if write_err != nil {
 			msg, _ := strings.concatenate({"failed to write file: ", fmt.tprintf("%v", write_err)})
@@ -428,7 +419,9 @@ env_file_sync :: proc(f: ^EnvFile, dir: SyncDirection, d: ^Db) -> (SyncFlag, str
 		return result + {.Restored}, ""
 	}
 
+	// TODO: Use temp allocator?
 	data, read_err := os.read_entire_file_from_path(f.Path, context.allocator)
+	defer delete(data)
 	if read_err != nil {
 		msg, _ := strings.concatenate(
 			{"failed to read file for SHA comparison: ", fmt.tprintf("%v", read_err)},
@@ -445,22 +438,12 @@ env_file_sync :: proc(f: ^EnvFile, dir: SyncDirection, d: ^Db) -> (SyncFlag, str
 		return result, ""
 	}
 
-	switch dir {
-	case .TrustDatabase:
-		write_err := os.write_entire_file(f.Path, f.contents)
-		if write_err != nil {
-			msg, _ := strings.concatenate({"failed to write file: ", fmt.tprintf("%v", write_err)})
-			return {.Error}, msg
-		}
-		return result + {.Restored}, ""
-	case .TrustFilesystem:
-		if !env_file_backup(f) {
-			return {.Error}, "failed to backup file"
-		}
+	if env_file_backup(f) {
 		return result + {.BackedUp}, ""
+	} else {
+		return {.Error}, "failed to backup file"
 	}
 
-	return result, ""
 }
 
 find_moved_dirs :: proc(d: ^Db, f: ^EnvFile) -> ([dynamic]string, bool) {
@@ -530,7 +513,6 @@ get_git_remotes :: proc(dir: string) -> [dynamic]string {
 	if !ok {
 		return remotes
 	}
-	defer ini.delete_map(m)
 
 	for section_name, section in m {
 		if strings.has_prefix(section_name, "remote ") {
