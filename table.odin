@@ -1,6 +1,5 @@
 package main
 
-import "core:encoding/json"
 import "core:fmt"
 import "core:io"
 import "core:strings"
@@ -94,24 +93,5 @@ render_table :: proc(w: io.Writer, headers: []string, rows: [][]string) {
 	}
 
 	hline(w, &b, "\u2514", "\u2534", "\u2518", col_widths)
-}
-
-render_json_rows :: proc(w: io.Writer, headers: []string, rows: [][]string) {
-	entries := make([dynamic]map[string]string, 0, len(rows), context.temp_allocator)
-
-	for row in rows {
-		entry := make(map[string]string, len(headers), context.temp_allocator)
-		for i in 0 ..< len(headers) {
-			entry[headers[i]] = row[i]
-		}
-		append(&entries, entry)
-	}
-
-	data, err := json.marshal(entries[:], allocator = context.temp_allocator)
-	if err != nil {
-		fmt.eprintf("Error marshaling JSON: %v\n", err)
-		return
-	}
-	fmt.wprintf(w, "%s", data, flush = false)
 }
 

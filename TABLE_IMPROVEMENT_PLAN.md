@@ -158,17 +158,7 @@ get_sync_status :: proc(result: SyncFlag, err_msg: string) -> string {
 - Use `context.temp_allocator` more effectively
 - Pre-allocate buffers for expected sizes
 
-### Phase 4: JSON Output Separation
-
-#### 4.1 Unified JSON Rendering
-```odin
-render_json_rows :: proc(writer: io.Writer, rows: any, field_names: []string)
-```
-- Create centralized JSON rendering helper
-- Work with same structs as table rendering
-- Use reflection or explicit field marshaling
-
-#### 4.2 Format-Agnostic Interface
+### Phase 4: Format-Agnostic Interface
 - Commands generate data → renderers handle format
 - Table renderer focuses only on ASCII/Unicode output
 - Keep terminal detection in command layer

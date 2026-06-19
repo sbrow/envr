@@ -1,8 +1,6 @@
 # TODOs
 
-1. envr scan crashes when there are zero results.
-
-27. Commands are still leaking.
+1. Commands are still leaking.
 
 28. **db.odin** — Inconsistencies in how struct vs sqlite are named.
 
@@ -26,21 +24,19 @@
 
 12. **cmd_sync.odin:80, cmd_list.odin:33** — `make([]string, 2)` for table rows never freed. Leaks per row. Defer to memory pass.
 
-13. **cmd_list.odin** — Non-TTY branch builds `ListEntry` structs and marshals JSON separately. Now that `render_json_rows` (issue 1) accepts an `io.Writer` and uses `json.marshal`, unify both branches to use it. Note: will change JSON keys from `"directory"/"path"` to `"Directory"/"Path"`.
+13. Check for prealloc opportunities. i.e. `make([dynamic]string)` -> `make([dynamic]string, 5)`.
 
-14. Check for prealloc opportunities. i.e. `make([dynamic]string)` -> `make([dynamic]string, 5)`.
+14. Add a text filter to the multi_select.
 
-15. Add a text filter to the multi_select.
+16. Add tests for untested commands.
 
-17. Add tests for untested commands.
+17. 2 scan tests silently skip when fd isn't installed, tests pass without actually testing anything. These should use #assert to be sure that fd is in path.
 
-18. 2 scan tests silently skip when fd isn't installed, tests pass without actually testing anything. These should use #assert to be sure that fd is in path.
+19. add --format -f flag to commands that draw tables.
 
-20. add --format -f flag to commands that draw tables.
+20. Replace `testing.expect` calls with `testing.expect_value` calls where appropriate.
 
-21. Replace `testing.expect` calls with `testing.expect_value` calls where appropriate.
-
-22. Change struct field names from PascalCase to snake_case.
+21. Change struct field names from PascalCase to snake_case.
 
 23. procedures should be ordered by use, main at the top, then in the order they are called from main.
 
