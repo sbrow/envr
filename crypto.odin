@@ -1,5 +1,6 @@
 package main
 
+import "core:crypto/_fiat/field_p384r1"
 import "core:fmt"
 import "core:mem"
 import "core:os"
@@ -33,12 +34,12 @@ init_sodium :: proc "contextless" () {
 	}
 }
 
+// TODO: Optimize performance
 encrypt :: proc(plaintext: []u8, keys: []SshKeyPair) -> (ciphertext: []u8, ok: bool) {
-	x25519_pairs, pairs_ok := ssh_to_x25519(keys)
+	x25519_pairs, pairs_ok := ssh_to_x25519(keys, context.temp_allocator)
 	if !pairs_ok {
 		return
 	}
-	defer delete(x25519_pairs)
 
 	sym_key: [CRYPTO_SECRETBOX_KEY_BYTES]u8
 	randombytes_buf(&sym_key[0], CRYPTO_SECRETBOX_KEY_BYTES)
@@ -47,7 +48,7 @@ encrypt :: proc(plaintext: []u8, keys: []SshKeyPair) -> (ciphertext: []u8, ok: b
 	randombytes_buf(&main_nonce[0], CRYPTO_SECRETBOX_NONCE_BYTES)
 
 	ct_len := len(plaintext) + CRYPTO_SECRETBOX_MAC_BYTES
-	secret_ct := make([]u8, ct_len)
+	secret_ct := make([]u8, ct_len, context.temp_allocator)
 	pt_ptr: [^]u8
 	if len(plaintext) > 0 {
 		pt_ptr = &plaintext[0]
@@ -66,7 +67,7 @@ encrypt :: proc(plaintext: []u8, keys: []SshKeyPair) -> (ciphertext: []u8, ok: b
 	}
 
 	num_recipients := u32(len(x25519_pairs))
-	entries := make([]RecipientEntry, num_recipients)
+	entries := make([]RecipientEntry, num_recipients, context.temp_allocator)
 
 	for i in 0 ..< len(x25519_pairs) {
 		for j in 0 ..< CRYPTO_BOX_PUBLICKEY_BYTES {
@@ -126,8 +127,6 @@ encrypt :: proc(plaintext: []u8, keys: []SshKeyPair) -> (ciphertext: []u8, ok: b
 
 	mem.copy(&ciphertext[pos], &secret_ct[0], ct_len)
 
-	delete(entries)
-	delete(secret_ct)
 	ok = true
 	return
 }
@@ -176,11 +175,10 @@ decrypt :: proc(ciphertext: []u8, keys: []SshKeyPair) -> (plaintext: []u8, ok: b
 	enc_nonce: [CRYPTO_BOX_NONCE_BYTES]u8
 	enc_pub: [CRYPTO_BOX_PUBLICKEY_BYTES]u8
 
-	x25519_pairs, pairs_ok := ssh_to_x25519(keys)
+	x25519_pairs, pairs_ok := ssh_to_x25519(keys, context.temp_allocator)
 	if !pairs_ok {
 		return
 	}
-	defer delete(x25519_pairs)
 
 	found := false
 	matched_pi := 0
@@ -272,33 +270,39 @@ decrypt :: proc(ciphertext: []u8, keys: []SshKeyPair) -> (plaintext: []u8, ok: b
 	return
 }
 
-ssh_to_x25519 :: proc(keys: []SshKeyPair) -> (pairs: []X25519Keypair, ok: bool) {
+ssh_to_x25519 :: proc(
+	keys: []SshKeyPair,
+	allocator := context.temp_allocator,
+) -> (
+	[]X25519Keypair,
+	bool,
+) {
 	if len(keys) == 0 {
-		return
+		return {}, false
 	}
 
-	pairs = make([]X25519Keypair, len(keys))
+	pairs := make([]X25519Keypair, len(keys), allocator)
 
 	for i in 0 ..< len(keys) {
 		ssh_kp, parse_ok := parse_ssh_private_key(keys[i].Private)
 		if !parse_ok {
 			fmt.printf("Error: failed to parse SSH private key: %s\n", keys[i].Private)
 			delete(pairs)
-			return
+			return pairs, false
 		}
 
 		ssh_pub, pub_ok := parse_ssh_public_key(keys[i].Public)
 		if !pub_ok {
 			fmt.printf("Error: failed to parse SSH public key: %s\n", keys[i].Public)
 			delete(pairs)
-			return
+			return pairs, false
 		}
 
 		pk_rc := crypto_sign_ed25519_pk_to_curve25519(&pairs[i].Public[0], &ssh_pub[0])
 		if pk_rc != 0 {
 			fmt.println("Error: failed to convert ed25519 public key to curve25519")
 			delete(pairs)
-			return
+			return pairs, false
 		}
 
 		ed25519_sk: [64]u8
@@ -313,11 +317,10 @@ ssh_to_x25519 :: proc(keys: []SshKeyPair) -> (pairs: []X25519Keypair, ok: bool) 
 		if sk_rc != 0 {
 			fmt.println("Error: failed to convert ed25519 private key to curve25519")
 			delete(pairs)
-			return
+			return pairs, false
 		}
 	}
 
-	ok = true
-	return
+	return pairs, true
 }
 

@@ -64,7 +64,7 @@ cmd_sync :: proc(cmd: ^Command) {
 
 		render_table(cmd.out, headers, table_rows[:])
 	} else {
-		data, marshal_err := json.marshal(results[:])
+		data, marshal_err := json.marshal(results[:], allocator = context.temp_allocator)
 		if marshal_err != nil {
 			fmt.wprintf(cmd.err, "Error marshaling JSON: %v\n", marshal_err, flush = false)
 			return

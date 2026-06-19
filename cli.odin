@@ -75,6 +75,7 @@ parse_args :: proc(args: []string, out: io.Stream, err: io.Stream) -> (cmd: Comm
 	cmd.flags = make(map[string]string)
 	cmd.bool_set = make(map[string]bool)
 
+	// TODO: Optimize loop?
 	i := 2
 	for i < len(args) {
 		arg := args[i]

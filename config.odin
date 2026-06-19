@@ -84,9 +84,9 @@ save_config :: proc(cfg: Config, force: bool = false) -> bool {
 	}
 
 	if os.exists(cfg.config_path) && !force {
-		info, stat_err := os.stat(cfg.config_path, context.allocator)
+		info, stat_err := os.stat(cfg.config_path, context.temp_allocator)
 		if stat_err == nil {
-			defer os.file_info_delete(info, context.allocator)
+			defer os.file_info_delete(info, context.temp_allocator)
 			if info.size > 0 {
 				fmt.println("Config file already exists. Run again with --force to reinitialize.")
 				return false
@@ -94,12 +94,15 @@ save_config :: proc(cfg: Config, force: bool = false) -> bool {
 		}
 	}
 
-	data, marshal_err := json.marshal(cfg, {pretty = true, use_spaces = true, spaces = 2})
+	data, marshal_err := json.marshal(
+		cfg,
+		{pretty = true, use_spaces = true, spaces = 2},
+		context.temp_allocator,
+	)
 	if marshal_err != nil {
 		fmt.printf("Error marshaling config: %v\n", marshal_err)
 		return false
 	}
-	defer delete(data)
 
 	write_err := os.write_entire_file(cfg.config_path, data)
 	if write_err != nil {
