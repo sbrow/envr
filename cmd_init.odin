@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+import "core:terminal/ansi"
 
 cmd_init :: proc(cmd: ^Command) {
 	force := has_flag(cmd, "force") || has_flag(cmd, "f")
@@ -32,7 +33,7 @@ Generate one with: ssh-keygen -t ed25519`, flush = false)
 	selected, result := multi_select("Select SSH private keys:", keys[:])
 	defer delete(selected)
 	if result == .Cancel {
-		fmt.wprintln(cmd.out, "\x1b[2mCancelled.\x1b[0m", flush = false)
+		fmt.wprintln(cmd.out, ansi.CSI + ansi.FAINT + ansi.SGR + "Cancelled." + ANSI_RESET, flush = false)
 		return
 	}
 

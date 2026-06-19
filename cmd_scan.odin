@@ -4,6 +4,7 @@ import "core:encoding/json"
 import "core:fmt"
 import "core:os"
 import "core:terminal"
+import "core:terminal/ansi"
 
 cmd_scan :: proc(cmd: ^Command) {
 	db, db_ok := db_open(cmd.config_path)
@@ -71,7 +72,7 @@ cmd_scan :: proc(cmd: ^Command) {
 	selected, result := multi_select("Select .env files to backup:", files[:])
 	defer delete(selected)
 	if result == .Cancel {
-		fmt.wprintln(cmd.out, "\x1b[2mCancelled.\x1b[0m", flush = false)
+		fmt.wprintln(cmd.out, ansi.CSI + ansi.FAINT + ansi.SGR + "Cancelled." + ANSI_RESET, flush = false)
 		return
 	}
 
@@ -95,12 +96,12 @@ cmd_scan :: proc(cmd: ^Command) {
 	if added_count > 0 {
 		fmt.wprintf(
 			cmd.out,
-			"\x1b[1;32mSuccessfully added %d file(s) to backup.\x1b[0m\n",
+			ansi.CSI + ansi.BOLD + ";" + ansi.FG_GREEN + ansi.SGR + "Successfully added %d file(s) to backup." + ANSI_RESET + "\n",
 			added_count,
 			flush = false,
 		)
 	} else {
-		fmt.wprintln(cmd.out, "\x1b[2mNo files were added.\x1b[0m", flush = false)
+		fmt.wprintln(cmd.out, ansi.CSI + ansi.FAINT + ansi.SGR + "No files were added." + ANSI_RESET, flush = false)
 	}
 }
 

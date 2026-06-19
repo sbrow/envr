@@ -2,6 +2,7 @@ package main
 
 import "core:fmt"
 import "core:sys/posix"
+import "core:terminal/ansi"
 
 MultiSelect_Result :: enum {
 	Confirm,
@@ -40,12 +41,12 @@ multi_select :: proc(
 	cursor: int = 0
 	scroll_offset: int = 0
 
-	fmt.printf("\x1b[?25l")
+	fmt.printf(ansi.CSI + ansi.DECTCEM_HIDE)
 	visible := render_options(prompt, options, selected[:], cursor, scroll_offset)
 
 	raw, ok := enable_raw_mode(posix.STDIN_FILENO)
 	if !ok {
-		fmt.printf("\x1b[?25h")
+		fmt.printf(ansi.CSI + ansi.DECTCEM_SHOW)
 		return
 	}
 	defer disable_raw_mode(&raw)
@@ -65,18 +66,18 @@ multi_select :: proc(
 		case .Space:
 			selected[cursor] = !selected[cursor]
 		case .Enter:
-			fmt.printf("\x1b[%dA\x1b[J\x1b[?25h", visible + 1)
+			fmt.printf(ansi.CSI + "%d" + ansi.CUU + ansi.CSI + ansi.ED + ansi.CSI + ansi.DECTCEM_SHOW, visible + 1)
 			result = .Confirm
 			return
 		case .Escape:
-			fmt.printf("\x1b[%dA\x1b[J\x1b[?25h", visible + 1)
+			fmt.printf(ansi.CSI + "%d" + ansi.CUU + ansi.CSI + ansi.ED + ansi.CSI + ansi.DECTCEM_SHOW, visible + 1)
 			result = .Cancel
 			return
 		case .Unknown:
 		}
 
 		scroll_offset = max(0, min(cursor - MAX_VISIBLE / 2, len(options) - MAX_VISIBLE))
-		fmt.printf("\x1b[%dA\x1b[0J", visible + 1)
+		fmt.printf(ansi.CSI + "%d" + ansi.CUU + ansi.CSI + ansi.RESET + ansi.ED, visible + 1)
 		visible = render_options(prompt, options, selected[:], cursor, scroll_offset)
 	}
 }
@@ -88,7 +89,7 @@ render_options :: proc(
 	cursor: int,
 	scroll_offset: int,
 ) -> int {
-	fmt.printf("\x1b[1;36m%s\x1b[0m (↑/↓ move, space select, enter confirm)\r\n", prompt)
+	fmt.printf(ansi.CSI + ansi.BOLD + ";" + ansi.FG_CYAN + ansi.SGR + "%s" + ANSI_RESET + " (↑/↓ move, space select, enter confirm)\r\n", prompt)
 
 	end := scroll_offset + MAX_VISIBLE
 	if end > len(options) {
@@ -101,9 +102,9 @@ render_options :: proc(
 			checkbox = "x"
 		}
 		if i == cursor {
-			fmt.printf("\x1b[1;32m> \x1b[0m[\x1b[32m%s\x1b[0m] %s\r\n", checkbox, options[i])
+			fmt.printf(ansi.CSI + ansi.BOLD + ";" + ansi.FG_GREEN + ansi.SGR + "> " + ANSI_RESET + "[" + ansi.CSI + ansi.FG_GREEN + ansi.SGR + "%s" + ANSI_RESET + "] %s\r\n", checkbox, options[i])
 		} else {
-			fmt.printf("  [\x1b[2m%s\x1b[0m] %s\r\n", checkbox, options[i])
+			fmt.printf("  [" + ansi.CSI + ansi.FAINT + ansi.SGR + "%s" + ANSI_RESET + "] %s\r\n", checkbox, options[i])
 		}
 	}
 
