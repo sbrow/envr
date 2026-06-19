@@ -2,9 +2,10 @@
 package main
 
 import "core:fmt"
+import "core:os"
 import "core:testing"
 
-CRYPTO_TEST_KEY_DIR :: "fixtures/keys"
+CRYPTO_TEST_KEY_DIR :: "fixtures" + os.Path_Separator_String + "keys"
 
 make_test_key_pair :: proc(name: string) -> SshKeyPair {
 	priv := fmt.tprintf("%s/%s", CRYPTO_TEST_KEY_DIR, name)

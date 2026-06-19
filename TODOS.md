@@ -50,6 +50,7 @@
 
 - [ ] cli.odin
 - [ ] cli_test.odin
+- [x] colors.odin
 - [x] cmd_backup.odin
 - [x] cmd_check.odin
 - [ ] cmd_check_test.odin

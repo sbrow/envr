@@ -31,7 +31,10 @@ cmd_list :: proc(cmd: ^Command) {
 		table_rows := make([dynamic][]string, 0, len(rows), context.temp_allocator)
 
 		for row in rows {
-			dir_str := strings.concatenate({row.Dir, "/"}, context.temp_allocator)
+			dir_str := strings.concatenate(
+				{row.Dir, os.Path_Separator_String},
+				context.temp_allocator,
+			)
 			filename := filepath.base(row.Path)
 			row_slice := make([]string, 2, context.temp_allocator)
 			row_slice[0] = dir_str

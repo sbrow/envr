@@ -2,9 +2,10 @@
 package main
 
 import "core:fmt"
+import "core:os"
 import "core:testing"
 
-TEST_KEY_DIR :: "fixtures/keys"
+TEST_KEY_DIR :: "fixtures" + os.Path_Separator_String + "keys"
 
 @(test)
 test_parse_ed25519_public_key :: proc(t: ^testing.T) {
