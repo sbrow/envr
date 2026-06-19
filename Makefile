@@ -10,7 +10,7 @@ LINUX_AMD64_BIN := $(BUILD_DIR)/$(APP_NAME)-$(VERSION)-linux-amd64
 LINUX_ARM64_BIN := $(BUILD_DIR)/$(APP_NAME)-$(VERSION)-linux-arm64
 DARWIN_ARM64_BIN := $(BUILD_DIR)/$(APP_NAME)-$(VERSION)-darwin-arm64
 
-.PHONY: all clean cleanall build-linux build-darwin compress release help
+.PHONY: all clean cleanall build-linux build-darwin compress release profile help
 
 # Default target
 all: release clean
@@ -66,6 +66,12 @@ release: build-linux compress
 	@echo "Release artifacts created:"
 	@ls -la $(BUILD_DIR)/*.tar.gz $(BUILD_DIR)/*.zip 2>/dev/null || echo "No compressed artifacts found"
 
+# Build with spall profiling instrumentation
+profile:
+	@echo "Building with spall profiling..."
+	odin build . -define:SPALL=true -o:speed -out:envr-prof
+	@echo "Built envr-prof (run it to generate envr.spall)"
+
 # Clean binary files only
 clean:
 	@echo "Cleaning binary files..."
@@ -84,6 +90,7 @@ help:
 	@echo "  build-linux  - Build Linux binaries only"
 	@echo "  build-darwin - Build Darwin binaries only"
 	@echo "  compress    - Compress all built binaries"
+	@echo "  profile     - Build with spall profiling instrumentation"
 	@echo "  clean       - Remove binary files only"
 	@echo "  cleanall    - Remove entire build directory"
 	@echo "  help        - Show this help message"

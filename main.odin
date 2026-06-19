@@ -1,10 +1,36 @@
 package main
 
+import "base:runtime"
 import "core:fmt"
 import "core:mem"
 import "core:os"
+import "core:prof/spall"
+import "core:sync"
+
+SPALL :: #config(SPALL, false)
+when SPALL {
+	spall_ctx: spall.Context
+	@(thread_local)
+	spall_buffer: spall.Buffer
+}
 
 main :: proc() {
+	when SPALL {
+		ctx, spall_ok := spall.context_create_with_scale("envr.spall", false, 1.0)
+		if !spall_ok {
+			fmt.eprintln("Failed to create spall trace file")
+			os.exit(1)
+		}
+		spall_ctx = ctx
+		defer spall.context_destroy(&spall_ctx)
+
+		spall_backing := make([]u8, spall.BUFFER_DEFAULT_SIZE)
+		defer delete(spall_backing)
+
+		spall_buffer = spall.buffer_create(spall_backing, u32(sync.current_thread_id()))
+		defer spall.buffer_destroy(&spall_ctx, &spall_buffer)
+	}
+
 	when ODIN_DEBUG {
 		heap_track: mem.Tracking_Allocator
 		mem.tracking_allocator_init(&heap_track, context.allocator)
@@ -57,6 +83,24 @@ main :: proc() {
 		fmt.wprintf(cmd.err, "Unknown command: %s\n", cmd.name)
 		write_usage(cmd.out)
 		os.exit(1)
+	}
+}
+
+when SPALL {
+	@(instrumentation_enter)
+	spall_enter :: proc "contextless" (
+		proc_address, call_site_return_address: rawptr,
+		loc: runtime.Source_Code_Location,
+	) {
+		spall._buffer_begin(&spall_ctx, &spall_buffer, "", "", loc)
+	}
+
+	@(instrumentation_exit)
+	spall_exit :: proc "contextless" (
+		proc_address, call_site_return_address: rawptr,
+		loc: runtime.Source_Code_Location,
+	) {
+		spall._buffer_end(&spall_ctx, &spall_buffer)
 	}
 }
 
