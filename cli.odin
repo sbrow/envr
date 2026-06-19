@@ -103,9 +103,10 @@ parse_args :: proc(args: []string, out: io.Stream, err: io.Stream) -> (cmd: Comm
 		}
 	}
 
-	if val, ok := cmd.flags["config-file"]; ok {
+	val: string = ---
+	if val, ok = cmd.flags["config-file"]; ok {
 		cmd.config_path = val
-	} else if val, ok := cmd.flags["c"]; ok {
+	} else if val, ok = cmd.flags["c"]; ok {
 		cmd.config_path = val
 	} else {
 		// FIXME: Handle err

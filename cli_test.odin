@@ -1,5 +1,6 @@
 #+feature dynamic-literals
 
+#+test
 package main
 
 import "core:bufio"

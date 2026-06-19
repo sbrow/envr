@@ -1,3 +1,4 @@
+#+test
 package main
 
 import "core:crypto/hash"
@@ -513,7 +514,8 @@ test_db_sync_dir_missing :: proc(t: ^testing.T) {
 	db_insert(&d, f)
 
 	result, err := db_sync(&d, &f)
-	testing.expect(t, err == .DirMissing, "should return DirMissing error")
+	testing.expect_value(t, err, SyncError.DirMissing)
+	testing.expect_value(t, result, nil)
 }
 
 @(test)

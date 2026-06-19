@@ -535,8 +535,8 @@ shares_remote :: proc(f: ^EnvFile, remotes: []string) -> bool {
 get_git_remotes :: proc(dir: string, allocator: mem.Allocator) -> [dynamic]string {
 	config_path, _ := filepath.join({dir, ".git", "config"}, context.temp_allocator)
 	// TODO: Handle error
-	m, _, ok := ini.load_map_from_path(config_path, context.temp_allocator)
-	if !ok {
+	m, _, read_ok := ini.load_map_from_path(config_path, context.temp_allocator)
+	if !read_ok {
 		return nil
 	}
 

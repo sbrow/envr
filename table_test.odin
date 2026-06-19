@@ -1,3 +1,4 @@
+#+test
 package main
 
 import "core:encoding/json"
