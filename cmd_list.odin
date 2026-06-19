@@ -6,6 +6,7 @@ import "core:os"
 import "core:path/filepath"
 import "core:strings"
 import "core:terminal"
+import "core:text/table"
 
 ListEntry :: struct {
 	Directory: string `json:"directory"`,
@@ -27,8 +28,15 @@ cmd_list :: proc(cmd: ^Command) {
 	}
 
 	if terminal.is_terminal(os.stdout) {
-		headers := []string{"Directory", "Path"}
-		table_rows := make([dynamic][]string, 0, len(rows), context.temp_allocator)
+		t: table.Table
+		table.init(&t, context.temp_allocator, context.temp_allocator)
+		table.padding(&t, 1, 1)
+		table.aligned_header_of_values(
+			&t,
+			.Center,
+			COLOR_TABLE_HEADING + "Directory" + ANSI_RESET,
+			COLOR_TABLE_HEADING + "Path" + ANSI_RESET,
+		)
 
 		for row in rows {
 			dir_str := strings.concatenate(
@@ -36,13 +44,11 @@ cmd_list :: proc(cmd: ^Command) {
 				context.temp_allocator,
 			)
 			filename := filepath.base(row.Path)
-			row_slice := make([]string, 2, context.temp_allocator)
-			row_slice[0] = dir_str
-			row_slice[1] = filename
-			append(&table_rows, row_slice)
+
+			table.row(&t, dir_str, filename)
 		}
 
-		render_table(cmd.out, headers, table_rows[:])
+		table.write_decorated_table(cmd.out, &t, decorations, ansi_aware_width)
 	} else {
 		// TODO: Should we instead print full entries here?
 		entries: [dynamic]ListEntry

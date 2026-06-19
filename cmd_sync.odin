@@ -3,8 +3,8 @@ package main
 import "core:encoding/json"
 import "core:fmt"
 import "core:os"
-import "core:strings"
 import "core:terminal"
+import "core:text/table"
 
 SyncEntry :: struct {
 	Path:   string `json:"path"`,
@@ -25,15 +25,7 @@ cmd_sync :: proc(cmd: ^Command) {
 		return
 	}
 
-	// TODO: Can't use temp allocator becuase strings inside are copied to context.allocator
-	results := make([]SyncEntry, len(files))
-	defer {
-		for &e in results {
-			delete(e.Path)
-			delete(e.Status)
-		}
-		delete(results)
-	}
+	results := make([]SyncEntry, len(files), context.temp_allocator)
 
 	for &file, i in files {
 		result, err := db_sync(&db, &file)
@@ -51,26 +43,29 @@ cmd_sync :: proc(cmd: ^Command) {
 			status = "OK"
 		}
 
-		// TODO: Handle errors
-		path_str, _ := strings.clone(file.Path, context.temp_allocator)
-		status_str, _ := strings.clone(status, context.temp_allocator)
 		results[i] = SyncEntry {
-			Path   = path_str,
-			Status = status_str,
+			Path   = file.Path,
+			Status = status,
 		}
 	}
 
 	if terminal.is_terminal(os.stdout) {
-		headers := []string{"File", "Status"}
-		// TODO: Use [2]string instead of slice here
-		table_rows := make([dynamic][]string, 0, len(results), context.temp_allocator)
+		t: table.Table
+		table.init(&t, context.temp_allocator, context.temp_allocator)
+		table.padding(&t, 1, 1)
+
+		table.aligned_header_of_values(
+			&t,
+			.Center,
+			COLOR_TABLE_HEADING + "File" + ANSI_RESET,
+			COLOR_TABLE_HEADING + "Status" + ANSI_RESET,
+		)
 
 		for res in results {
-			row_slice := [2]string{res.Path, res.Status}
-			append(&table_rows, row_slice[:])
+			table.row(&t, res.Path, res.Status)
 		}
 
-		render_table(cmd.out, headers, table_rows[:])
+		table.write_decorated_table(cmd.out, &t, decorations, ansi_aware_width)
 	} else {
 		data, marshal_err := json.marshal(results[:], allocator = context.temp_allocator)
 		if marshal_err != nil {
