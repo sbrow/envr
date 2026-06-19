@@ -36,7 +36,7 @@ multi_select :: proc(
 		return
 	}
 
-	selected = make([dynamic]bool, 0, len(options))
+	selected = make([dynamic]bool, len(options))
 	cursor: int = 0
 	scroll_offset: int = 0
 

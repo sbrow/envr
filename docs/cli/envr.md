@@ -4,11 +4,11 @@ Manage your .env files.
 
 ### Synopsis
 
-envr keeps your .env synced to a local, age encrypted database.
+envr keeps your .env synced to a local, encrypted database.
 Is a safe and eay way to gather all your .env files in one place where they can
 easily be backed by another tool such as restic or git.
 
-All your data is stored in ~/data.age
+All your data is stored in ~/.envr/data.envr
 
 Getting started is easy:
 
