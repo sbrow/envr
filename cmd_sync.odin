@@ -25,7 +25,15 @@ cmd_sync :: proc(cmd: ^Command) {
 		return
 	}
 
-	results := make([]SyncEntry, len(files), context.temp_allocator)
+	// TODO: Can't use temp allocator becuase strings inside are copied to context.allocator
+	results := make([]SyncEntry, len(files))
+	defer {
+		for &e in results {
+			delete(e.Path)
+			delete(e.Status)
+		}
+		delete(results)
+	}
 
 	for &file, i in files {
 		result, err := db_sync(&db, &file)

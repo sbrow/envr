@@ -550,6 +550,7 @@ get_git_remotes :: proc(dir: string, allocator: mem.Allocator) -> [dynamic]strin
 					if r == url {found = true; break}
 				}
 				if !found {
+					// FIXME: Currently leaks when adding a file with envr scan
 					cloned, _ := strings.clone(url, allocator)
 					append(&remotes, cloned)
 				}

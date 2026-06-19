@@ -23,9 +23,15 @@ cmd_scan :: proc(cmd: ^Command) {
 	}
 
 	// TODO: Figure out a sane default
-	all_files: [dynamic]string
+	// Can't use temp allocator becuase strings inside are copied to context.allocator
+	all_files := make([dynamic]string)
+	defer {
+		for &f in all_files {delete(f)}
+		delete(all_files)
+	}
 	for dir in search_dirs {
 		found, scan_ok := scan_path(dir, db.cfg)
+		defer delete(found)
 		if !scan_ok {
 			fmt.wprintf(cmd.err, "Error scanning %s\n", dir, flush = false)
 			continue

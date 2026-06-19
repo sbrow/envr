@@ -4,6 +4,8 @@ import "core:fmt"
 import "core:os"
 import "core:path/filepath"
 
+// TODO: What happens if you pass a non existent path to cmd_check?
+// TODO: UX could be improved, so "run envr add ." if file not exists.
 cmd_check :: proc(cmd: ^Command) {
 	check_path: string
 	if len(cmd.args) > 0 {
@@ -37,7 +39,8 @@ cmd_check :: proc(cmd: ^Command) {
 
 	is_dir := os.is_directory(abs_path)
 
-	files_in_path: [dynamic]string
+	// TODO: set a reasonable default
+	files_in_path := make([dynamic]string, context.temp_allocator)
 
 	if is_dir {
 		scanned, scan_ok := scan_path(abs_path, db.cfg)
