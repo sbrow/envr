@@ -1,6 +1,5 @@
 package main
 
-import "core:crypto/_fiat/field_p384r1"
 import "core:fmt"
 import "core:mem"
 import "core:os"

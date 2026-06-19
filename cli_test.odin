@@ -57,7 +57,7 @@ test_usage_text_contains_flags_and_help_hint :: proc(t: ^testing.T) {
 
 	testing.expect(t, strings.contains(text, "Flags:"), "missing Flags section")
 	testing.expect(t, strings.contains(text, "--help"), "missing --help flag")
-	testing.expect(t, strings.contains(text, "Use \"envr [command] --help\""), "missing help hint")
+	testing.expect(t, strings.contains(text, "[command] --help"), "missing help hint")
 }
 
 @(test)

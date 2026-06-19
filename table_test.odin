@@ -3,6 +3,7 @@ package main
 import "core:encoding/json"
 import "core:fmt"
 import "core:strings"
+import "core:terminal/ansi"
 import "core:testing"
 
 @(test)
@@ -116,13 +117,30 @@ test_render_table_normal :: proc(t: ^testing.T) {
 
 	output := strings.to_string(b)
 
-	expected := `┌──────┬─────────────────────────┐
-│ Name │ Path                    │
-├──────┼─────────────────────────┤
-│ foo  │ /home/user/.env         │
-│ bar  │ /home/user/project/.env │
-└──────┴─────────────────────────┘
-`
+	g := ansi.CSI + ansi.FG_BRIGHT_GREEN + ansi.SGR
+	r := ANSI_RESET
+	n := ansi.CSI + ansi.SGR
+
+	expected := fmt.tprintf(
+		"┌──────┬─────────────────────────┐\n" +
+		"│ %sName%s │ %s         Path          %s │\n" +
+		"├──────┼─────────────────────────┤\n" +
+		"│ %sfoo %s │ %s/home/user/.env        %s │\n" +
+		"│ %sbar %s │ %s/home/user/project/.env%s │\n" +
+		"└──────┴─────────────────────────┘\n",
+		g,
+		r,
+		g,
+		r,
+		n,
+		r,
+		n,
+		r,
+		n,
+		r,
+		n,
+		r,
+	)
 	testing.expect(
 		t,
 		output == expected,
@@ -148,11 +166,17 @@ test_render_table_empty :: proc(t: ^testing.T) {
 
 	output := strings.to_string(b)
 
-	expected := `┌──────┐
-│ Name │
-├──────┤
-└──────┘
-`
+	g := ansi.CSI + ansi.FG_BRIGHT_GREEN + ansi.SGR
+	r := ANSI_RESET
+
+	expected := fmt.tprintf(
+		"┌──────┐\n" +
+		"│ %sName%s │\n" +
+		"├──────┤\n" +
+		"└──────┘\n",
+		g,
+		r,
+	)
 	testing.expect(
 		t,
 		output == expected,
@@ -178,13 +202,30 @@ test_render_table_unicode :: proc(t: ^testing.T) {
 
 	output := strings.to_string(b)
 
-	expected := `┌─────────────┬────────┐
-│ Status      │ Detail │
-├─────────────┼────────┤
-│ ✓ Available │ ok     │
-│ ✗ Missing   │ fail   │
-└─────────────┴────────┘
-`
+	g := ansi.CSI + ansi.FG_BRIGHT_GREEN + ansi.SGR
+	r := ANSI_RESET
+	n := ansi.CSI + ansi.SGR
+
+	expected := fmt.tprintf(
+		"┌─────────────┬────────┐\n" +
+		"│ %s  Status   %s │ %sDetail%s │\n" +
+		"├─────────────┼────────┤\n" +
+		"│ %s✓ Available%s │ %sok    %s │\n" +
+		"│ %s✗ Missing  %s │ %sfail  %s │\n" +
+		"└─────────────┴────────┘\n",
+		g,
+		r,
+		g,
+		r,
+		n,
+		r,
+		n,
+		r,
+		n,
+		r,
+		n,
+		r,
+	)
 	testing.expect(
 		t,
 		output == expected,

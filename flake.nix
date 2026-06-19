@@ -36,11 +36,11 @@
           inputs',
           ...
         }:
-      let
-        mysqlite = pkgs.sqlite.overrideAttrs (old: {
-                configureFlags = (old.configureFlags or [ ]) ++ [ "--enable-deserialize" ];
-              });
-      in
+        let
+          mysqlite = pkgs.sqlite.overrideAttrs (old: {
+            configureFlags = (old.configureFlags or [ ]) ++ [ "--enable-deserialize" ];
+          });
+        in
         {
           _module.args.pkgs = import nixpkgs {
             inherit system;
@@ -78,6 +78,13 @@
               pkgs.libsodium
               mysqlite
             ];
+
+            doCheck = true;
+            checkPhase = ''
+              runHook preCheck
+              odin test . -all-packages
+              runHook postCheck
+            '';
 
             buildPhase = ''
               runHook preBuild

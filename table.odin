@@ -4,6 +4,7 @@ import "core:encoding/json"
 import "core:fmt"
 import "core:io"
 import "core:strings"
+import "core:terminal/ansi"
 
 render_table :: proc(w: io.Writer, headers: []string, rows: [][]string) {
 	col_widths := make([dynamic]int, 0, len(headers), context.temp_allocator)
@@ -45,14 +46,38 @@ render_table :: proc(w: io.Writer, headers: []string, rows: [][]string) {
 
 	hline(w, &b, "\u250c", "\u252c", "\u2510", col_widths)
 
-	cell :: proc(b: ^strings.Builder, s: string, width: int) {
-		extra := len(s) - strings.rune_count(s)
-		fmt.sbprintf(b, " %-*s \u2502", width + extra, s)
+	cell :: proc(b: ^strings.Builder, s: string, width: int, color: string = "", center := false) {
+		before: int
+		after: int
+
+		total_pad := width - strings.rune_count(s)
+
+		if center {
+			before = total_pad / 2
+			after = total_pad - before
+		} else {
+			before = 0
+			after = total_pad
+		}
+
+		fmt.sbprintf(
+			b,
+			" %s%s%s%*s%s%*s%s \u2502",
+			ansi.CSI,
+			color,
+			ansi.SGR,
+			before,
+			"",
+			s,
+			after,
+			"",
+			ansi.CSI + ansi.RESET + ansi.SGR,
+		)
 	}
 
 	strings.write_string(&b, "\u2502")
 	for i in 0 ..< len(headers) {
-		cell(&b, headers[i], col_widths[i])
+		cell(&b, headers[i], col_widths[i], ansi.FG_BRIGHT_GREEN, true)
 	}
 	fmt.wprintf(w, "%s\n", strings.to_string(b), flush = false)
 	strings.builder_reset(&b)

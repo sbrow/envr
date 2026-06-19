@@ -309,7 +309,6 @@ test_ssh_key_parse_from_fixtures :: proc(t: ^testing.T) {
 	if !x_ok {
 		return
 	}
-	defer delete(x25519_pairs)
 
 	testing.expect(t, len(x25519_pairs) == 1, "should have 1 x25519 keypair")
 }

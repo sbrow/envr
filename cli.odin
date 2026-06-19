@@ -137,13 +137,38 @@ write_command_help :: proc(name: string, w: io.Writer) -> bool {
 		return false
 	}
 
-	fmt.wprintf(w, "Usage: %s [flags]\n\n", info.usage, flush = false)
-	fmt.wprintf(w, "%s\n", info.short, flush = false)
+	fmt.wprintf(
+		w,
+		"%s\n\n\n" +
+		COLOR_HEADINGS +
+		"Usage:" +
+		ANSI_RESET +
+		"\n\n  " +
+		COLOR_FLAGS +
+		"%s" +
+		ANSI_RESET +
+		" [flags]\n\n",
+		info.short,
+		info.usage,
+		flush = false,
+	)
 
 	if len(info.aliases) > 0 {
-		fmt.wprintf(w, "\nAliases:\n  %s", info.name, flush = false)
+		fmt.wprintf(
+			w,
+			"\n" +
+			COLOR_HEADINGS +
+			"Aliases:" +
+			ANSI_RESET +
+			"\n\n  " +
+			COLOR_COMMANDS +
+			"%s" +
+			ANSI_RESET,
+			info.name,
+			flush = false,
+		)
 		for a in info.aliases {
-			fmt.wprintf(w, ", %s", a, flush = false)
+			fmt.wprintf(w, ", " + COLOR_COMMANDS + "%s" + ANSI_RESET, a, flush = false)
 		}
 		fmt.wprintf(w, "\n", flush = false)
 	}
@@ -154,7 +179,20 @@ write_command_help :: proc(name: string, w: io.Writer) -> bool {
 
 	fmt.wprintf(
 		w,
-		"\nFlags:\n  -h, --help   help for %s\n  -c, --config-file <path>   config file (default \"~/.envr/config.json\")\n",
+		"\n" +
+		COLOR_HEADINGS +
+		"Flags:" +
+		ANSI_RESET +
+		"\n\n  " +
+		COLOR_FLAGS +
+		"-h, --help" +
+		ANSI_RESET +
+		"   help for %s\n  " +
+		COLOR_FLAGS +
+		"-c, --config-file" +
+		ANSI_RESET +
+		` <path>   config file (default "~/.envr/config.json")
+`,
 		info.name,
 		flush = false,
 	)
@@ -210,21 +248,29 @@ at before, restore your backup with:
 
 > envr restore ~/<path to repository>/.env
 
-Usage:
-  envr [command]
+%sUsage:%s
 
-Available Commands:
+  %senvr%s [command]
+
+%sAvailable Commands:%s
 `,
+		COLOR_HEADINGS,
+		ANSI_RESET,
+		COLOR_FLAGS,
+		ANSI_RESET,
+		COLOR_HEADINGS,
+		ANSI_RESET,
 		flush = false,
 	)
 
 	for c in COMMANDS {
 		name_start := len(c.name)
-		fmt.wprintf(w, "%s", c.name, flush = false)
+		fmt.wprintf(w, "  %s%s", COLOR_COMMANDS, c.name, flush = false)
 		for a in c.aliases {
 			fmt.wprintf(w, ", %s", a, flush = false)
 			name_start += len(a) + 2
 		}
+		fmt.wprint(w, ANSI_RESET)
 		padding := 20 - name_start
 		if padding > 0 {
 			for _ in 0 ..< padding {
@@ -236,24 +282,32 @@ Available Commands:
 
 	fmt.wprintf(
 		w,
-		`
-Flags:
-  -h, --help   help for envr
-  -c, --config-file <path>   config file (default "~/.envr/config.json")
+		"\n" +
+		COLOR_HEADINGS +
+		"Flags:" +
+		ANSI_RESET +
+		"\n\n  " +
+		COLOR_FLAGS +
+		"-h, --help" +
+		ANSI_RESET +
+		"   help for envr\n" +
+		COLOR_FLAGS +
+		`  -c, --config-file` +
+		ANSI_RESET +
+		` <path>   config file (default "~/.envr/config.json")
 
-Use "envr [command] --help" for more information about a command.
+Use "` +
+		COLOR_FLAGS +
+		"envr" +
+		ANSI_RESET +
+		` [command] --help" for more information about a command.
 `,
 		flush = false,
 	)
 }
 
 has_flag :: proc(cmd: ^Command, name: string) -> bool {
-	_, ok := cmd.flags[name]
-	if ok {
-		return true
-	}
-	_, ok2 := cmd.bool_set[name]
-	return ok2
+	return name in cmd.flags || name in cmd.bool_set
 }
 
 delete_command :: proc(cmd: ^Command) {

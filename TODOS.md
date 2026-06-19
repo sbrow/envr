@@ -1,10 +1,12 @@
 # TODOs
 
-1. Consider giving db its own allocator
+1. envr scan crashes when there are zero results.
 
 27. Commands are still leaking.
 
 28. **db.odin** — Inconsistencies in how struct vs sqlite are named.
+
+29. Add color flag and support non colored output.
 
 2. Generate md and man pages again.
 
