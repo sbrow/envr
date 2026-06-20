@@ -165,7 +165,7 @@ test_decrypt_then_deserialize_sqlite :: proc(t: ^testing.T) {
 	}
 	defer delete(plaintext)
 
-	mem_db: ^rawptr
+	mem_db: sqlite.Db
 	rc := sqlite.open(":memory:", &mem_db)
 	testing.expectf(t, rc == sqlite.OK, "failed to open in-memory db")
 	if rc != sqlite.OK {
@@ -179,14 +179,7 @@ test_decrypt_then_deserialize_sqlite :: proc(t: ^testing.T) {
 	if buf == nil do return
 	copy(buf[:len(plaintext)], plaintext)
 
-	rc = sqlite.deserialize(
-		mem_db,
-		"main",
-		buf,
-		n,
-		n,
-		sqlite.DESERIALIZE_FREEONCLOSE | sqlite.DESERIALIZE_RESIZEABLE,
-	)
+	rc = sqlite.deserialize(mem_db, "main", buf, n, n, {.FREEONCLOSE, .RESIZEABLE})
 	testing.expect(t, rc == sqlite.OK, "deserialize should succeed")
 	if rc != sqlite.OK {
 		sqlite.free(buf)
@@ -194,7 +187,7 @@ test_decrypt_then_deserialize_sqlite :: proc(t: ^testing.T) {
 	}
 
 	sql: cstring = "SELECT path FROM envr_env_files"
-	stmt: ^rawptr
+	stmt: sqlite.Stmt
 	rc = sqlite.prepare_v2(mem_db, sql, -1, &stmt, nil)
 	testing.expect(t, rc == sqlite.OK, "prepare failed")
 	if rc != sqlite.OK {

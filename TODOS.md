@@ -9,7 +9,6 @@
 30. Use text/tables for command output
 
 2. Generate md and man pages again.
-
 3. **db.odin:324-327** — Map iteration (`remote_set`) is non-deterministic. Same file can produce different JSON on each backup, causing spurious DB diffs. Sort remotes before storing.
 
 4. Make sure official path separators are used when appropriate, rather than '/'.
@@ -83,7 +82,7 @@
 - [ ] scan.odin
 - [ ] scan_test.odin
 - [ ] sodium.odin
-- [ ] sqlite/sqlite.odin
+- [x] sqlite/sqlite.odin
 - [ ] ssh.odin
 - [ ] ssh_test.odin
 - [ ] table.odin
