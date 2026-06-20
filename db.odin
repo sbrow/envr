@@ -65,7 +65,7 @@ db_open :: proc(cfg_path: string) -> (database: Db, ok: bool) {
 	data_path := data_path(database.cfg.config_path, context.temp_allocator)
 	if os.exists(data_path) {
 		if ok = db_restore_from_encrypted(&database, data_path); !ok {
-			sqlite.db_close(database.db)
+			sqlite.close(database.db)
 			return database, false
 		}
 	} else {
@@ -80,7 +80,7 @@ db_open :: proc(cfg_path: string) -> (database: Db, ok: bool) {
 // In production, you most likely want to use `db_open`.
 db_init :: proc() -> (database: Db, ok: bool) {
 	db: ^rawptr
-	rc := sqlite.db_open(":memory:", &db)
+	rc := sqlite.open(":memory:", &db)
 	if rc != sqlite.OK {
 		fmt.printf("Error opening in-memory database: %s\n", sqlite.db_errmsg(db))
 		return
@@ -90,7 +90,7 @@ db_init :: proc() -> (database: Db, ok: bool) {
 	rc = sqlite.db_exec(db, create_sql, nil, nil, nil)
 	if rc != sqlite.OK {
 		fmt.printf("Error creating table: %s\n", sqlite.db_errmsg(db))
-		sqlite.db_close(db)
+		sqlite.close(db)
 		return
 	}
 	database.db = db
@@ -148,7 +148,7 @@ db_close :: proc(d: ^Db) {
 	allocator := db_allocator(d)
 
 	defer {
-		sqlite.db_close(d.db)
+		sqlite.close(d.db)
 
 		delete_config(&d.cfg, allocator)
 

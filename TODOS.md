@@ -48,6 +48,10 @@
 
 26. Test all cmds / terminal branches.
 
+27. Replace `fmt.tprintf("/tmp/envr-test-...-%d", os.get_pid())` + `os.mkdir_all` in test files with `os.mkdir_temp` (race-free, honors `$TMPDIR`, matches `findr/test_env.odin` pattern).
+
+28. Adopt `core:log` across `db.odin`, `crypto.odin`, `config.odin`, `ssh.odin` — replace ~30 scattered `fmt.printf("Error ...")` calls with leveled logging for consistent stderr routing and source locations.
+
 ## Double-check AI output
 
 - [ ] cli.odin

@@ -166,12 +166,12 @@ test_decrypt_then_deserialize_sqlite :: proc(t: ^testing.T) {
 	defer delete(plaintext)
 
 	mem_db: ^rawptr
-	rc := sqlite.db_open(":memory:", &mem_db)
+	rc := sqlite.open(":memory:", &mem_db)
 	testing.expectf(t, rc == sqlite.OK, "failed to open in-memory db")
 	if rc != sqlite.OK {
 		return
 	}
-	defer sqlite.db_close(mem_db)
+	defer sqlite.close(mem_db)
 
 	n := i64(len(plaintext))
 	buf := sqlite.malloc64(n)
