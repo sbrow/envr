@@ -27,10 +27,10 @@ make_test_env_file :: proc(path, sha, contents: string, remotes: []string = {}) 
 
 @(test)
 test_db_insert_and_fetch :: proc(t: ^testing.T) {
-	d, ok := db_init()
+	db, ok := db_init()
 	testing.expect(t, ok, "failed to create test db")
 	if !ok do return
-	defer db_close(&d)
+	defer db_close(&db)
 
 	path := "/project/.env"
 	sha := "abc123"
@@ -39,9 +39,9 @@ test_db_insert_and_fetch :: proc(t: ^testing.T) {
 	f := make_test_env_file(path, sha, contents, []string{"git@github.com:user/repo.git"})
 	defer delete(f.Remotes)
 
-	testing.expect(t, db_insert(&d, f), "insert should succeed")
+	testing.expect(t, db_insert(&db, f), "insert should succeed")
 
-	fetched, fetch_ok := db_fetch(&d, "/project/.env")
+	fetched, fetch_ok := db_fetch(&db, "/project/.env")
 	// defer delete_envfile(&fetched)
 	testing.expect(t, fetch_ok, "fetch should succeed")
 	if !fetch_ok do return
@@ -55,35 +55,35 @@ test_db_insert_and_fetch :: proc(t: ^testing.T) {
 
 @(test)
 test_db_fetch_missing :: proc(t: ^testing.T) {
-	d, ok := db_init()
+	db, ok := db_init()
 	testing.expect(t, ok, "failed to create test db")
 	if !ok do return
-	defer db_close(&d)
+	defer db_close(&db)
 
-	_, fetch_ok := db_fetch(&d, "/nonexistent/.env")
+	_, fetch_ok := db_fetch(&db, "/nonexistent/.env")
 	testing.expect(t, !fetch_ok, "fetch missing should return false")
 }
 
 @(test)
 test_db_insert_or_replace :: proc(t: ^testing.T) {
-	d, ok := db_init()
-	defer db_close(&d)
+	db, ok := db_init()
+	defer db_close(&db)
 	testing.expect(t, ok, "failed to create test db")
 
 	f1 := make_test_env_file("/project/.env", "sha1", "KEY=old")
 	defer delete(f1.Remotes)
-	testing.expect(t, db_insert(&d, f1), "first insert should succeed")
+	testing.expect(t, db_insert(&db, f1), "first insert should succeed")
 
 	f2 := make_test_env_file("/project/.env", "sha2", "KEY=new")
 	defer delete(f2.Remotes)
-	testing.expect(t, db_insert(&d, f2), "second insert should succeed")
+	testing.expect(t, db_insert(&db, f2), "second insert should succeed")
 
-	results, list_ok := db_list(&d)
+	results, list_ok := db_list(&db)
 	testing.expect(t, list_ok, "list should succeed")
 
 	testing.expect(t, len(results) == 1, "should have 1 row, not 2")
 
-	fetched, fetch_ok := db_fetch(&d, "/project/.env")
+	fetched, fetch_ok := db_fetch(&db, "/project/.env")
 	testing.expect(t, fetch_ok, "fetch should succeed")
 	if !fetch_ok do return
 	// defer delete_envfile(&fetched)
@@ -94,36 +94,36 @@ test_db_insert_or_replace :: proc(t: ^testing.T) {
 
 @(test)
 test_db_delete_existing :: proc(t: ^testing.T) {
-	d, ok := db_init()
+	db, ok := db_init()
 	testing.expect(t, ok, "failed to create test db")
 	if !ok do return
-	defer db_close(&d)
+	defer db_close(&db)
 
 	f := make_test_env_file("/project/.env", "sha", "KEY=val")
 	defer delete(f.Remotes)
-	db_insert(&d, f)
+	db_insert(&db, f)
 
-	testing.expect(t, db_delete(&d, "/project/.env"), "delete should return true")
+	testing.expect(t, db_delete(&db, "/project/.env"), "delete should return true")
 
-	_, fetch_ok := db_fetch(&d, "/project/.env")
+	_, fetch_ok := db_fetch(&db, "/project/.env")
 	testing.expect(t, !fetch_ok, "row should be gone after delete")
 }
 
 @(test)
 test_db_delete_missing :: proc(t: ^testing.T) {
-	d, ok := db_init()
+	db, ok := db_init()
 	testing.expect(t, ok, "failed to create test db")
 	if !ok do return
-	defer db_close(&d)
+	defer db_close(&db)
 
-	testing.expect(t, !db_delete(&d, "/nonexistent/.env"), "delete missing should return false")
+	testing.expect(t, !db_delete(&db, "/nonexistent/.env"), "delete missing should return false")
 }
 
 @(test)
 test_db_list_multiple :: proc(t: ^testing.T) {
-	d, ok := db_init()
+	db, ok := db_init()
 	testing.expect(t, ok, "failed to create test db")
-	defer db_close(&d)
+	defer db_close(&db)
 
 	f1 := make_test_env_file("/proj1/.env", "sha1", "A=1", []string{"git@github.com:a/repo.git"})
 	defer delete(f1.Remotes)
@@ -131,11 +131,11 @@ test_db_list_multiple :: proc(t: ^testing.T) {
 	defer delete(f2.Remotes)
 	f3 := make_test_env_file("/proj3/.env", "sha3", "C=3")
 
-	db_insert(&d, f1)
-	db_insert(&d, f2)
-	db_insert(&d, f3)
+	db_insert(&db, f1)
+	db_insert(&db, f2)
+	db_insert(&db, f3)
 
-	results, list_ok := db_list(&d)
+	results, list_ok := db_list(&db)
 	testing.expect(t, list_ok, "list should succeed")
 
 	testing.expect_value(t, len(results), 3)
@@ -143,60 +143,60 @@ test_db_list_multiple :: proc(t: ^testing.T) {
 
 @(test)
 test_db_list_empty :: proc(t: ^testing.T) {
-	d, ok := db_init()
+	db, ok := db_init()
 	testing.expect(t, ok, "failed to create test db")
-	defer db_close(&d)
+	defer db_close(&db)
 
-	results, list_ok := db_list(&d)
+	results, list_ok := db_list(&db)
 	testing.expect(t, list_ok, "list should succeed on empty db")
 	testing.expect(t, len(results) == 0, "should have 0 rows")
 }
 
 @(test)
 test_db_insert_sets_changed :: proc(t: ^testing.T) {
-	d, ok := db_init()
+	db, ok := db_init()
 	testing.expect(t, ok, "failed to create test db")
 	if !ok do return
-	defer db_close(&d)
+	defer db_close(&db)
 
-	testing.expect(t, !d.changed, "changed should start false")
+	testing.expect(t, !db.changed, "changed should start false")
 
 	f := make_test_env_file("/project/.env", "sha", "KEY=val")
 	defer delete(f.Remotes)
-	db_insert(&d, f)
+	db_insert(&db, f)
 
-	testing.expect(t, d.changed, "changed should be true after insert")
+	testing.expect(t, db.changed, "changed should be true after insert")
 }
 
 @(test)
 test_db_delete_sets_changed :: proc(t: ^testing.T) {
-	d, ok := db_init()
+	db, ok := db_init()
 	testing.expect(t, ok, "failed to create test db")
 	if !ok do return
-	defer db_close(&d)
+	defer db_close(&db)
 
 	f := make_test_env_file("/project/.env", "sha", "KEY=val")
 	defer delete(f.Remotes)
-	db_insert(&d, f)
-	d.changed = false
+	db_insert(&db, f)
+	db.changed = false
 
-	db_delete(&d, "/project/.env")
-	testing.expect(t, d.changed, "changed should be true after delete")
+	db_delete(&db, "/project/.env")
+	testing.expect(t, db.changed, "changed should be true after delete")
 }
 
 @(test)
 test_db_serialize :: proc(t: ^testing.T) {
-	d, ok := db_init()
+	db, ok := db_init()
 	testing.expect(t, ok, "failed to create test db")
 	if !ok do return
-	defer db_close(&d)
+	defer db_close(&db)
 
 	f := make_test_env_file("/project/.env", "sha", "KEY=val")
 	defer delete(f.Remotes)
-	db_insert(&d, f)
+	db_insert(&db, f)
 
 	sz: i64
-	data := sqlite.serialize(d.conn, "main", &sz, 0)
+	data := sqlite.serialize(db.conn, "main", &sz, 0)
 	testing.expect(t, data != nil, "serialize should return non-nil")
 	if data == nil do return
 	defer sqlite.free(data)
@@ -439,15 +439,15 @@ test_db_sync_noop :: proc(t: ^testing.T) {
 	hex_bytes, _ := hex.encode(digest, context.temp_allocator)
 	sha := string(hex_bytes)
 
-	d, ok := db_init()
+	db, ok := db_init()
 	testing.expect(t, ok, "failed to create test db")
-	defer db_close(&d)
+	defer db_close(&db)
 
 	f := make_test_env_file(env_path, sha, content)
 	f.Dir = base
-	db_insert(&d, f)
+	db_insert(&db, f)
 
-	result, sync_err := db_sync(&d, &f)
+	result, sync_err := db_sync(&db, &f)
 	testing.expect(t, sync_err == .None, "sync should not error")
 	testing.expect(t, result == {}, "should be noop")
 }
@@ -463,15 +463,15 @@ test_db_sync_backed_up :: proc(t: ^testing.T) {
 	write_err := os.write_entire_file(env_path, transmute([]u8)changed_content)
 	testing.expect(t, write_err == nil, "should write .env file")
 
-	d, ok := db_init()
+	db, ok := db_init()
 	testing.expect(t, ok, "failed to create test db")
-	defer db_close(&d)
+	defer db_close(&db)
 
 	f := make_test_env_file(env_path, "old_sha", "KEY=original")
 	f.Dir = base
-	db_insert(&d, f)
+	db_insert(&db, f)
 
-	result, sync_err := db_sync(&d, &f)
+	result, sync_err := db_sync(&db, &f)
 	testing.expect(t, sync_err == .None, "sync should not error")
 	testing.expect(t, .BackedUp in result, "should be backed up")
 }
@@ -484,16 +484,16 @@ test_db_sync_restored :: proc(t: ^testing.T) {
 
 	env_path := fmt.tprintf("%s/.env", base)
 
-	d, ok := db_init()
+	db, ok := db_init()
 	testing.expect(t, ok, "failed to create test db")
-	defer db_close(&d)
+	defer db_close(&db)
 
 	f := make_test_env_file(env_path, "some_sha", "SECRET=value")
 	f.Dir = base
 	defer delete(f.Remotes)
-	db_insert(&d, f)
+	db_insert(&db, f)
 
-	result, err := db_sync(&d, &f)
+	result, err := db_sync(&db, &f)
 	testing.expect(t, err == .None, "sync should not error")
 	testing.expect(t, .Restored in result, "should be restored")
 
@@ -506,14 +506,14 @@ test_db_sync_restored :: proc(t: ^testing.T) {
 
 @(test)
 test_db_sync_dir_missing :: proc(t: ^testing.T) {
-	d, ok := db_init()
+	db, ok := db_init()
 	testing.expect(t, ok, "failed to create test db")
-	defer db_close(&d)
+	defer db_close(&db)
 
 	f := make_test_env_file("/nonexistent/path/.env", "sha", "KEY=val")
-	db_insert(&d, f)
+	db_insert(&db, f)
 
-	result, err := db_sync(&d, &f)
+	result, err := db_sync(&db, &f)
 	testing.expect_value(t, err, SyncError.DirMissing)
 	testing.expect_value(t, result, nil)
 }
@@ -533,12 +533,12 @@ test_db_sync_moved :: proc(t: ^testing.T) {
 	write_err := os.write_entire_file(config_path, transmute([]u8)config_content)
 	testing.expect(t, write_err == nil, "should write .git/config")
 
-	d, ok := db_init()
+	db, ok := db_init()
 	testing.expect(t, ok, "failed to create test db")
-	defer db_close(&d)
+	defer db_close(&db)
 
-	d.cfg.ScanConfig.Include = make([dynamic]string, 0, 1, context.temp_allocator)
-	append(&d.cfg.ScanConfig.Include, search_root)
+	db.cfg.ScanConfig.Include = make([dynamic]string, 0, 1, context.temp_allocator)
+	append(&db.cfg.ScanConfig.Include, search_root)
 
 	f := make_test_env_file(
 		"/old/nonexistent/path/.env",
@@ -546,9 +546,9 @@ test_db_sync_moved :: proc(t: ^testing.T) {
 		"SECRET=value",
 		[]string{"git@github.com:user/repo.git"},
 	)
-	testing.expect(t, db_insert(&d, f), "insert should succeed")
+	testing.expect(t, db_insert(&db, f), "insert should succeed")
 
-	result, err := db_sync(&d, &f)
+	result, err := db_sync(&db, &f)
 	testing.expect(t, err == .None, "sync should not error")
 	if err != .None do return
 	testing.expect(t, .DirUpdated in result, "should have DirUpdated flag")
@@ -558,10 +558,10 @@ test_db_sync_moved :: proc(t: ^testing.T) {
 	testing.expect_value(t, f.Path, expected_path)
 	testing.expect_value(t, f.Dir, repo_dir)
 
-	_, old_exists := db_fetch(&d, "/old/nonexistent/path/.env")
+	_, old_exists := db_fetch(&db, "/old/nonexistent/path/.env")
 	testing.expect(t, !old_exists, "old path should be deleted from db")
 
-	new_fetched, new_ok := db_fetch(&d, expected_path)
+	new_fetched, new_ok := db_fetch(&db, expected_path)
 	testing.expect(t, new_ok, "new path should exist in db")
 	if new_ok {
 		testing.expect_value(t, new_fetched.contents, "SECRET=value")

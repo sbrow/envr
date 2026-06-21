@@ -56,28 +56,28 @@ delete_envfile :: proc(f: ^EnvFile) {
 	delete(f.contents)
 }
 
-db_open :: proc(cfg_path: string) -> (database: Db, ok: bool) {
-	database = db_init() or_return
-	database.cfg = load_config(cfg_path, db_allocator(&database)) or_return
+db_open :: proc(cfg_path: string) -> (db: Db, ok: bool) {
+	db = db_init() or_return
+	db.cfg = load_config(cfg_path, db_allocator(&db)) or_return
 
 	// TODO: Use different allocators?
-	data_path := data_path(database.cfg.config_path, context.temp_allocator)
+	data_path := data_path(db.cfg.config_path, context.temp_allocator)
 	if os.exists(data_path) {
-		if ok = db_restore_from_encrypted(&database, data_path); !ok {
-			sqlite.close(database.conn)
-			return database, false
+		if ok = db_restore_from_encrypted(&db, data_path); !ok {
+			sqlite.close(db.conn)
+			return db, false
 		}
 	} else {
 		// DB was created
-		database.changed = true
+		db.changed = true
 	}
 
-	return database, true
+	return db, true
 }
 
 // Creates a database an allocator and fresh, empty table, with zero encryption.
 // In production, you most likely want to use `db_open`.
-db_init :: proc() -> (database: Db, ok: bool) {
+db_init :: proc() -> (db: Db, ok: bool) {
 	conn: sqlite.Db
 	rc := sqlite.open(":memory:", &conn)
 	if rc != sqlite.OK {
@@ -92,11 +92,11 @@ db_init :: proc() -> (database: Db, ok: bool) {
 		sqlite.close(conn)
 		return
 	}
-	database.conn = conn
+	db.conn = conn
 
-	mem.dynamic_arena_init(&database.arena)
+	mem.dynamic_arena_init(&db.arena)
 
-	return database, true
+	return db, true
 }
 
 db_allocator :: proc(db: ^Db) -> mem.Allocator {
@@ -138,26 +138,26 @@ db_restore_from_encrypted :: proc(db: ^Db, data_path: string) -> bool {
 	return true
 }
 
-db_close :: proc(d: ^Db) {
-	allocator := db_allocator(d)
+db_close :: proc(db: ^Db) {
+	allocator := db_allocator(db)
 
 	defer {
-		sqlite.close(d.conn)
+		sqlite.close(db.conn)
 
-		delete_config(&d.cfg, allocator)
+		delete_config(&db.cfg, allocator)
 
-		mem.dynamic_arena_destroy(&d.arena)
+		mem.dynamic_arena_destroy(&db.arena)
 	}
 
-	if d.changed {
-		rc := sqlite.db_exec(d.conn, "VACUUM", nil, nil, nil)
+	if db.changed {
+		rc := sqlite.db_exec(db.conn, "VACUUM", nil, nil, nil)
 		if rc != sqlite.OK {
-			fmt.printf("Error vacuuming database: %s\n", sqlite.db_errmsg(d.conn))
+			fmt.printf("Error vacuuming database: %s\n", sqlite.db_errmsg(db.conn))
 			return
 		}
 
 		sz: i64
-		data := sqlite.serialize(d.conn, "main", &sz, 0)
+		data := sqlite.serialize(db.conn, "main", &sz, 0)
 		if data == nil {
 			fmt.println("Error: failed to serialize database")
 			return
@@ -166,14 +166,14 @@ db_close :: proc(d: ^Db) {
 
 		sqlite_data := data[:sz]
 		// TODO: PAss allocator chain
-		encrypted, enc_ok := encrypt(sqlite_data, d.cfg.Keys[:])
+		encrypted, enc_ok := encrypt(sqlite_data, db.cfg.Keys[:])
 		if !enc_ok {
 			fmt.println("Error: encryption failed")
 			return
 		}
 
-		data_path := data_path(d.cfg.config_path, allocator)
-		envr_d := envr_dir(d.cfg.config_path)
+		data_path := data_path(db.cfg.config_path, allocator)
+		envr_d := envr_dir(db.cfg.config_path)
 		os.mkdir_all(envr_d)
 
 		write_err := os.write_entire_file(data_path, encrypted)
@@ -183,27 +183,27 @@ db_close :: proc(d: ^Db) {
 			return
 		}
 
-		d.changed = false
+		db.changed = false
 	}
 }
 
 // Results will be freed when `db_close` is called.
-db_list :: proc(d: ^Db) -> ([]EnvFile, bool) {
+db_list :: proc(db: ^Db) -> ([]EnvFile, bool) {
 	stmt: sqlite.Stmt
 	rc := sqlite.prepare_v2(
-		d.conn,
+		db.conn,
 		"SELECT path, remotes, sha256, contents FROM envr_env_files",
 		-1,
 		&stmt,
 		nil,
 	)
 	if rc != sqlite.OK {
-		fmt.printf("Error preparing query: %s\n", sqlite.db_errmsg(d.conn))
+		fmt.printf("Error preparing query: %s\n", sqlite.db_errmsg(db.conn))
 		return []EnvFile{}, false
 	}
 	defer sqlite.finalize(stmt)
 
-	allocator := db_allocator(d)
+	allocator := db_allocator(db)
 	results := make([dynamic]EnvFile, 0, 10, allocator)
 
 	for {
@@ -212,7 +212,7 @@ db_list :: proc(d: ^Db) -> ([]EnvFile, bool) {
 			break
 		}
 		if rc != sqlite.ROW {
-			fmt.printf("Error stepping query: %s\n", sqlite.db_errmsg(d.conn))
+			fmt.printf("Error stepping query: %s\n", sqlite.db_errmsg(db.conn))
 			#no_bounds_check return results[:], false
 		}
 
@@ -239,7 +239,7 @@ db_list :: proc(d: ^Db) -> ([]EnvFile, bool) {
 }
 
 // TODO: Should we use context.temp_allocator for proc scoped lifetimes?
-db_insert :: proc(d: ^Db, file: EnvFile) -> bool {
+db_insert :: proc(db: ^Db, file: EnvFile) -> bool {
 	remotes_json, marshal_err := json.marshal(file.Remotes, allocator = context.temp_allocator)
 	if marshal_err != nil {
 		fmt.printf("Error marshaling remotes: %v\n", marshal_err)
@@ -250,9 +250,9 @@ db_insert :: proc(d: ^Db, file: EnvFile) -> bool {
 		"INSERT OR REPLACE INTO " +
 		"envr_env_files (path, remotes, sha256, contents) VALUES (?, ?, ?, ?)"
 	stmt: sqlite.Stmt
-	rc := sqlite.prepare_v2(d.conn, sql, -1, &stmt, nil)
+	rc := sqlite.prepare_v2(db.conn, sql, -1, &stmt, nil)
 	if rc != sqlite.OK {
-		fmt.printf("Error preparing insert: %s\n", sqlite.db_errmsg(d.conn))
+		fmt.printf("Error preparing insert: %s\n", sqlite.db_errmsg(db.conn))
 		return false
 	}
 	defer sqlite.finalize(stmt)
@@ -262,7 +262,7 @@ db_insert :: proc(d: ^Db, file: EnvFile) -> bool {
 	defer delete(cpath)
 	rc = sqlite.bind_text(stmt, 1, cpath, -1, nil)
 	if rc != sqlite.OK {
-		fmt.printf("Error binding path: %s\n", sqlite.db_errmsg(d.conn))
+		fmt.printf("Error binding path: %s\n", sqlite.db_errmsg(db.conn))
 		return false
 	}
 
@@ -270,7 +270,7 @@ db_insert :: proc(d: ^Db, file: EnvFile) -> bool {
 	defer delete(cremotes)
 	rc = sqlite.bind_text(stmt, 2, cremotes, -1, nil)
 	if rc != sqlite.OK {
-		fmt.printf("Error binding remotes: %s\n", sqlite.db_errmsg(d.conn))
+		fmt.printf("Error binding remotes: %s\n", sqlite.db_errmsg(db.conn))
 		return false
 	}
 
@@ -278,7 +278,7 @@ db_insert :: proc(d: ^Db, file: EnvFile) -> bool {
 	defer delete(csha)
 	rc = sqlite.bind_text(stmt, 3, csha, -1, nil)
 	if rc != sqlite.OK {
-		fmt.printf("Error binding sha256: %s\n", sqlite.db_errmsg(d.conn))
+		fmt.printf("Error binding sha256: %s\n", sqlite.db_errmsg(db.conn))
 		return false
 	}
 
@@ -286,38 +286,38 @@ db_insert :: proc(d: ^Db, file: EnvFile) -> bool {
 	defer delete(ccontents)
 	rc = sqlite.bind_text(stmt, 4, ccontents, -1, nil)
 	if rc != sqlite.OK {
-		fmt.printf("Error binding contents: %s\n", sqlite.db_errmsg(d.conn))
+		fmt.printf("Error binding contents: %s\n", sqlite.db_errmsg(db.conn))
 		return false
 	}
 
 	rc = sqlite.step(stmt)
 	if rc != sqlite.DONE {
-		fmt.printf("Error inserting: %s\n", sqlite.db_errmsg(d.conn))
+		fmt.printf("Error inserting: %s\n", sqlite.db_errmsg(db.conn))
 		return false
 	}
 
-	d.changed = true
+	db.changed = true
 	return true
 }
 
 // Result will be freed when `db_close` is called.
-db_fetch :: proc(d: ^Db, path: string) -> (EnvFile, bool) {
+db_fetch :: proc(db: ^Db, path: string) -> (EnvFile, bool) {
 	sql: cstring = "SELECT path, remotes, sha256, contents FROM envr_env_files WHERE path = ?"
 	stmt: sqlite.Stmt
-	rc := sqlite.prepare_v2(d.conn, sql, -1, &stmt, nil)
+	rc := sqlite.prepare_v2(db.conn, sql, -1, &stmt, nil)
 	if rc != sqlite.OK {
-		fmt.printf("Error preparing fetch: %s\n", sqlite.db_errmsg(d.conn))
+		fmt.printf("Error preparing fetch: %s\n", sqlite.db_errmsg(db.conn))
 		return EnvFile{}, false
 	}
 	defer sqlite.finalize(stmt)
 
-	allocator := db_allocator(d)
+	allocator := db_allocator(db)
 
 	cpath := to_cstring(path, allocator)
 	defer delete(cpath, allocator)
 	rc = sqlite.bind_text(stmt, 1, cpath, -1, nil)
 	if rc != sqlite.OK {
-		fmt.printf("Error binding path: %s\n", sqlite.db_errmsg(d.conn))
+		fmt.printf("Error binding path: %s\n", sqlite.db_errmsg(db.conn))
 		return EnvFile{}, false
 	}
 	rc = sqlite.step(stmt)
@@ -326,7 +326,7 @@ db_fetch :: proc(d: ^Db, path: string) -> (EnvFile, bool) {
 		return EnvFile{}, false
 	}
 	if rc != sqlite.ROW {
-		fmt.printf("Error fetching: %s\n", sqlite.db_errmsg(d.conn))
+		fmt.printf("Error fetching: %s\n", sqlite.db_errmsg(db.conn))
 		return EnvFile{}, false
 	}
 
@@ -348,12 +348,12 @@ db_fetch :: proc(d: ^Db, path: string) -> (EnvFile, bool) {
 		true
 }
 
-db_delete :: proc(d: ^Db, path: string) -> bool {
+db_delete :: proc(db: ^Db, path: string) -> bool {
 	sql: cstring = "DELETE FROM envr_env_files WHERE path = ?"
 	stmt: sqlite.Stmt
-	rc := sqlite.prepare_v2(d.conn, sql, -1, &stmt, nil)
+	rc := sqlite.prepare_v2(db.conn, sql, -1, &stmt, nil)
 	if rc != sqlite.OK {
-		fmt.printf("Error preparing delete: %s\n", sqlite.db_errmsg(d.conn))
+		fmt.printf("Error preparing delete: %s\n", sqlite.db_errmsg(db.conn))
 		return false
 	}
 	defer sqlite.finalize(stmt)
@@ -362,21 +362,21 @@ db_delete :: proc(d: ^Db, path: string) -> bool {
 	defer delete(cpath)
 	rc = sqlite.bind_text(stmt, 1, cpath, -1, nil)
 	if rc != sqlite.OK {
-		fmt.printf("Error binding path: %s\n", sqlite.db_errmsg(d.conn))
+		fmt.printf("Error binding path: %s\n", sqlite.db_errmsg(db.conn))
 		return false
 	}
 	rc = sqlite.step(stmt)
 	if rc != sqlite.DONE {
-		fmt.printf("Error deleting: %s\n", sqlite.db_errmsg(d.conn))
+		fmt.printf("Error deleting: %s\n", sqlite.db_errmsg(db.conn))
 		return false
 	}
 
-	if sqlite.changes(d.conn) == 0 {
+	if sqlite.changes(db.conn) == 0 {
 		fmt.printf("No file found with path: %s\n", path)
 		return false
 	}
 
-	d.changed = true
+	db.changed = true
 	return true
 }
 
@@ -414,13 +414,13 @@ new_env_file :: proc(path: string) -> (EnvFile, bool) {
 }
 
 // Reconciles `f` with the filesystem and persists changes to the database.
-db_sync :: proc(d: ^Db, f: ^EnvFile) -> (SyncFlag, SyncError) {
-	allocator := db_allocator(d)
+db_sync :: proc(db: ^Db, f: ^EnvFile) -> (SyncFlag, SyncError) {
+	allocator := db_allocator(db)
 	result: SyncFlag = {}
 	old_path := f.Path
 
 	if !os.exists(f.Dir) {
-		moved, err := try_move_dir(d, f, allocator)
+		moved, err := try_move_dir(db, f, allocator)
 		if !moved {
 			return {}, err
 		}
@@ -434,7 +434,7 @@ db_sync :: proc(d: ^Db, f: ^EnvFile) -> (SyncFlag, SyncError) {
 			return result, .WriteFailed
 		}
 
-		if !db_persist(d, f, old_path) {
+		if !db_persist(db, f, old_path) {
 			return result, .DbFailed
 		}
 		return result + {.Restored}, .None
@@ -455,7 +455,7 @@ db_sync :: proc(d: ^Db, f: ^EnvFile) -> (SyncFlag, SyncError) {
 	current_sha := string(hex_bytes)
 
 	if current_sha == f.Sha256 {
-		if !db_persist(d, f, old_path) {
+		if !db_persist(db, f, old_path) {
 			return result, .DbFailed
 		}
 		return result, .None
@@ -463,23 +463,23 @@ db_sync :: proc(d: ^Db, f: ^EnvFile) -> (SyncFlag, SyncError) {
 
 	f.contents = string(data)
 	f.Sha256 = current_sha
-	if !db_persist(d, f, old_path) {
+	if !db_persist(db, f, old_path) {
 		return result, .DbFailed
 	}
 	return result + {.BackedUp}, .None
 }
 
-db_persist :: proc(d: ^Db, f: ^EnvFile, old_path: string) -> bool {
+db_persist :: proc(db: ^Db, f: ^EnvFile, old_path: string) -> bool {
 	if f.Path != old_path {
-		if !db_delete(d, old_path) {
+		if !db_delete(db, old_path) {
 			return false
 		}
 	}
-	return db_insert(d, f^)
+	return db_insert(db, f^)
 }
 
-try_move_dir :: proc(d: ^Db, f: ^EnvFile, allocator: mem.Allocator) -> (bool, SyncError) {
-	roots, ok := find_git_roots(d.cfg)
+try_move_dir :: proc(db: ^Db, f: ^EnvFile, allocator: mem.Allocator) -> (bool, SyncError) {
+	roots, ok := find_git_roots(db.cfg)
 	if !ok {
 		return false, .GitRootFailed
 	}
