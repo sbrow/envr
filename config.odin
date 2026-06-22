@@ -1,5 +1,6 @@
 package main
 
+import "base:runtime"
 import "core:encoding/json"
 import "core:fmt"
 import "core:os"
@@ -126,6 +127,8 @@ new_config :: proc(
 		append(&keys, SshKeyPair{private = priv_key, public = pub})
 	}
 
+	// If we don't clone the strings, the cleanup semantics differ for Db created
+	// configs vs user created configs.
 	exclude := make([dynamic]string, 0, 4)
 	append(&exclude, strings.clone("*\\.envrc"))
 	append(&exclude, strings.clone("\\.local/"))
@@ -199,7 +202,6 @@ find_git_roots :: proc(
 ) {
 	paths := search_paths(cfg, allocator)
 	// TODO: Pass allocator to findr
-	// findr.find_repos(paths[:], &roots, os.get_processor_core_count(), allocator)
 	findr.find_repos(paths[:], &roots, os.get_processor_core_count())
 	ok = true
 	return
@@ -231,8 +233,13 @@ envr_dir :: proc(config_path: string) -> string {
 }
 
 // User is responsible for freeing the path
-data_path :: proc(config_path: string, allocator := context.allocator) -> string {
-	path, _ := filepath.join([]string{envr_dir(config_path), "data.envr"}, allocator)
-	return path
+data_path :: proc(
+	config_path: string,
+	allocator := context.allocator,
+) -> (
+	string,
+	runtime.Allocator_Error,
+) #optional_allocator_error {
+	return filepath.join([]string{envr_dir(config_path), "data.envr"}, allocator)
 }
 

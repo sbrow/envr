@@ -25,9 +25,9 @@ foreign lib {
 	@(link_name = "sqlite3_close")
 	close :: proc(db: Db) -> c.int ---
 	@(link_name = "sqlite3_errmsg")
-	db_errmsg :: proc(db: Db) -> cstring ---
+	errmsg :: proc(db: Db) -> cstring ---
 	@(link_name = "sqlite3_exec")
-	db_exec :: proc(db: Db, sql: cstring, callback: rawptr, callback_arg: rawptr, errmsg: ^cstring) -> c.int ---
+	exec :: proc(db: Db, sql: cstring, callback: rawptr, callback_arg: rawptr, errmsg: ^cstring) -> c.int ---
 	@(link_name = "sqlite3_prepare_v2")
 	prepare_v2 :: proc(db: Db, sql: cstring, nByte: c.int, ppStmt: ^Stmt, pzTail: ^cstring) -> c.int ---
 	@(link_name = "sqlite3_step")

@@ -54,6 +54,8 @@
 
 27. "Encryption failed" in tests. 
 
+28. Pass allocator to findr?
+
 ## Double-check AI output
 
 - [ ] cli.odin
@@ -73,7 +75,7 @@
 - [x] cmd_scan.odin
 - [x] cmd_sync.odin
 - [x] cmd_version.odin
-- [ ] config.odin
+- [x] config.odin
 - [ ] config_test.odin
 - [ ] crypto.odin
 - [ ] crypto_test.odin
@@ -82,7 +84,7 @@
 - [ ] db_test.odin
 - [x] main.odin
 - [x] prompt.odin
-- [ ] scan.odin
+- [x] scan.odin
 - [ ] scan_test.odin
 - [ ] sodium.odin
 - [x] sqlite/sqlite.odin

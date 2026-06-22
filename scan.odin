@@ -15,6 +15,7 @@ scan_path :: proc(search_path: string, cfg: Config) -> (paths: [dynamic]string, 
 	return
 }
 
+// The returned values live on the temp_allocator
 find_unbacked :: proc(local_files: []string, db_files: []EnvFile) -> []string {
 	backed_set := make(map[string]bool, len(db_files), context.temp_allocator)
 	for file in db_files {

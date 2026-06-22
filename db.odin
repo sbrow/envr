@@ -81,14 +81,14 @@ db_init :: proc() -> (db: Db, ok: bool) {
 	conn: sqlite.Db
 	rc := sqlite.open(":memory:", &conn)
 	if rc != sqlite.OK {
-		fmt.printf("Error opening in-memory database: %s\n", sqlite.db_errmsg(conn))
+		fmt.printf("Error opening in-memory database: %s\n", sqlite.errmsg(conn))
 		return
 	}
 
 	create_sql: cstring = "CREATE TABLE IF NOT EXISTS envr_env_files (path TEXT PRIMARY KEY NOT NULL, remotes TEXT, sha256 TEXT NOT NULL, contents TEXT NOT NULL)"
-	rc = sqlite.db_exec(conn, create_sql, nil, nil, nil)
+	rc = sqlite.exec(conn, create_sql, nil, nil, nil)
 	if rc != sqlite.OK {
-		fmt.printf("Error creating table: %s\n", sqlite.db_errmsg(conn))
+		fmt.printf("Error creating table: %s\n", sqlite.errmsg(conn))
 		sqlite.close(conn)
 		return
 	}
@@ -131,7 +131,7 @@ db_restore_from_encrypted :: proc(db: ^Db, data_path: string) -> bool {
 	rc := sqlite.deserialize(db.conn, "main", buf, n, n, flags)
 	if rc != sqlite.OK {
 		sqlite.free(buf)
-		fmt.printf("Error deserializing database: %s\n", sqlite.db_errmsg(db.conn))
+		fmt.printf("Error deserializing database: %s\n", sqlite.errmsg(db.conn))
 		return false
 	}
 
@@ -150,9 +150,9 @@ db_close :: proc(db: ^Db) {
 	}
 
 	if db.changed {
-		rc := sqlite.db_exec(db.conn, "VACUUM", nil, nil, nil)
+		rc := sqlite.exec(db.conn, "VACUUM", nil, nil, nil)
 		if rc != sqlite.OK {
-			fmt.printf("Error vacuuming database: %s\n", sqlite.db_errmsg(db.conn))
+			fmt.printf("Error vacuuming database: %s\n", sqlite.errmsg(db.conn))
 			return
 		}
 
@@ -198,7 +198,7 @@ db_list :: proc(db: ^Db) -> ([]EnvFile, bool) {
 		nil,
 	)
 	if rc != sqlite.OK {
-		fmt.printf("Error preparing query: %s\n", sqlite.db_errmsg(db.conn))
+		fmt.printf("Error preparing query: %s\n", sqlite.errmsg(db.conn))
 		return []EnvFile{}, false
 	}
 	defer sqlite.finalize(stmt)
@@ -212,7 +212,7 @@ db_list :: proc(db: ^Db) -> ([]EnvFile, bool) {
 			break
 		}
 		if rc != sqlite.ROW {
-			fmt.printf("Error stepping query: %s\n", sqlite.db_errmsg(db.conn))
+			fmt.printf("Error stepping query: %s\n", sqlite.errmsg(db.conn))
 			#no_bounds_check return results[:], false
 		}
 
@@ -252,7 +252,7 @@ db_insert :: proc(db: ^Db, file: EnvFile) -> bool {
 	stmt: sqlite.Stmt
 	rc := sqlite.prepare_v2(db.conn, sql, -1, &stmt, nil)
 	if rc != sqlite.OK {
-		fmt.printf("Error preparing insert: %s\n", sqlite.db_errmsg(db.conn))
+		fmt.printf("Error preparing insert: %s\n", sqlite.errmsg(db.conn))
 		return false
 	}
 	defer sqlite.finalize(stmt)
@@ -262,7 +262,7 @@ db_insert :: proc(db: ^Db, file: EnvFile) -> bool {
 	defer delete(cpath)
 	rc = sqlite.bind_text(stmt, 1, cpath, -1, nil)
 	if rc != sqlite.OK {
-		fmt.printf("Error binding path: %s\n", sqlite.db_errmsg(db.conn))
+		fmt.printf("Error binding path: %s\n", sqlite.errmsg(db.conn))
 		return false
 	}
 
@@ -270,7 +270,7 @@ db_insert :: proc(db: ^Db, file: EnvFile) -> bool {
 	defer delete(cremotes)
 	rc = sqlite.bind_text(stmt, 2, cremotes, -1, nil)
 	if rc != sqlite.OK {
-		fmt.printf("Error binding remotes: %s\n", sqlite.db_errmsg(db.conn))
+		fmt.printf("Error binding remotes: %s\n", sqlite.errmsg(db.conn))
 		return false
 	}
 
@@ -278,7 +278,7 @@ db_insert :: proc(db: ^Db, file: EnvFile) -> bool {
 	defer delete(csha)
 	rc = sqlite.bind_text(stmt, 3, csha, -1, nil)
 	if rc != sqlite.OK {
-		fmt.printf("Error binding sha256: %s\n", sqlite.db_errmsg(db.conn))
+		fmt.printf("Error binding sha256: %s\n", sqlite.errmsg(db.conn))
 		return false
 	}
 
@@ -286,13 +286,13 @@ db_insert :: proc(db: ^Db, file: EnvFile) -> bool {
 	defer delete(ccontents)
 	rc = sqlite.bind_text(stmt, 4, ccontents, -1, nil)
 	if rc != sqlite.OK {
-		fmt.printf("Error binding contents: %s\n", sqlite.db_errmsg(db.conn))
+		fmt.printf("Error binding contents: %s\n", sqlite.errmsg(db.conn))
 		return false
 	}
 
 	rc = sqlite.step(stmt)
 	if rc != sqlite.DONE {
-		fmt.printf("Error inserting: %s\n", sqlite.db_errmsg(db.conn))
+		fmt.printf("Error inserting: %s\n", sqlite.errmsg(db.conn))
 		return false
 	}
 
@@ -306,7 +306,7 @@ db_fetch :: proc(db: ^Db, path: string) -> (EnvFile, bool) {
 	stmt: sqlite.Stmt
 	rc := sqlite.prepare_v2(db.conn, sql, -1, &stmt, nil)
 	if rc != sqlite.OK {
-		fmt.printf("Error preparing fetch: %s\n", sqlite.db_errmsg(db.conn))
+		fmt.printf("Error preparing fetch: %s\n", sqlite.errmsg(db.conn))
 		return EnvFile{}, false
 	}
 	defer sqlite.finalize(stmt)
@@ -317,7 +317,7 @@ db_fetch :: proc(db: ^Db, path: string) -> (EnvFile, bool) {
 	defer delete(cpath, allocator)
 	rc = sqlite.bind_text(stmt, 1, cpath, -1, nil)
 	if rc != sqlite.OK {
-		fmt.printf("Error binding path: %s\n", sqlite.db_errmsg(db.conn))
+		fmt.printf("Error binding path: %s\n", sqlite.errmsg(db.conn))
 		return EnvFile{}, false
 	}
 	rc = sqlite.step(stmt)
@@ -326,7 +326,7 @@ db_fetch :: proc(db: ^Db, path: string) -> (EnvFile, bool) {
 		return EnvFile{}, false
 	}
 	if rc != sqlite.ROW {
-		fmt.printf("Error fetching: %s\n", sqlite.db_errmsg(db.conn))
+		fmt.printf("Error fetching: %s\n", sqlite.errmsg(db.conn))
 		return EnvFile{}, false
 	}
 
@@ -353,7 +353,7 @@ db_delete :: proc(db: ^Db, path: string) -> bool {
 	stmt: sqlite.Stmt
 	rc := sqlite.prepare_v2(db.conn, sql, -1, &stmt, nil)
 	if rc != sqlite.OK {
-		fmt.printf("Error preparing delete: %s\n", sqlite.db_errmsg(db.conn))
+		fmt.printf("Error preparing delete: %s\n", sqlite.errmsg(db.conn))
 		return false
 	}
 	defer sqlite.finalize(stmt)
@@ -362,12 +362,12 @@ db_delete :: proc(db: ^Db, path: string) -> bool {
 	defer delete(cpath)
 	rc = sqlite.bind_text(stmt, 1, cpath, -1, nil)
 	if rc != sqlite.OK {
-		fmt.printf("Error binding path: %s\n", sqlite.db_errmsg(db.conn))
+		fmt.printf("Error binding path: %s\n", sqlite.errmsg(db.conn))
 		return false
 	}
 	rc = sqlite.step(stmt)
 	if rc != sqlite.DONE {
-		fmt.printf("Error deleting: %s\n", sqlite.db_errmsg(db.conn))
+		fmt.printf("Error deleting: %s\n", sqlite.errmsg(db.conn))
 		return false
 	}
 
