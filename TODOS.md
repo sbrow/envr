@@ -52,6 +52,8 @@
 
 26. Adopt `core:log` across `db.odin`, `crypto.odin`, `config.odin`, `ssh.odin` — replace ~30 scattered `fmt.printf("Error ...")` calls with leveled logging for consistent stderr routing and source locations.
 
+27. "Encryption failed" in tests. 
+
 ## Double-check AI output
 
 - [ ] cli.odin
@@ -60,7 +62,7 @@
 - [x] cmd_backup.odin
 - [x] cmd_check.odin
 - [ ] cmd_check_test.odin
-- [ ] cmd_edit_config.odin
+- [x] cmd_edit_config.odin
 - [x] cmd_init.odin
 - [x] cmd_list.odin
 - [ ] cmd_list_test.odin

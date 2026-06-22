@@ -16,11 +16,11 @@ test_new_config_single_key :: proc(t: ^testing.T) {
 	cfg := new_config(paths)
 	defer delete_config(&cfg)
 
-	testing.expect(t, len(cfg.Keys) == 1, "should have 1 key")
-	testing.expect(t, cfg.Keys[0].Private == "/home/user/.ssh/id_ed25519", "Private path mismatch")
+	testing.expect(t, len(cfg.keys) == 1, "should have 1 key")
+	testing.expect(t, cfg.keys[0].private == "/home/user/.ssh/id_ed25519", "Private path mismatch")
 	testing.expect(
 		t,
-		cfg.Keys[0].Public == "/home/user/.ssh/id_ed25519.pub",
+		cfg.keys[0].public == "/home/user/.ssh/id_ed25519.pub",
 		"Public path mismatch",
 	)
 }
@@ -31,9 +31,9 @@ test_new_config_multiple_keys :: proc(t: ^testing.T) {
 	cfg := new_config(paths)
 	defer delete_config(&cfg)
 
-	testing.expect(t, len(cfg.Keys) == 2, "should have 2 keys")
-	testing.expect(t, cfg.Keys[0].Private == "/home/user/.ssh/id_ed25519")
-	testing.expect(t, cfg.Keys[1].Private == "/home/user/.ssh/id_rsa")
+	testing.expect(t, len(cfg.keys) == 2, "should have 2 keys")
+	testing.expect(t, cfg.keys[0].private == "/home/user/.ssh/id_ed25519")
+	testing.expect(t, cfg.keys[1].private == "/home/user/.ssh/id_rsa")
 }
 
 @(test)
@@ -42,7 +42,7 @@ test_new_config_empty_keys :: proc(t: ^testing.T) {
 	cfg := new_config(paths)
 	defer delete_config(&cfg)
 
-	testing.expect(t, len(cfg.Keys) == 0, "should have 0 keys")
+	testing.expect(t, len(cfg.keys) == 0, "should have 0 keys")
 }
 
 @(test)
@@ -51,10 +51,10 @@ test_new_config_scan_defaults :: proc(t: ^testing.T) {
 	cfg := new_config(paths)
 	defer delete_config(&cfg)
 
-	testing.expect(t, cfg.ScanConfig.Matcher == "\\.env", "matcher should be \\.env")
-	testing.expect(t, len(cfg.ScanConfig.Exclude) == 4, "should have 4 exclude patterns")
-	testing.expect(t, len(cfg.ScanConfig.Include) == 1, "should have 1 include path")
-	testing.expect(t, cfg.ScanConfig.Include[0] == "~", "include should be ~")
+	testing.expect(t, cfg.scan_config.matcher == "\\.env", "matcher should be \\.env")
+	testing.expect(t, len(cfg.scan_config.exclude) == 4, "should have 4 exclude patterns")
+	testing.expect(t, len(cfg.scan_config.include) == 1, "should have 1 include path")
+	testing.expect(t, cfg.scan_config.include[0] == "~", "include should be ~")
 }
 
 @(test)
@@ -65,7 +65,7 @@ test_new_config_exclude_patterns :: proc(t: ^testing.T) {
 
 	expected := []string{"*\\.envrc", "\\.local/", "node_modules", "vendor"}
 	for i in 0 ..< len(expected) {
-		testing.expect(t, cfg.ScanConfig.Exclude[i] == expected[i])
+		testing.expect(t, cfg.scan_config.exclude[i] == expected[i])
 	}
 }
 
@@ -88,13 +88,13 @@ test_save_load_config_roundtrip :: proc(t: ^testing.T) {
 	if !ok do return
 	defer delete_config(&loaded)
 
-	testing.expect(t, len(loaded.Keys) == 1, "should have 1 key")
-	testing.expect(t, loaded.Keys[0].Private == "/home/user/.ssh/id_ed25519")
-	testing.expect(t, loaded.Keys[0].Public == "/home/user/.ssh/id_ed25519.pub")
-	testing.expect(t, loaded.ScanConfig.Matcher == "\\.env")
-	testing.expect(t, len(loaded.ScanConfig.Exclude) == 4)
-	testing.expect(t, len(loaded.ScanConfig.Include) == 1)
-	testing.expect(t, loaded.ScanConfig.Include[0] == "~")
+	testing.expect(t, len(loaded.keys) == 1, "should have 1 key")
+	testing.expect(t, loaded.keys[0].private == "/home/user/.ssh/id_ed25519")
+	testing.expect(t, loaded.keys[0].public == "/home/user/.ssh/id_ed25519.pub")
+	testing.expect(t, loaded.scan_config.matcher == "\\.env")
+	testing.expect(t, len(loaded.scan_config.exclude) == 4)
+	testing.expect(t, len(loaded.scan_config.include) == 1)
+	testing.expect(t, loaded.scan_config.include[0] == "~")
 }
 
 @(test)
@@ -143,10 +143,10 @@ test_save_config_force_overwrites :: proc(t: ^testing.T) {
 	if !ok do return
 	defer delete_config(&loaded)
 
-	testing.expect(t, len(loaded.Keys) == 1, "should have 1 key")
+	testing.expect(t, len(loaded.keys) == 1, "should have 1 key")
 	testing.expect(
 		t,
-		loaded.Keys[0].Private == "/home/user/.ssh/key2",
+		loaded.keys[0].private == "/home/user/.ssh/key2",
 		"should be the overwritten key",
 	)
 }
@@ -186,10 +186,10 @@ test_search_paths_expands_tilde :: proc(t: ^testing.T) {
 	os.set_env("HOME", "/tmp/envr-fake-home-search")
 
 	cfg := Config {
-		ScanConfig = ScanConfig{Include = make([dynamic]string, 0, 1)},
+		scan_config = ScanConfig{include = make([dynamic]string, 0, 1)},
 	}
-	append(&cfg.ScanConfig.Include, "~")
-	defer delete(cfg.ScanConfig.Include)
+	append(&cfg.scan_config.include, "~")
+	defer delete(cfg.scan_config.include)
 
 	paths := search_paths(cfg, context.temp_allocator)
 

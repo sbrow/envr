@@ -20,7 +20,7 @@ fixture_key :: proc() -> SshKeyPair {
 		[]string{FIXTURES, "/keys/insecure-test-key.pub"},
 		context.temp_allocator,
 	)
-	return SshKeyPair{Private = priv, Public = pub}
+	return SshKeyPair{private = priv, public = pub}
 }
 
 fixture_db_path :: proc() -> string {
@@ -30,9 +30,9 @@ fixture_db_path :: proc() -> string {
 
 fixture_config :: proc() -> Config {
 	cfg := Config {
-		Keys = make([dynamic]SshKeyPair, 0, 1),
+		keys = make([dynamic]SshKeyPair, 0, 1),
 	}
-	append(&cfg.Keys, fixture_key())
+	append(&cfg.keys, fixture_key())
 	return cfg
 }
 
@@ -40,7 +40,7 @@ fixture_config :: proc() -> Config {
 test_encrypt_decrypt_sqlite_roundtrip :: proc(t: ^testing.T) {
 	cfg := fixture_config()
 	defer {
-		delete(cfg.Keys)
+		delete(cfg.keys)
 	}
 
 	db_path := fixture_db_path()
@@ -51,7 +51,7 @@ test_encrypt_decrypt_sqlite_roundtrip :: proc(t: ^testing.T) {
 	}
 	defer delete(sqlite_data)
 
-	encrypted, enc_ok := encrypt(sqlite_data, cfg.Keys[:])
+	encrypted, enc_ok := encrypt(sqlite_data, cfg.keys[:])
 	testing.expect(t, enc_ok, "encryption should succeed")
 	if !enc_ok {
 		return
@@ -64,7 +64,7 @@ test_encrypt_decrypt_sqlite_roundtrip :: proc(t: ^testing.T) {
 	testing.expect(t, encrypted[2] == u8('V'), "magic byte 2")
 	testing.expect(t, encrypted[3] == u8('R'), "magic byte 3")
 
-	plaintext, dec_ok := decrypt(encrypted, cfg.Keys[:])
+	plaintext, dec_ok := decrypt(encrypted, cfg.keys[:])
 	testing.expect(t, dec_ok, "decryption should succeed")
 	if !dec_ok {
 		return
@@ -93,7 +93,7 @@ test_encrypt_decrypt_sqlite_roundtrip :: proc(t: ^testing.T) {
 test_encrypt_write_read_decrypt :: proc(t: ^testing.T) {
 	cfg := fixture_config()
 	defer {
-		delete(cfg.Keys)
+		delete(cfg.keys)
 	}
 
 	db_path := fixture_db_path()
@@ -104,7 +104,7 @@ test_encrypt_write_read_decrypt :: proc(t: ^testing.T) {
 	}
 	defer delete(sqlite_data)
 
-	encrypted, enc_ok := encrypt(sqlite_data, cfg.Keys[:])
+	encrypted, enc_ok := encrypt(sqlite_data, cfg.keys[:])
 	testing.expect(t, enc_ok, "encryption should succeed")
 	if !enc_ok {
 		return
@@ -126,7 +126,7 @@ test_encrypt_write_read_decrypt :: proc(t: ^testing.T) {
 	}
 	defer delete(read_back)
 
-	plaintext, dec_ok := decrypt(read_back, cfg.Keys[:])
+	plaintext, dec_ok := decrypt(read_back, cfg.keys[:])
 	testing.expect(t, dec_ok, "decryption after write/read should succeed")
 	if !dec_ok {
 		return
@@ -140,7 +140,7 @@ test_encrypt_write_read_decrypt :: proc(t: ^testing.T) {
 test_decrypt_then_deserialize_sqlite :: proc(t: ^testing.T) {
 	cfg := fixture_config()
 	defer {
-		delete(cfg.Keys)
+		delete(cfg.keys)
 	}
 
 	db_path := fixture_db_path()
@@ -151,14 +151,14 @@ test_decrypt_then_deserialize_sqlite :: proc(t: ^testing.T) {
 	}
 	defer delete(sqlite_data)
 
-	encrypted, enc_ok := encrypt(sqlite_data, cfg.Keys[:])
+	encrypted, enc_ok := encrypt(sqlite_data, cfg.keys[:])
 	testing.expect(t, enc_ok, "encryption should succeed")
 	if !enc_ok {
 		return
 	}
 	defer delete(encrypted)
 
-	plaintext, dec_ok := decrypt(encrypted, cfg.Keys[:])
+	plaintext, dec_ok := decrypt(encrypted, cfg.keys[:])
 	testing.expect(t, dec_ok, "decryption should succeed")
 	if !dec_ok {
 		return
@@ -206,7 +206,7 @@ test_decrypt_then_deserialize_sqlite :: proc(t: ^testing.T) {
 @(test)
 test_full_db_cycle :: proc(t: ^testing.T) {
 	cfg := fixture_config()
-	defer delete(cfg.Keys)
+	defer delete(cfg.keys)
 
 	db_path := fixture_db_path()
 	original_data, read_err := os.read_entire_file_from_path(db_path, context.allocator)
@@ -216,7 +216,7 @@ test_full_db_cycle :: proc(t: ^testing.T) {
 	}
 	defer delete(original_data)
 
-	encrypted, enc_ok := encrypt(original_data, cfg.Keys[:])
+	encrypted, enc_ok := encrypt(original_data, cfg.keys[:])
 	testing.expect(t, enc_ok, "first encryption should succeed")
 	if !enc_ok {
 		return
@@ -241,21 +241,21 @@ test_full_db_cycle :: proc(t: ^testing.T) {
 	}
 	defer delete(read_back)
 
-	plaintext, dec_ok := decrypt(read_back, cfg.Keys[:])
+	plaintext, dec_ok := decrypt(read_back, cfg.keys[:])
 	testing.expect(t, dec_ok, "decryption should succeed")
 	if !dec_ok {
 		return
 	}
 	defer delete(plaintext)
 
-	encrypted2, enc2_ok := encrypt(plaintext, cfg.Keys[:])
+	encrypted2, enc2_ok := encrypt(plaintext, cfg.keys[:])
 	testing.expect(t, enc2_ok, "re-encryption should succeed")
 	if !enc2_ok {
 		return
 	}
 	defer delete(encrypted2)
 
-	plaintext2, dec2_ok := decrypt(encrypted2, cfg.Keys[:])
+	plaintext2, dec2_ok := decrypt(encrypted2, cfg.keys[:])
 	testing.expect(t, dec2_ok, "second decryption should succeed")
 	if !dec2_ok {
 		return
@@ -282,13 +282,13 @@ test_full_db_cycle :: proc(t: ^testing.T) {
 test_ssh_key_parse_from_fixtures :: proc(t: ^testing.T) {
 	key := fixture_key()
 
-	priv_kp, priv_ok := parse_ssh_private_key(key.Private)
+	priv_kp, priv_ok := parse_ssh_private_key(key.private)
 	testing.expect(t, priv_ok, "should parse private key from fixtures")
 	if !priv_ok {
 		return
 	}
 
-	pub_key, pub_ok := parse_ssh_public_key(key.Public)
+	pub_key, pub_ok := parse_ssh_public_key(key.public)
 	testing.expect(t, pub_ok, "should parse public key from fixtures")
 	if !pub_ok {
 		return
@@ -311,20 +311,20 @@ test_ssh_key_parse_from_fixtures :: proc(t: ^testing.T) {
 test_config_load_with_fixture_key :: proc(t: ^testing.T) {
 	cfg := fixture_config()
 	defer {
-		delete(cfg.Keys)
+		delete(cfg.keys)
 	}
 
-	testing.expect(t, len(cfg.Keys) == 1, "should have 1 key")
+	testing.expect(t, len(cfg.keys) == 1, "should have 1 key")
 
-	key := cfg.Keys[0]
+	key := cfg.keys[0]
 
-	testing.expectf(t, len(key.Private) > 0, "private key path should not be empty")
-	testing.expectf(t, len(key.Public) > 0, "public key path should not be empty")
+	testing.expectf(t, len(key.private) > 0, "private key path should not be empty")
+	testing.expectf(t, len(key.public) > 0, "public key path should not be empty")
 
-	_, priv_ok := parse_ssh_private_key(key.Private)
+	_, priv_ok := parse_ssh_private_key(key.private)
 	testing.expect(t, priv_ok, "should parse private key using config paths")
 	if !priv_ok {
-		fmt.printf("  private key path was: '%s'\n", key.Private)
+		fmt.printf("  private key path was: '%s'\n", key.private)
 	}
 }
 

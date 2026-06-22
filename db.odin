@@ -111,7 +111,7 @@ db_restore_from_encrypted :: proc(db: ^Db, data_path: string) -> bool {
 	}
 
 	// TODO: Use context.temp_allocator
-	plaintext, dec_ok := decrypt(encrypted_data, db.cfg.Keys[:])
+	plaintext, dec_ok := decrypt(encrypted_data, db.cfg.keys[:])
 	if !dec_ok {
 		fmt.println("Error: decryption failed")
 		return false
@@ -166,7 +166,7 @@ db_close :: proc(db: ^Db) {
 
 		sqlite_data := data[:sz]
 		// TODO: PAss allocator chain
-		encrypted, enc_ok := encrypt(sqlite_data, db.cfg.Keys[:])
+		encrypted, enc_ok := encrypt(sqlite_data, db.cfg.keys[:])
 		if !enc_ok {
 			fmt.println("Error: encryption failed")
 			return

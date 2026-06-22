@@ -7,8 +7,8 @@ import "findr"
 // Caller is responsible for freeing paths
 scan_path :: proc(search_path: string, cfg: Config) -> (paths: [dynamic]string, ok: bool) {
 	opts := findr.WalkOptions {
-		pattern  = cfg.ScanConfig.Matcher,
-		excludes = cfg.ScanConfig.Exclude[:],
+		pattern  = cfg.scan_config.matcher,
+		excludes = cfg.scan_config.exclude[:],
 	}
 	findr.walk({search_path}, &paths, opts, os.get_processor_core_count())
 	ok = true
@@ -29,3 +29,4 @@ find_unbacked :: proc(local_files: []string, db_files: []EnvFile) -> []string {
 	}
 	return unbacked[:]
 }
+

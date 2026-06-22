@@ -537,8 +537,8 @@ test_db_sync_moved :: proc(t: ^testing.T) {
 	testing.expect(t, ok, "failed to create test db")
 	defer db_close(&db)
 
-	db.cfg.ScanConfig.Include = make([dynamic]string, 0, 1, context.temp_allocator)
-	append(&db.cfg.ScanConfig.Include, search_root)
+	db.cfg.scan_config.include = make([dynamic]string, 0, 1, context.temp_allocator)
+	append(&db.cfg.scan_config.include, search_root)
 
 	f := make_test_env_file(
 		"/old/nonexistent/path/.env",

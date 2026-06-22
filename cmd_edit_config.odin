@@ -41,6 +41,8 @@ cmd_edit_config :: proc(cmd: ^Command) {
 		fmt.wprintf(cmd.err, "Error waiting for editor: %v\n", wait_err, flush = false)
 		return
 	}
+
+	// TODO: Should we call exit inside of commands?
 	if state.exit_code != 0 {
 		os.exit(int(state.exit_code))
 	}

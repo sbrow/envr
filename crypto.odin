@@ -283,16 +283,16 @@ ssh_to_x25519 :: proc(
 	pairs := make([]X25519Keypair, len(keys), allocator)
 
 	for i in 0 ..< len(keys) {
-		ssh_kp, parse_ok := parse_ssh_private_key(keys[i].Private)
+		ssh_kp, parse_ok := parse_ssh_private_key(keys[i].private)
 		if !parse_ok {
-			fmt.printf("Error: failed to parse SSH private key: %s\n", keys[i].Private)
+			fmt.printf("Error: failed to parse SSH private key: %s\n", keys[i].private)
 			delete(pairs)
 			return pairs, false
 		}
 
-		ssh_pub, pub_ok := parse_ssh_public_key(keys[i].Public)
+		ssh_pub, pub_ok := parse_ssh_public_key(keys[i].public)
 		if !pub_ok {
-			fmt.printf("Error: failed to parse SSH public key: %s\n", keys[i].Public)
+			fmt.printf("Error: failed to parse SSH public key: %s\n", keys[i].public)
 			delete(pairs)
 			return pairs, false
 		}

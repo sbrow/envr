@@ -8,21 +8,21 @@ import "core:strings"
 
 import "findr"
 
+Config :: struct {
+	keys:        [dynamic]SshKeyPair `json:"keys"`,
+	scan_config: ScanConfig `json:"scan"`,
+	config_path: string `json:"-"`,
+}
+
 SshKeyPair :: struct {
-	Private: string `json:"private"`,
-	Public:  string `json:"public"`,
+	private: string `json:"private"`,
+	public:  string `json:"public"`,
 }
 
 ScanConfig :: struct {
-	Matcher: string `json:"matcher"`,
-	Exclude: [dynamic]string `json:"exclude"`,
-	Include: [dynamic]string `json:"include"`,
-}
-
-Config :: struct {
-	Keys:        [dynamic]SshKeyPair `json:"keys"`,
-	ScanConfig:  ScanConfig `json:"scan"`,
-	config_path: string `json:"-"`,
+	matcher: string `json:"matcher"`,
+	exclude: [dynamic]string `json:"exclude"`,
+	include: [dynamic]string `json:"include"`,
 }
 
 load_config :: proc(config_path: string, allocator := context.allocator) -> (Config, bool) {
@@ -53,23 +53,23 @@ default_config_path :: proc(home: string, allocator := context.allocator) -> str
 }
 
 delete_config :: proc(cfg: ^Config, allocator := context.allocator) {
-	for key in cfg.Keys {
-		delete(key.Private, allocator)
-		delete(key.Public, allocator)
+	for key in cfg.keys {
+		delete(key.private, allocator)
+		delete(key.public, allocator)
 	}
-	delete(cfg.Keys)
+	delete(cfg.keys)
 
-	delete(cfg.ScanConfig.Matcher, allocator)
+	delete(cfg.scan_config.matcher, allocator)
 
-	for exclude in cfg.ScanConfig.Exclude {
+	for exclude in cfg.scan_config.exclude {
 		delete(exclude, allocator)
 	}
-	delete(cfg.ScanConfig.Exclude)
+	delete(cfg.scan_config.exclude)
 
-	for include in cfg.ScanConfig.Include {
+	for include in cfg.scan_config.include {
 		delete(include, allocator)
 	}
-	delete(cfg.ScanConfig.Include)
+	delete(cfg.scan_config.include)
 }
 
 save_config :: proc(cfg: Config, force: bool = false) -> bool {
@@ -123,7 +123,7 @@ new_config :: proc(
 		// TODO: Is this bad?
 		priv_key := strings.clone(priv)
 		pub, _ := strings.concatenate([]string{priv_key, ".pub"})
-		append(&keys, SshKeyPair{Private = priv_key, Public = pub})
+		append(&keys, SshKeyPair{private = priv_key, public = pub})
 	}
 
 	exclude := make([dynamic]string, 0, 4)
@@ -136,12 +136,12 @@ new_config :: proc(
 	append(&include, strings.clone("~"))
 
 	scan_cfg := ScanConfig {
-		Matcher = strings.clone("\\.env"),
-		Exclude = exclude,
-		Include = include,
+		matcher = strings.clone("\\.env"),
+		exclude = exclude,
+		include = include,
 	}
 
-	return Config{Keys = keys, ScanConfig = scan_cfg, config_path = cfg_path}
+	return Config{keys = keys, scan_config = scan_cfg, config_path = cfg_path}
 }
 
 find_ssh_private_keys :: proc() -> (keys: [dynamic]string, ok: bool) {
@@ -209,7 +209,7 @@ search_paths :: proc(cfg: Config, allocator := context.allocator) -> [dynamic]st
 	// TODO: handle error
 	home, _ := os.user_home_dir(context.temp_allocator)
 
-	paths, _ := new_clone(cfg.ScanConfig.Include, allocator)
+	paths, _ := new_clone(cfg.scan_config.include, allocator)
 
 	for &include in paths {
 		// TODO: Do we need to manually expand ~/ in odin?

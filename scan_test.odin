@@ -35,7 +35,7 @@ test_scan_path_finds_gitignored_env_files :: proc(t: ^testing.T) {
 	_ = os.write_entire_file(fmt.tprintf("%s/config.yaml", base), "key: value")
 
 	cfg := Config {
-		ScanConfig = ScanConfig{Matcher = "\\.env"},
+		scan_config = ScanConfig{matcher = "\\.env"},
 	}
 
 	results, ok := scan_path(base, cfg)
@@ -76,7 +76,7 @@ test_scan_path_empty_dir :: proc(t: ^testing.T) {
 	defer os.remove_all(base)
 
 	cfg := Config {
-		ScanConfig = ScanConfig{Matcher = "\\.env"},
+		scan_config = ScanConfig{matcher = "\\.env"},
 	}
 
 	results, ok := scan_path(base, cfg)
@@ -84,3 +84,4 @@ test_scan_path_empty_dir :: proc(t: ^testing.T) {
 	testing.expect(t, ok, "scan_path should succeed")
 	testing.expect(t, len(results) == 0, fmt.tprintf("expected 0 results, got %d", len(results)))
 }
+

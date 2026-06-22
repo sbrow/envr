@@ -10,7 +10,7 @@ CRYPTO_TEST_KEY_DIR :: "fixtures" + os.Path_Separator_String + "keys"
 make_test_key_pair :: proc(name: string) -> SshKeyPair {
 	priv := fmt.tprintf("%s/%s", CRYPTO_TEST_KEY_DIR, name)
 	pub := fmt.tprintf("%s/%s.pub", CRYPTO_TEST_KEY_DIR, name)
-	return SshKeyPair{Private = priv, Public = pub}
+	return SshKeyPair{private = priv, public = pub}
 }
 
 @(test)
