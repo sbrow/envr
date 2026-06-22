@@ -2,7 +2,9 @@ package main
 
 import "base:runtime"
 import "core:encoding/base64"
+import "core:encoding/endian"
 import "core:fmt"
+import "core:mem"
 import "core:os"
 import "core:strings"
 
@@ -44,9 +46,7 @@ parse_ssh_public_key :: proc(pub_path: string) -> (pub: [32]u8, ok: bool) {
 		return
 	}
 
-	for i in 0 ..< 32 {
-		pub[i] = pk_data[i]
-	}
+	mem.copy_non_overlapping(&pub[0], raw_data(pk_data), 32)
 
 	ok = true
 	return
@@ -86,14 +86,9 @@ parse_ssh_private_key :: proc(priv_path: string) -> (kp: Ed25519Keypair, ok: boo
 		return
 	}
 
-	magic := "openssh-key-v1\x00"
-	if len(decoded) < len(magic) {
+	magic :: "openssh-key-v1\x00"
+	if !strings.has_prefix(string(decoded), magic) {
 		return
-	}
-	for i in 0 ..< len(magic) {
-		if decoded[i] != u8(magic[i]) {
-			return
-		}
 	}
 
 	offset := len(magic)
@@ -116,11 +111,8 @@ parse_ssh_private_key :: proc(priv_path: string) -> (kp: Ed25519Keypair, ok: boo
 	if offset + 4 > len(decoded) {
 		return
 	}
-	num_keys :=
-		u32(decoded[offset]) << 24 |
-		u32(decoded[offset + 1]) << 16 |
-		u32(decoded[offset + 2]) << 8 |
-		u32(decoded[offset + 3])
+
+	num_keys := endian.get_u32(decoded[offset:offset + 4], .Big) or_return
 	offset += 4
 
 	if num_keys != 1 {
@@ -141,17 +133,16 @@ parse_ssh_private_key :: proc(priv_path: string) -> (kp: Ed25519Keypair, ok: boo
 	if inner_offset + 8 > len(priv_blob) {
 		return
 	}
-	check1 :=
-		u32(priv_blob[inner_offset]) << 24 |
-		u32(priv_blob[inner_offset + 1]) << 16 |
-		u32(priv_blob[inner_offset + 2]) << 8 |
-		u32(priv_blob[inner_offset + 3])
+
+	check1 := endian.get_u32(
+		transmute([]u8)(priv_blob)[inner_offset:inner_offset + 4],
+		.Big,
+	) or_return
 	inner_offset += 4
-	check2 :=
-		u32(priv_blob[inner_offset]) << 24 |
-		u32(priv_blob[inner_offset + 1]) << 16 |
-		u32(priv_blob[inner_offset + 2]) << 8 |
-		u32(priv_blob[inner_offset + 3])
+	check2 := endian.get_u32(
+		transmute([]u8)(priv_blob)[inner_offset:inner_offset + 4],
+		.Big,
+	) or_return
 	inner_offset += 4
 
 	if check1 != check2 {
@@ -167,17 +158,14 @@ parse_ssh_private_key :: proc(priv_path: string) -> (kp: Ed25519Keypair, ok: boo
 	if !pub_ok || len(pub_wire) != 32 {
 		return
 	}
-	for i in 0 ..< 32 {
-		kp.Public[i] = pub_wire[i]
-	}
+	mem.copy_non_overlapping(&kp.Public[0], raw_data(pub_wire), 32)
 
 	priv_wire, priv_ok := read_wire_string(transmute([]u8)priv_blob, &inner_offset)
 	if !priv_ok || len(priv_wire) != 64 {
 		return
 	}
-	for i in 0 ..< 32 {
-		kp.Private[i] = priv_wire[i]
-	}
+
+	mem.copy_non_overlapping(&kp.Private[0], raw_data(priv_wire), 32)
 
 	ok = true
 	return
@@ -198,11 +186,7 @@ read_wire_string :: proc(data: []u8, offset: ^int) -> (s: string, ok: bool) {
 	if offset^ + 4 > len(data) {
 		return
 	}
-	length :=
-		u32(data[offset^]) << 24 |
-		u32(data[offset^ + 1]) << 16 |
-		u32(data[offset^ + 2]) << 8 |
-		u32(data[offset^ + 3])
+	length := endian.get_u32(data[offset^:offset^ + 4], .Big) or_return
 	offset^ += 4
 
 	if offset^ + int(length) > len(data) {

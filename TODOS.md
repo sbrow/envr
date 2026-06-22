@@ -56,6 +56,8 @@
 
 28. Pass allocator to findr?
 
+29. Update `read_wire_string` to use a slice.
+
 ## Double-check AI output
 
 - [ ] cli.odin
