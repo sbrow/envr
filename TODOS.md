@@ -2,54 +2,55 @@
 
 1. Commands are still leaking.
 
-28. **db.odin** — Inconsistencies in how struct vs sqlite are named.
+2. **db.odin** — Inconsistencies in how struct vs sqlite are named.
 
-29. Add color flag and support non colored output.
+3. Add color flag and support non colored output.
 
-30. Use text/tables for command output
+4. Use text/tables for command output
 
-2. Generate md and man pages again.
-3. **db.odin:324-327** — Map iteration (`remote_set`) is non-deterministic. Same file can produce different JSON on each backup, causing spurious DB diffs. Sort remotes before storing.
+5. Generate md and man pages again.
 
-4. Make sure official path separators are used when appropriate, rather than '/'.
+6. **db.odin:324-327** — Map iteration (`remote_set`) is non-deterministic. Same file can produce different JSON on each backup, causing spurious DB diffs. Sort remotes before storing.
 
-5. **cmd_restore.odin:20-30 & cmd_remove.odin:19-29** — Identical path-resolution block copy-pasted. `is_abs` guard is redundant since `filepath.abs` is a no-op on absolute paths. Extract a helper.
+7. Make sure official path separators are used when appropriate, rather than '/'.
 
-6. **cmd_restore.odin:44** — `os.mkdir_all` error silently discarded. Subsequent write failure will be confusing.
+8. **cmd_restore.odin:20-30 & cmd_remove.odin:19-29** — Identical path-resolution block copy-pasted. `is_abs` guard is redundant since `filepath.abs` is a no-op on absolute paths. Extract a helper.
 
-8. **config.odin:178** — `search_paths` silently ignores `os.user_home_dir` error. If home is empty, `~` isn't expanded. Same class of bug as issue 3.
+9. **cmd_restore.odin:44** — `os.mkdir_all` error silently discarded. Subsequent write failure will be confusing.
 
-10. **db.odin:115** — `json.unmarshal_string` error not checked. Malformed JSON silently produces empty/partial data.
+10. **config.odin:178** — `search_paths` silently ignores `os.user_home_dir` error. If home is empty, `~` isn't expanded. Same class of bug as issue 3.
 
-11. **db.odin:352-353** — `hex.encode` error ignored. `string(hex_bytes)` aliases the byte slice.
+11. **db.odin:115** — `json.unmarshal_string` error not checked. Malformed JSON silently produces empty/partial data.
 
-12. **cmd_sync.odin:80, cmd_list.odin:33** — `make([]string, 2)` for table rows never freed. Leaks per row. Defer to memory pass.
+12. **db.odin:352-353** — `hex.encode` error ignored. `string(hex_bytes)` aliases the byte slice.
 
-13. Check for prealloc opportunities. i.e. `make([dynamic]string)` -> `make([dynamic]string, 5)`.
+13. **cmd_sync.odin:80, cmd_list.odin:33** — `make([]string, 2)` for table rows never freed. Leaks per row. Defer to memory pass.
 
-14. Add a text filter to the multi_select.
+14. Check for prealloc opportunities. i.e. `make([dynamic]string)` -> `make([dynamic]string, 5)`.
+
+15. Add a text filter to the multi_select.
 
 16. Add tests for untested commands.
 
 17. 2 scan tests silently skip when fd isn't installed, tests pass without actually testing anything. These should use #assert to be sure that fd is in path.
 
-19. add --format -f flag to commands that draw tables.
+18. add --format -f flag to commands that draw tables.
 
-20. Replace `testing.expect` calls with `testing.expect_value` calls where appropriate.
+19. Replace `testing.expect` calls with `testing.expect_value` calls where appropriate.
 
-21. Change struct field names from PascalCase to snake_case.
+20. Change struct field names from PascalCase to snake_case.
 
-23. procedures should be ordered by use, main at the top, then in the order they are called from main.
+21. procedures should be ordered by use, main at the top, then in the order they are called from main.
 
-24. Shell completion
+22. Shell completion
 
-25. Bring back windows support / cross-compilation.
+23. Bring back windows support / cross-compilation.
 
-26. Test all cmds / terminal branches.
+24. Test all cmds / terminal branches.
 
-27. Replace `fmt.tprintf("/tmp/envr-test-...-%d", os.get_pid())` + `os.mkdir_all` in test files with `os.mkdir_temp` (race-free, honors `$TMPDIR`, matches `findr/test_env.odin` pattern).
+25. Replace `fmt.tprintf("/tmp/envr-test-...-%d", os.get_pid())` + `os.mkdir_all` in test files with `os.mkdir_temp` (race-free, honors `$TMPDIR`, matches `findr/test_env.odin` pattern).
 
-28. Adopt `core:log` across `db.odin`, `crypto.odin`, `config.odin`, `ssh.odin` — replace ~30 scattered `fmt.printf("Error ...")` calls with leveled logging for consistent stderr routing and source locations.
+26. Adopt `core:log` across `db.odin`, `crypto.odin`, `config.odin`, `ssh.odin` — replace ~30 scattered `fmt.printf("Error ...")` calls with leveled logging for consistent stderr routing and source locations.
 
 ## Double-check AI output
 
