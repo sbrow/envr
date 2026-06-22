@@ -72,39 +72,4 @@ test_read_wire_string :: proc(t: ^testing.T) {
 	testing.expect(t, s2 == "", "expected empty string")
 }
 
-@(test)
-test_is_encrypted_key_encrypted :: proc(t: ^testing.T) {
-	testing.expect(
-		t,
-		is_encrypted_key(TEST_KEY_DIR + "/test_ed25519_encrypted"),
-		"encrypted key should be detected as encrypted",
-	)
-}
-
-@(test)
-test_is_encrypted_key_unencrypted :: proc(t: ^testing.T) {
-	testing.expect(
-		t,
-		!is_encrypted_key(TEST_KEY_DIR + "/test_ed25519"),
-		"unencrypted key should not be detected as encrypted",
-	)
-}
-
-@(test)
-test_is_encrypted_key_rsa_unencrypted :: proc(t: ^testing.T) {
-	testing.expect(
-		t,
-		!is_encrypted_key(TEST_KEY_DIR + "/test_rsa"),
-		"unencrypted RSA key should not be detected as encrypted",
-	)
-}
-
-@(test)
-test_is_encrypted_key_missing_file :: proc(t: ^testing.T) {
-	testing.expect(
-		t,
-		is_encrypted_key(TEST_KEY_DIR + "/nonexistent"),
-		"missing file should be treated as encrypted (fail-safe)",
-	)
-}
 
