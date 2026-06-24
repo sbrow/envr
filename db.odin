@@ -387,6 +387,7 @@ db_delete :: proc(db: ^Db, path: string) -> bool {
 	return true
 }
 
+// Caller is responsible for the returned memory
 new_env_file :: proc(path: string) -> (EnvFile, bool) {
 	abs_path, abs_err := filepath.abs(path)
 	if abs_err != nil {
@@ -400,7 +401,6 @@ new_env_file :: proc(path: string) -> (EnvFile, bool) {
 	remotes := get_git_remotes(dir, context.allocator)
 
 	data, read_err := os.read_entire_file_from_path(abs_path, context.allocator)
-	defer delete(data)
 	if read_err != nil {
 		fmt.printf("Error reading file %s: %v\n", abs_path, read_err)
 		return EnvFile{}, false

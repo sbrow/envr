@@ -15,7 +15,10 @@ cmd_backup :: proc(cmd: ^Command) {
 		return
 	}
 
+	// TODO: allow new_env_file to accept allocator?
+	// TODO: Write a test that covers this leak
 	file, ok := new_env_file(path)
+	defer delete_envfile(&file)
 	if !ok {
 		return
 	}

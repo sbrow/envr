@@ -348,6 +348,7 @@ test_new_env_file :: proc(t: ^testing.T) {
 	file, ok := new_env_file(env_path)
 	testing.expect(t, ok, "new_env_file should succeed")
 	if !ok do return
+	defer delete(file.contents)
 	defer delete(file.Remotes)
 	defer delete(file.Sha256)
 	defer delete(file.Path)
