@@ -34,11 +34,9 @@
 
 17. Fix error messages to use fmt.eprintf (stderr) instead of fmt.printf (stdout)
 
-18. "Encryption failed" in tests. 
+18. Pass allocator to findr?
 
-19. Pass allocator to findr?
-
-20. Update `read_wire_string` to use a slice.
+19. Update `read_wire_string` to use a slice.
 
 ## Double-check AI output
 

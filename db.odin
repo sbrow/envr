@@ -61,6 +61,18 @@ db_open :: proc(cfg_path: string) -> (db: Db, ok: bool) {
 	db = db_init() or_return
 	db.cfg = load_config(cfg_path, db_allocator(&db)) or_return
 
+	if len(db.cfg.keys) == 0 {
+		fmt.eprintf("Error: no SSH keys configured in %s\n", cfg_path)
+		db_close(&db)
+		return db, false
+	}
+
+	_, keys_ok := ssh_to_x25519(db.cfg.keys[:], context.temp_allocator)
+	if !keys_ok {
+		db_close(&db)
+		return db, false
+	}
+
 	// TODO: Use different allocators?
 	data_path := data_path(db.cfg.config_path, context.temp_allocator)
 	if os.exists(data_path) {
@@ -139,6 +151,8 @@ db_restore_from_encrypted :: proc(db: ^Db, data_path: string) -> bool {
 	return true
 }
 
+// db_close will fail silently if cfg.keys is empty. If you want to save the
+// Db, be sure to use db_open rather than db_init
 db_close :: proc(db: ^Db) {
 	allocator := db_allocator(db)
 
@@ -150,7 +164,7 @@ db_close :: proc(db: ^Db) {
 		mem.dynamic_arena_destroy(&db.arena)
 	}
 
-	if db.changed {
+	if db.changed && len(db.cfg.keys) > 0 {
 		rc := sqlite.exec(db.conn, "VACUUM", nil, nil, nil)
 		if rc != sqlite.OK {
 			fmt.printf("Error vacuuming database: %s\n", sqlite.errmsg(db.conn))
@@ -169,7 +183,8 @@ db_close :: proc(db: ^Db) {
 		// TODO: PAss allocator chain
 		encrypted, enc_ok := encrypt(sqlite_data, db.cfg.keys[:])
 		if !enc_ok {
-			fmt.println("Error: encryption failed")
+			fmt.eprintln("Database encryption failed")
+
 			return
 		}
 
