@@ -10,7 +10,7 @@
 
 5. Generate md and man pages again.
 
-6. **db.odin:324-327** — Map iteration (`remote_set`) is non-deterministic. Same file can produce different JSON on each backup, causing spurious DB diffs. Sort remotes before storing.
+6. Json may be an expensive encoding for remotes. Confirm with spall, and use null terminated strings if necessary.
 
 7. Make sure official path separators are used when appropriate, rather than '/'.
 
@@ -19,8 +19,6 @@
 9. **cmd_restore.odin:44** — `os.mkdir_all` error silently discarded. Subsequent write failure will be confusing.
 
 10. **config.odin:178** — `search_paths` silently ignores `os.user_home_dir` error. If home is empty, `~` isn't expanded. Same class of bug as issue 3.
-
-11. **db.odin:115** — `json.unmarshal_string` error not checked. Malformed JSON silently produces empty/partial data.
 
 12. **db.odin:352-353** — `hex.encode` error ignored. `string(hex_bytes)` aliases the byte slice.
 

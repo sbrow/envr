@@ -219,7 +219,10 @@ db_list :: proc(db: ^Db) -> ([]EnvFile, bool) {
 		remotes_json := string(sqlite.column_text(stmt, 1))
 		remotes: [dynamic]string = ---
 		if len(remotes_json) > 0 {
-			json.unmarshal_string(remotes_json, &remotes, allocator = allocator)
+			err := json.unmarshal_string(remotes_json, &remotes, allocator = allocator)
+			if err != nil {
+				fmt.eprintf("Warning: malformed remotes JSON: %v\n", err)
+			}
 		}
 		path := clone_cstring(sqlite.column_text(stmt, 0), allocator)
 
@@ -333,7 +336,10 @@ db_fetch :: proc(db: ^Db, path: string) -> (EnvFile, bool) {
 	remotes_json := string(sqlite.column_text(stmt, 1))
 	remotes: [dynamic]string = ---
 	if len(remotes_json) > 0 {
-		json.unmarshal_string(remotes_json, &remotes, allocator = allocator)
+		err := json.unmarshal_string(remotes_json, &remotes, allocator = allocator)
+		if err != nil {
+			fmt.eprintf("Warning: malformed remotes JSON: %v\n", err)
+		}
 	}
 
 	file_path := clone_cstring(sqlite.column_text(stmt, 0), allocator)
