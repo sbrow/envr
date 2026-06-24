@@ -37,7 +37,7 @@ create_file :: proc(env: TestEnv, path: string, content: string = "") {
 	full := join_path(env.temp_dir, path)
 	defer delete(full)
 
-	dir_end := strings.last_index(full, "/")
+	dir_end := strings.last_index(full, os.Path_Separator_String)
 	if dir_end >= 0 {
 		dir_path := full[:dir_end]
 		os.mkdir_all(dir_path, os.Permissions_Default_Directory)
@@ -105,12 +105,7 @@ assert_output :: proc(
 	}
 }
 
-assert_output_empty :: proc(
-	t: ^testing.T,
-	env: TestEnv,
-	args: []string,
-	opts: WalkOptions,
-) {
+assert_output_empty :: proc(t: ^testing.T, env: TestEnv, args: []string, opts: WalkOptions) {
 	results := collect_results(env, args, opts)
 	defer {
 		for r in results {delete(r)}
@@ -139,7 +134,7 @@ collect_results :: proc(env: TestEnv, args: []string, opts: WalkOptions) -> [dyn
 		r := results[i]
 		if strings.has_prefix(r, env.temp_dir) {
 			stripped := r[len(env.temp_dir):]
-			if len(stripped) > 0 && stripped[0] == '/' {
+			if len(stripped) > 0 && stripped[0] == os.Path_Separator {
 				stripped = stripped[1:]
 			}
 			new_r, _ := strings.clone(stripped)
@@ -150,3 +145,4 @@ collect_results :: proc(env: TestEnv, args: []string, opts: WalkOptions) -> [dyn
 
 	return results
 }
+

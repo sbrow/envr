@@ -21,9 +21,7 @@ test_basic_gitignored :: proc(t: ^testing.T) {
 	create_file(env, "repo/secrets.env")
 	create_file(env, "repo/normal.txt")
 
-	assert_output(t, env, nil, {}, {
-		"repo/.env", "repo/secrets.env",
-	})
+	assert_output(t, env, nil, {}, {"repo/.env", "repo/secrets.env"})
 }
 
 @(test)
@@ -49,9 +47,7 @@ test_negation_pattern :: proc(t: ^testing.T) {
 	create_file(env, "repo/secrets.env")
 	create_file(env, "repo/prod.env")
 
-	assert_output(t, env, nil, {}, {
-		"repo/.env", "repo/secrets.env",
-	})
+	assert_output(t, env, nil, {}, {"repo/.env", "repo/secrets.env"})
 }
 
 @(test)
@@ -67,9 +63,7 @@ test_multiple_repos :: proc(t: ^testing.T) {
 	create_file(env, "repo2/.gitignore", "*.key\n")
 	create_file(env, "repo2/secret.key")
 
-	assert_output(t, env, nil, {}, {
-		"repo1/a.env", "repo2/secret.key",
-	})
+	assert_output(t, env, nil, {}, {"repo1/a.env", "repo2/secret.key"})
 }
 
 @(test)
@@ -85,9 +79,7 @@ test_nested_repos :: proc(t: ^testing.T) {
 	create_file(env, "parent/child/.gitignore", "*.key\n")
 	create_file(env, "parent/child/api.key")
 
-	assert_output(t, env, nil, {}, {
-		"parent/top.env", "parent/child/api.key",
-	})
+	assert_output(t, env, nil, {}, {"parent/top.env", "parent/child/api.key"})
 }
 
 @(test)
@@ -102,9 +94,7 @@ test_nested_gitignore_read :: proc(t: ^testing.T) {
 	create_file(env, "repo/sub/secret.txt")
 	create_file(env, "repo/sub/.env")
 
-	assert_output(t, env, nil, {}, {
-		"repo/sub/secret.txt", "repo/sub/.env",
-	})
+	assert_output(t, env, nil, {}, {"repo/sub/secret.txt", "repo/sub/.env"})
 }
 
 @(test)
@@ -119,9 +109,7 @@ test_nested_gitignore_negation :: proc(t: ^testing.T) {
 	create_file(env, "repo/sub/important.log")
 	create_file(env, "repo/sub/debug.log")
 
-	assert_output(t, env, nil, {}, {
-		"repo/sub/debug.log",
-	})
+	assert_output(t, env, nil, {}, {"repo/sub/debug.log"})
 }
 
 @(test)
@@ -136,9 +124,7 @@ test_multisegment_pattern :: proc(t: ^testing.T) {
 	create_file(env, "repo/build/other.txt")
 	create_file(env, "repo/output.txt")
 
-	assert_output(t, env, nil, {}, {
-		"repo/build/output.txt",
-	})
+	assert_output(t, env, nil, {}, {"repo/build/output.txt"})
 }
 
 @(test)
@@ -200,7 +186,7 @@ test_multiple_search_dirs :: proc(t: ^testing.T) {
 		stripped := r
 		if strings.has_prefix(stripped, env.temp_dir) {
 			stripped = stripped[len(env.temp_dir):]
-			if len(stripped) > 0 && stripped[0] == '/' {
+			if len(stripped) > 0 && stripped[0] == os.Path_Separator {
 				stripped = stripped[1:]
 			}
 		}
@@ -234,9 +220,7 @@ test_ignored_dir_descended :: proc(t: ^testing.T) {
 	create_file(env, "repo/secrets/api.key")
 
 	// Ignored dir's contents are emitted AND descended into
-	assert_output(t, env, nil, {}, {
-		"repo/secrets/", "repo/secrets/.env", "repo/secrets/api.key",
-	})
+	assert_output(t, env, nil, {}, {"repo/secrets/", "repo/secrets/.env", "repo/secrets/api.key"})
 }
 
 @(test)
@@ -251,10 +235,13 @@ test_nested_ignored_dir :: proc(t: ^testing.T) {
 	create_file(env, "repo/build/output.txt")
 	create_file(env, "repo/build/sub/deep.env")
 
-	assert_output(t, env, nil, {}, {
-		"repo/build/", "repo/build/output.txt",
-		"repo/build/sub/", "repo/build/sub/deep.env",
-	})
+	assert_output(
+		t,
+		env,
+		nil,
+		{},
+		{"repo/build/", "repo/build/output.txt", "repo/build/sub/", "repo/build/sub/deep.env"},
+	)
 }
 
 // ============================================================================
@@ -272,10 +259,7 @@ test_excludes_prune_dirs :: proc(t: ^testing.T) {
 	create_dir(env, "repo/vendor")
 	create_file(env, "repo/vendor/lib.env")
 
-	assert_output(t, env, nil,
-		{excludes = {"vendor"}},
-		{"repo/.env"},
-	)
+	assert_output(t, env, nil, {excludes = {"vendor"}}, {"repo/.env"})
 }
 
 @(test)
@@ -289,10 +273,7 @@ test_pattern_filters_results :: proc(t: ^testing.T) {
 	create_file(env, "repo/secrets.env")
 	create_file(env, "repo/master.key")
 
-	assert_output(t, env, nil,
-		{pattern = "\\.env$"},
-		{"repo/.env", "repo/secrets.env"},
-	)
+	assert_output(t, env, nil, {pattern = "\\.env$"}, {"repo/.env", "repo/secrets.env"})
 }
 
 // ============================================================================
@@ -313,8 +294,6 @@ test_fifo_emitted :: proc(t: ^testing.T) {
 	defer delete(cpath)
 	linux.mknod(cpath, linux.S_IFIFO | linux.Mode{.IRUSR, .IWUSR}, 0)
 
-	assert_output(t, env, nil,
-		{pattern = "\\.fifo$"},
-		{"repo/test.fifo"},
-	)
+	assert_output(t, env, nil, {pattern = "\\.fifo$"}, {"repo/test.fifo"})
 }
+

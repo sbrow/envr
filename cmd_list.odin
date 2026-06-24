@@ -57,11 +57,15 @@ cmd_list :: proc(cmd: ^Command) {
 			append(
 				&entries,
 				ListEntry {
-					dir = strings.concatenate({row.dir, "/"}, context.temp_allocator),
+					dir = strings.concatenate(
+						{row.dir, os.Path_Separator_String},
+						context.temp_allocator,
+					),
 					path = filename,
 				},
 			)
 		}
+
 
 		data, marshal_err := json.marshal(entries[:], allocator = context.temp_allocator)
 		if marshal_err != nil {

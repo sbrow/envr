@@ -189,7 +189,7 @@ flush_buf :: proc(ch: chan.Chan([]u8), local: ^[dynamic]u8) {
 }
 
 append_path :: proc(buf: ^[dynamic]u8, parent, name: string, trailing_slash: bool) {
-	need_sep := len(parent) > 0 && parent[len(parent) - 1] != '/'
+	need_sep := len(parent) > 0 && parent[len(parent) - 1] != os.Path_Separator
 	size := len(parent) + len(name) + 1
 	if need_sep do size += 1
 	if trailing_slash do size += 1
@@ -200,9 +200,9 @@ append_path :: proc(buf: ^[dynamic]u8, parent, name: string, trailing_slash: boo
 
 	pos := old_len
 	pos += copy(buf[pos:], parent)
-	if need_sep {buf[pos] = '/'; pos += 1}
+	if need_sep {buf[pos] = os.Path_Separator; pos += 1}
 	pos += copy(buf[pos:], name)
-	if trailing_slash {buf[pos] = '/'; pos += 1}
+	if trailing_slash {buf[pos] = os.Path_Separator; pos += 1}
 	buf[pos] = '\n'
 }
 
@@ -362,6 +362,7 @@ check_chain :: proc(ctx: ^GIContext, entry_rel: string, is_dir: bool) -> bool {
 	return false
 }
 
+// TODO: Is this a copy of something in the core packages?
 relative_to :: proc(entry_rel, base_rel: string) -> string {
 	if len(base_rel) == 0 do return entry_rel
 	prefix_len := len(base_rel)
@@ -442,14 +443,15 @@ load_ignore_patterns :: proc(dir_path: string, in_repo: bool) -> ^Gitignore {
 	return gi
 }
 
+// TODO: Is this a copy of core package behavior?
 join_path :: proc(parent, child: string) -> string {
-	need_sep := len(parent) == 0 || parent[len(parent) - 1] != '/'
+	need_sep := len(parent) == 0 || parent[len(parent) - 1] != os.Path_Separator
 	total := len(parent) + len(child)
 	if need_sep do total += 1
 	buf := make([]u8, total, context.allocator)
 	pos := copy(buf, parent)
 	if need_sep {
-		buf[pos] = '/'
+		buf[pos] = os.Path_Separator
 		pos += 1
 	}
 	copy(buf[pos:], child)

@@ -10,33 +10,31 @@
 
 5. Json may be an expensive encoding for remotes. Confirm with spall, and use null terminated strings if necessary.
 
-6. Make sure official path separators are used when appropriate, rather than '/'.
+6. Consistently ignore allocator errors
 
-7. Consistently ignore allocator errors
+7. Check for prealloc opportunities. i.e. `make([dynamic]string)` -> `make([dynamic]string, 5)`.
 
-8. Check for prealloc opportunities. i.e. `make([dynamic]string)` -> `make([dynamic]string, 5)`.
+8. Add a text filter to the multi_select.
 
-9. Add a text filter to the multi_select.
+9. Add tests for untested commands.
 
-10. Add tests for untested commands.
+10. add --format -f flag to commands that draw tables.
 
-11. add --format -f flag to commands that draw tables.
+11. Replace `testing.expect` calls with `testing.expect_value` calls where appropriate.
 
-12. Replace `testing.expect` calls with `testing.expect_value` calls where appropriate.
+12. procedures should be ordered by use, main at the top, then in the order they are called from main.
 
-13. procedures should be ordered by use, main at the top, then in the order they are called from main.
+13. Shell completion
 
-14. Shell completion
+14. Bring back windows support / cross-compilation.
 
-15. Bring back windows support / cross-compilation.
+15. Test all cmds / terminal branches.
 
-16. Test all cmds / terminal branches.
+16. Fix error messages to use fmt.eprintf (stderr) instead of fmt.printf (stdout)
 
-17. Fix error messages to use fmt.eprintf (stderr) instead of fmt.printf (stdout)
+17. Pass allocator to findr?
 
-18. Pass allocator to findr?
-
-19. Update `read_wire_string` to use a slice.
+18. Update `read_wire_string` to use a slice.
 
 ## Double-check AI output
 
