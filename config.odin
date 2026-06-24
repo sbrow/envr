@@ -208,17 +208,19 @@ find_git_roots :: proc(
 }
 
 search_paths :: proc(cfg: Config, allocator := context.allocator) -> [dynamic]string {
-	// TODO: handle error
-	home, _ := os.user_home_dir(context.temp_allocator)
+	home, err := os.user_home_dir(context.temp_allocator)
+	if err != nil {
+		panic("Failed to find home directory")
+	}
 
-	paths, _ := new_clone(cfg.scan_config.include, allocator)
+	paths := new_clone(cfg.scan_config.include, allocator)
 
 	for &include in paths {
-		// TODO: Do we need to manually expand ~/ in odin?
 		expanded, _ := strings.replace(include, "~", home, 1, allocator)
 		if filepath.is_abs(expanded) {
 			include = expanded
 		} else {
+			// TODO: show errors?
 			resolved, err := filepath.abs(expanded, allocator)
 			if err == nil {
 				include = resolved

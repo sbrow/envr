@@ -14,8 +14,6 @@
 
 7. Make sure official path separators are used when appropriate, rather than '/'.
 
-10. **config.odin:178** — `search_paths` silently ignores `os.user_home_dir` error. If home is empty, `~` isn't expanded. Same class of bug as issue 3.
-
 12. Consistently ignore allocator errors
 
 13. **cmd_sync.odin:80, cmd_list.odin:33** — `make([]string, 2)` for table rows never freed. Leaks per row. Defer to memory pass.
