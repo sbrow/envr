@@ -16,18 +16,11 @@ cmd_restore :: proc(cmd: ^Command) {
 		fmt.wprintln(cmd.err, "Error: No path provided", flush = false)
 		return
 	}
+	abs_path, abs_err := filepath.abs(path, context.temp_allocator)
+	if abs_err != nil {
+		fmt.wprintf(cmd.err, "Error getting absolute path: %v\n", abs_err, flush = false)
 
-	// TODO: Is this the right way to handle this?
-	abs_path: string
-	if filepath.is_abs(path) {
-		abs_path = path
-	} else {
-		resolved, abs_err := filepath.abs(path)
-		if abs_err != nil {
-			fmt.wprintf(cmd.err, "Error getting absolute path: %v\n", abs_err, flush = false)
-			return
-		}
-		abs_path = resolved
+		return
 	}
 
 	db, db_ok := db_open(cmd.config_path)
@@ -43,13 +36,15 @@ cmd_restore :: proc(cmd: ^Command) {
 
 	dir := filepath.dir(file.Path)
 	if err := os.mkdir_all(dir); err != nil {
-		fmt.wprintf(cmd.err, "failed to create directory: %s\n", err)
+		fmt.wprintf(cmd.err, "Failed to create directory: %v\n", err, flush = false)
+
 		return
 	}
 
 	write_err := os.write_entire_file(file.Path, file.contents)
 	if write_err != nil {
 		fmt.wprintf(cmd.err, "Error writing file: %v\n", write_err, flush = false)
+
 		return
 	}
 

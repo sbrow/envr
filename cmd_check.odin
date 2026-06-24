@@ -7,28 +7,21 @@ import "core:path/filepath"
 // TODO: What happens if you pass a non existent path to cmd_check?
 // TODO: UX could be improved, so "run envr add ." if file not exists.
 cmd_check :: proc(cmd: ^Command) {
-	check_path: string
+	_check_path: string
 	if len(cmd.args) > 0 {
-		check_path = cmd.args[0]
+		_check_path = cmd.args[0]
 	} else {
 		cwd, cwd_err := os.get_working_directory(context.temp_allocator)
 		if cwd_err != nil {
 			fmt.wprintf(cmd.err, "Error getting current directory: %v\n", cwd_err, flush = false)
 			return
 		}
-		check_path = cwd
+		_check_path = cwd
 	}
-
-	abs_path: string
-	if filepath.is_abs(check_path) {
-		abs_path = check_path
-	} else {
-		resolved, abs_err := filepath.abs(check_path)
-		if abs_err != nil {
-			fmt.wprintf(cmd.err, "Error getting absolute path: %v\n", abs_err, flush = false)
-			return
-		}
-		abs_path = resolved
+	check_path, abs_err := filepath.abs(_check_path, context.temp_allocator)
+	if abs_err != nil {
+		fmt.wprintf(cmd.err, "Error getting absolute path: %v\n", abs_err, flush = false)
+		return
 	}
 
 	db, db_ok := db_open(cmd.config_path)
@@ -37,20 +30,20 @@ cmd_check :: proc(cmd: ^Command) {
 	}
 	defer db_close(&db)
 
-	is_dir := os.is_directory(abs_path)
+	is_dir := os.is_directory(check_path)
 
 	// TODO: set a reasonable default
 	files_in_path := make([dynamic]string, context.temp_allocator)
 
 	if is_dir {
-		scanned, scan_ok := scan_path(abs_path, db.cfg)
+		scanned, scan_ok := scan_path(check_path, db.cfg)
 		if !scan_ok {
 			fmt.wprintln(cmd.err, "Error scanning directory for .env files", flush = false)
 			return
 		}
 		files_in_path = scanned
 	} else {
-		append(&files_in_path, abs_path)
+		append(&files_in_path, check_path)
 	}
 
 	db_files, list_ok := db_list(&db)

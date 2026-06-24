@@ -16,17 +16,10 @@ cmd_remove :: proc(cmd: ^Command) {
 		return
 	}
 
-	// TODO: Is this the best way to do it?
-	abs_path: string
-	if filepath.is_abs(path) {
-		abs_path = path
-	} else {
-		resolved, abs_err := filepath.abs(path)
-		if abs_err != nil {
-			fmt.wprintf(cmd.err, "Error getting absolute path: %v\n", abs_err, flush = false)
-			return
-		}
-		abs_path = resolved
+	abs_path, abs_err := filepath.abs(path, context.temp_allocator)
+	if abs_err != nil {
+		fmt.wprintf(cmd.err, "Error getting absolute path: %v\n", abs_err, flush = false)
+		return
 	}
 
 	db, db_ok := db_open(cmd.config_path)

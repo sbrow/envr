@@ -305,7 +305,11 @@ db_insert :: proc(db: ^Db, file: EnvFile) -> bool {
 }
 
 // Result will be freed when `db_close` is called.
+//
+// Expects an absolute path
 db_fetch :: proc(db: ^Db, path: string) -> (EnvFile, bool) {
+	assert(os.is_absolute_path(path))
+
 	sql: cstring = "SELECT path, remotes, sha256, contents FROM envr_env_files WHERE path = ?"
 	stmt: sqlite.Stmt
 	rc := sqlite.prepare_v2(db.conn, sql, -1, &stmt, nil)
