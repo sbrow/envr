@@ -19,20 +19,23 @@ test_scan_path_finds_gitignored_env_files :: proc(t: ^testing.T) {
 		stderr      = os.stderr,
 	}
 	p, err := os.process_start(git_init)
-	if err != nil {
-		return
-	}
-	_, wait_err := os.process_wait(p)
-	if wait_err != nil {
-		return
-	}
+	testing.expectf(t, err == nil, "Failed to run git: %v", err)
+	if err != nil do return
+	state, wait_err := os.process_wait(p)
+	testing.expectf(t, wait_err == nil, "Failed to wait: %v", wait_err)
+	if wait_err != nil do return
+	testing.expect(t, state.success, "command should succeed")
 
 	gitignore_path := fmt.tprintf("%s/.gitignore", base)
-	_ = os.write_entire_file(gitignore_path, ".env*\n")
+	err = os.write_entire_file(gitignore_path, ".env*\n")
+	testing.expectf(t, err == nil, "Failed: %v", err)
 
-	_ = os.write_entire_file(fmt.tprintf("%s/.env", base), "SECRET=1")
-	_ = os.write_entire_file(fmt.tprintf("%s/.env.testing", base), "TEST=1")
-	_ = os.write_entire_file(fmt.tprintf("%s/config.yaml", base), "key: value")
+	err = os.write_entire_file(fmt.tprintf("%s/.env", base), "SECRET=1")
+	testing.expectf(t, err == nil, "Failed: %v", err)
+	err = os.write_entire_file(fmt.tprintf("%s/.env.testing", base), "TEST=1")
+	testing.expectf(t, err == nil, "Failed: %v", err)
+	err = os.write_entire_file(fmt.tprintf("%s/config.yaml", base), "key: value")
+	testing.expectf(t, err == nil, "Failed: %v", err)
 
 	cfg := Config {
 		scan_config = ScanConfig{matcher = "\\.env"},

@@ -24,8 +24,6 @@
 
 16. Add tests for untested commands.
 
-17. 2 scan tests silently skip when fd isn't installed, tests pass without actually testing anything. These should use #assert to be sure that fd is in path.
-
 18. add --format -f flag to commands that draw tables.
 
 19. Replace `testing.expect` calls with `testing.expect_value` calls where appropriate.
