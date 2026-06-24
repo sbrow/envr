@@ -6,7 +6,7 @@
 
 3. Add color flag and support non colored output.
 
-4. Use text/tables for command output
+4. Rewrite `write_command_help` to use text/tables
 
 5. Generate md and man pages again.
 

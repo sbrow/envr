@@ -5,6 +5,7 @@ import "core:fmt"
 import "core:io"
 import "core:os"
 import "core:strings"
+import "core:text/table"
 
 Command :: struct {
 	name:        string,
@@ -253,56 +254,47 @@ at before, restore your backup with:
 
   %senvr%s [command]
 
-%sAvailable Commands:%s
 `,
 		COLOR_HEADINGS,
 		ANSI_RESET,
 		COLOR_FLAGS,
 		ANSI_RESET,
-		COLOR_HEADINGS,
-		ANSI_RESET,
 		flush = false,
 	)
 
+	tbl: table.Table
+	table.init(&tbl, context.temp_allocator, context.temp_allocator)
+	table.padding(&tbl, 2, 0)
+
+	table.caption(&tbl, "Available Commands:")
+
 	for c in COMMANDS {
-		name_start := len(c.name)
-		fmt.wprintf(w, "  %s%s", COLOR_COMMANDS, c.name, flush = false)
+		name := c.name
+		// TODO: Can we do better?
 		for a in c.aliases {
-			fmt.wprintf(w, ", %s", a, flush = false)
-			name_start += len(a) + 2
+			name = strings.join([]string{name, a}, ", ", tbl.format_allocator)
 		}
-		fmt.wprint(w, ANSI_RESET)
-		padding := 20 - name_start
-		if padding > 0 {
-			for _ in 0 ..< padding {
-				io.write_byte(w, ' ')
-			}
-		}
-		fmt.wprintf(w, " %s\n", c.short, flush = false)
+		table.row(&tbl, table.format(&tbl, "%s%s%s", COLOR_COMMANDS, name, ANSI_RESET), c.short)
 	}
+
+	write_borderless_table(w, &tbl)
+	table_reset(&tbl)
+
+	table.caption(&tbl, "Flags:")
+
+	table.row(&tbl, COLOR_FLAGS + "-h, --help" + ANSI_RESET, `show this documentation`)
+	table.row(
+		&tbl,
+		COLOR_FLAGS + "-c, --config-file" + ANSI_RESET + " <path>",
+		`config file (default "~/.envr/config.json")`,
+	)
+	write_borderless_table(w, &tbl)
 
 	fmt.wprintf(
 		w,
-		"\n" +
-		COLOR_HEADINGS +
-		"Flags:" +
-		ANSI_RESET +
-		"\n\n  " +
-		COLOR_FLAGS +
-		"-h, --help" +
-		ANSI_RESET +
-		"   help for envr\n" +
-		COLOR_FLAGS +
-		`  -c, --config-file` +
-		ANSI_RESET +
-		` <path>   config file (default "~/.envr/config.json")
-
-Use "` +
-		COLOR_FLAGS +
-		"envr" +
-		ANSI_RESET +
-		` [command] --help" for more information about a command.
-`,
+		`Use "%senvr%s [command] --help" for more information about a command.`,
+		COLOR_FLAGS,
+		ANSI_RESET,
 		flush = false,
 	)
 }
