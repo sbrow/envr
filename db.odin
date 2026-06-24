@@ -1,5 +1,6 @@
 package main
 
+import "base:runtime"
 import "core:crypto/hash"
 import "core:encoding/hex"
 import "core:encoding/ini"
@@ -406,9 +407,7 @@ new_env_file :: proc(path: string) -> (EnvFile, bool) {
 	}
 
 	digest := hash.hash_bytes(hash.Algorithm.SHA256, data, context.temp_allocator)
-	// TODO: Handle error
-	hex_bytes, _ := hex.encode(digest)
-
+	hex_bytes := hex.encode(digest, context.allocator)
 	return EnvFile {
 			Path = abs_path,
 			Dir = dir,
@@ -453,11 +452,7 @@ db_sync :: proc(db: ^Db, f: ^EnvFile) -> (SyncFlag, SyncError) {
 	}
 
 	digest := hash.hash_bytes(hash.Algorithm.SHA256, data, context.temp_allocator)
-	hex_bytes, hex_err := hex.encode(digest, allocator)
-	if hex_err != nil {
-		fmt.eprintf("db_sync: failed to encode hash for %s: %v\n", f.Path, hex_err)
-		return result, .ReadFailed
-	}
+	hex_bytes := hex.encode(digest, allocator)
 	current_sha := string(hex_bytes)
 
 	if current_sha == f.Sha256 {

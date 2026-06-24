@@ -436,7 +436,7 @@ test_db_sync_noop :: proc(t: ^testing.T) {
 		transmute([]u8)content,
 		context.temp_allocator,
 	)
-	hex_bytes, _ := hex.encode(digest, context.temp_allocator)
+	hex_bytes := hex.encode(digest, context.temp_allocator)
 	sha := string(hex_bytes)
 
 	db, ok := db_init()
