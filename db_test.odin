@@ -13,14 +13,14 @@ import "sqlite"
 
 make_test_env_file :: proc(path, sha, contents: string, remotes: []string = {}) -> EnvFile {
 	f := EnvFile {
-		Path     = path,
-		Dir      = "",
-		Sha256   = sha,
+		path     = path,
+		dir      = "",
+		sha256   = sha,
 		contents = contents,
-		Remotes  = make([dynamic]string, 0, len(remotes), context.temp_allocator),
+		remotes  = make([dynamic]string, 0, len(remotes), context.temp_allocator),
 	}
 	for r in remotes {
-		append(&f.Remotes, r)
+		append(&f.remotes, r)
 	}
 	return f
 }
@@ -37,7 +37,7 @@ test_db_insert_and_fetch :: proc(t: ^testing.T) {
 	contents := "SECRET=value"
 
 	f := make_test_env_file(path, sha, contents, []string{"git@github.com:user/repo.git"})
-	defer delete(f.Remotes)
+	defer delete(f.remotes)
 
 	testing.expect(t, db_insert(&db, f), "insert should succeed")
 
@@ -46,11 +46,11 @@ test_db_insert_and_fetch :: proc(t: ^testing.T) {
 	testing.expect(t, fetch_ok, "fetch should succeed")
 	if !fetch_ok do return
 
-	testing.expect_value(t, fetched.Path, path)
-	testing.expect_value(t, fetched.Sha256, sha)
+	testing.expect_value(t, fetched.path, path)
+	testing.expect_value(t, fetched.sha256, sha)
 	testing.expect_value(t, fetched.contents, contents)
-	testing.expect_value(t, len(fetched.Remotes), 1)
-	testing.expect_value(t, fetched.Remotes[0], "git@github.com:user/repo.git")
+	testing.expect_value(t, len(fetched.remotes), 1)
+	testing.expect_value(t, fetched.remotes[0], "git@github.com:user/repo.git")
 }
 
 @(test)
@@ -71,11 +71,11 @@ test_db_insert_or_replace :: proc(t: ^testing.T) {
 	testing.expect(t, ok, "failed to create test db")
 
 	f1 := make_test_env_file("/project/.env", "sha1", "KEY=old")
-	defer delete(f1.Remotes)
+	defer delete(f1.remotes)
 	testing.expect(t, db_insert(&db, f1), "first insert should succeed")
 
 	f2 := make_test_env_file("/project/.env", "sha2", "KEY=new")
-	defer delete(f2.Remotes)
+	defer delete(f2.remotes)
 	testing.expect(t, db_insert(&db, f2), "second insert should succeed")
 
 	results, list_ok := db_list(&db)
@@ -89,7 +89,7 @@ test_db_insert_or_replace :: proc(t: ^testing.T) {
 	// defer delete_envfile(&fetched)
 
 	testing.expect_value(t, fetched.contents, "KEY=new")
-	testing.expect_value(t, fetched.Sha256, "sha2")
+	testing.expect_value(t, fetched.sha256, "sha2")
 }
 
 @(test)
@@ -100,7 +100,7 @@ test_db_delete_existing :: proc(t: ^testing.T) {
 	defer db_close(&db)
 
 	f := make_test_env_file("/project/.env", "sha", "KEY=val")
-	defer delete(f.Remotes)
+	defer delete(f.remotes)
 	db_insert(&db, f)
 
 	testing.expect(t, db_delete(&db, "/project/.env"), "delete should return true")
@@ -126,9 +126,9 @@ test_db_list_multiple :: proc(t: ^testing.T) {
 	defer db_close(&db)
 
 	f1 := make_test_env_file("/proj1/.env", "sha1", "A=1", []string{"git@github.com:a/repo.git"})
-	defer delete(f1.Remotes)
+	defer delete(f1.remotes)
 	f2 := make_test_env_file("/proj2/.env", "sha2", "B=2", []string{"git@github.com:b/repo.git"})
-	defer delete(f2.Remotes)
+	defer delete(f2.remotes)
 	f3 := make_test_env_file("/proj3/.env", "sha3", "C=3")
 
 	db_insert(&db, f1)
@@ -162,7 +162,7 @@ test_db_insert_sets_changed :: proc(t: ^testing.T) {
 	testing.expect(t, !db.changed, "changed should start false")
 
 	f := make_test_env_file("/project/.env", "sha", "KEY=val")
-	defer delete(f.Remotes)
+	defer delete(f.remotes)
 	db_insert(&db, f)
 
 	testing.expect(t, db.changed, "changed should be true after insert")
@@ -176,7 +176,7 @@ test_db_delete_sets_changed :: proc(t: ^testing.T) {
 	defer db_close(&db)
 
 	f := make_test_env_file("/project/.env", "sha", "KEY=val")
-	defer delete(f.Remotes)
+	defer delete(f.remotes)
 	db_insert(&db, f)
 	db.changed = false
 
@@ -192,7 +192,7 @@ test_db_serialize :: proc(t: ^testing.T) {
 	defer db_close(&db)
 
 	f := make_test_env_file("/project/.env", "sha", "KEY=val")
-	defer delete(f.Remotes)
+	defer delete(f.remotes)
 	db_insert(&db, f)
 
 	sz: i64
@@ -207,10 +207,10 @@ test_db_serialize :: proc(t: ^testing.T) {
 @(test)
 test_shares_remote_overlap :: proc(t: ^testing.T) {
 	f := EnvFile {
-		Remotes = make([dynamic]string, 2, context.temp_allocator),
+		remotes = make([dynamic]string, 2, context.temp_allocator),
 	}
-	append(&f.Remotes, "git@github.com:user/repo.git")
-	append(&f.Remotes, "git@gitlab.com:user/repo.git")
+	append(&f.remotes, "git@github.com:user/repo.git")
+	append(&f.remotes, "git@gitlab.com:user/repo.git")
 
 	remotes := []string{"git@github.com:user/repo.git"}
 	testing.expect(t, shares_remote(&f, remotes), "should share remote")
@@ -219,9 +219,9 @@ test_shares_remote_overlap :: proc(t: ^testing.T) {
 @(test)
 test_shares_remote_no_overlap :: proc(t: ^testing.T) {
 	f := EnvFile {
-		Remotes = make([dynamic]string, 1, context.temp_allocator),
+		remotes = make([dynamic]string, 1, context.temp_allocator),
 	}
-	append(&f.Remotes, "git@github.com:user/repo.git")
+	append(&f.remotes, "git@github.com:user/repo.git")
 
 	remotes := []string{"git@github.com:other/repo.git"}
 	testing.expect(t, !shares_remote(&f, remotes), "should not share remote")
@@ -230,7 +230,7 @@ test_shares_remote_no_overlap :: proc(t: ^testing.T) {
 @(test)
 test_shares_remote_empty_file_remotes :: proc(t: ^testing.T) {
 	f := EnvFile {
-		Remotes = make([dynamic]string, 0, context.temp_allocator),
+		remotes = make([dynamic]string, 0, context.temp_allocator),
 	}
 
 	remotes := []string{"git@github.com:user/repo.git"}
@@ -240,9 +240,9 @@ test_shares_remote_empty_file_remotes :: proc(t: ^testing.T) {
 @(test)
 test_shares_remote_empty_check_remotes :: proc(t: ^testing.T) {
 	f := EnvFile {
-		Remotes = make([dynamic]string, 1, context.temp_allocator),
+		remotes = make([dynamic]string, 1, context.temp_allocator),
 	}
-	append(&f.Remotes, "git@github.com:user/repo.git")
+	append(&f.remotes, "git@github.com:user/repo.git")
 
 	remotes: []string
 	testing.expect(t, !shares_remote(&f, remotes), "empty check remotes should not share")
@@ -251,7 +251,7 @@ test_shares_remote_empty_check_remotes :: proc(t: ^testing.T) {
 @(test)
 test_shares_remote_both_empty :: proc(t: ^testing.T) {
 	f := EnvFile {
-		Remotes = make([dynamic]string, 0),
+		remotes = make([dynamic]string, 0),
 	}
 
 	remotes: []string
@@ -344,14 +344,14 @@ test_new_env_file :: proc(t: ^testing.T) {
 	testing.expect(t, ok, "new_env_file should succeed")
 	if !ok do return
 	defer delete(file.contents)
-	defer delete(file.Remotes)
-	defer delete(file.Sha256)
-	defer delete(file.Path)
+	defer delete(file.remotes)
+	defer delete(file.sha256)
+	defer delete(file.path)
 
-	testing.expect(t, filepath.is_abs(file.Path), "path should be absolute")
-	testing.expect(t, strings.has_suffix(file.Path, "/.env"), "path should end with /.env")
+	testing.expect(t, filepath.is_abs(file.path), "path should be absolute")
+	testing.expect(t, strings.has_suffix(file.path, "/.env"), "path should end with /.env")
 	testing.expect(t, file.contents == "SECRET=value\n", "contents mismatch")
-	testing.expect(t, len(file.Sha256) == 64, "sha256 should be 64 hex chars")
+	testing.expect(t, len(file.sha256) == 64, "sha256 should be 64 hex chars")
 }
 
 @(test)
@@ -403,7 +403,7 @@ test_open_existing_db_has_no_leaks :: proc(t: ^testing.T) {
 		"SECRET=value",
 		[]string{"git@github.com:user/repo.git"},
 	)
-	defer delete(f.Remotes)
+	defer delete(f.remotes)
 	testing.expect(t, db_insert(&db, f), "insert should succeed")
 	db_close(&db)
 
@@ -437,7 +437,7 @@ test_db_sync_noop :: proc(t: ^testing.T) {
 	defer db_close(&db)
 
 	f := make_test_env_file(env_path, sha, content)
-	f.Dir = base
+	f.dir = base
 	db_insert(&db, f)
 
 	result, sync_err := db_sync(&db, &f)
@@ -460,7 +460,7 @@ test_db_sync_backed_up :: proc(t: ^testing.T) {
 	defer db_close(&db)
 
 	f := make_test_env_file(env_path, "old_sha", "KEY=original")
-	f.Dir = base
+	f.dir = base
 	db_insert(&db, f)
 
 	result, sync_err := db_sync(&db, &f)
@@ -480,8 +480,8 @@ test_db_sync_restored :: proc(t: ^testing.T) {
 	defer db_close(&db)
 
 	f := make_test_env_file(env_path, "some_sha", "SECRET=value")
-	f.Dir = base
-	defer delete(f.Remotes)
+	f.dir = base
+	defer delete(f.remotes)
 	db_insert(&db, f)
 
 	result, err := db_sync(&db, &f)
@@ -546,8 +546,8 @@ test_db_sync_moved :: proc(t: ^testing.T) {
 	testing.expect(t, .Restored in result, "should have Restored flag")
 
 	expected_path := fmt.tprintf("%s/.env", repo_dir)
-	testing.expect_value(t, f.Path, expected_path)
-	testing.expect_value(t, f.Dir, repo_dir)
+	testing.expect_value(t, f.path, expected_path)
+	testing.expect_value(t, f.dir, repo_dir)
 
 	_, old_exists := db_fetch(&db, "/old/nonexistent/path/.env")
 	testing.expect(t, !old_exists, "old path should be deleted from db")

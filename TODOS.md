@@ -2,8 +2,6 @@
 
 1. Commands are still leaking.
 
-2. **db.odin** — Inconsistencies in how struct vs sqlite are named.
-
 3. Add color flag and support non colored output.
 
 4. Rewrite `write_command_help` to use text/tables
@@ -25,8 +23,6 @@
 18. add --format -f flag to commands that draw tables.
 
 19. Replace `testing.expect` calls with `testing.expect_value` calls where appropriate.
-
-20. Change struct field names from PascalCase to snake_case.
 
 21. procedures should be ordered by use, main at the top, then in the order they are called from main.
 

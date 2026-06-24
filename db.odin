@@ -39,21 +39,21 @@ Db :: struct {
 }
 
 EnvFile :: struct {
-	Path:     string,
-	Dir:      string,
-	Remotes:  [dynamic]string,
-	Sha256:   string,
+	path:     string,
+	dir:      string,
+	remotes:  [dynamic]string,
+	sha256:   string,
 	contents: string,
 }
 
 @(deprecated = "call db_close to clean up EnvFiles")
 delete_envfile :: proc(f: ^EnvFile) {
-	delete(f.Path)
-	for &remote in f.Remotes {
+	delete(f.path)
+	for &remote in f.remotes {
 		delete(remote)
 	}
-	delete(f.Remotes)
-	delete(f.Sha256)
+	delete(f.remotes)
+	delete(f.sha256)
 	delete(f.contents)
 }
 
@@ -230,10 +230,10 @@ db_list :: proc(db: ^Db) -> ([]EnvFile, bool) {
 		append(
 			&results,
 			EnvFile {
-				Path = path,
-				Dir = filepath.dir(path),
-				Remotes = remotes,
-				Sha256 = clone_cstring(sqlite.column_text(stmt, 2), allocator),
+				path = path,
+				dir = filepath.dir(path),
+				remotes = remotes,
+				sha256 = clone_cstring(sqlite.column_text(stmt, 2), allocator),
 				contents = clone_cstring(sqlite.column_text(stmt, 3), allocator),
 			},
 		)
@@ -244,7 +244,7 @@ db_list :: proc(db: ^Db) -> ([]EnvFile, bool) {
 
 // TODO: Should we use context.temp_allocator for proc scoped lifetimes?
 db_insert :: proc(db: ^Db, file: EnvFile) -> bool {
-	remotes_json, marshal_err := json.marshal(file.Remotes, allocator = context.temp_allocator)
+	remotes_json, marshal_err := json.marshal(file.remotes, allocator = context.temp_allocator)
 	if marshal_err != nil {
 		fmt.printf("Error marshaling remotes: %v\n", marshal_err)
 		return false
@@ -262,7 +262,7 @@ db_insert :: proc(db: ^Db, file: EnvFile) -> bool {
 	defer sqlite.finalize(stmt)
 
 	// TODO: deal with elsewhere?
-	cpath := to_cstring(file.Path)
+	cpath := to_cstring(file.path)
 	defer delete(cpath)
 	rc = sqlite.bind_text(stmt, 1, cpath, -1, nil)
 	if rc != sqlite.OK {
@@ -278,7 +278,7 @@ db_insert :: proc(db: ^Db, file: EnvFile) -> bool {
 		return false
 	}
 
-	csha := to_cstring(file.Sha256)
+	csha := to_cstring(file.sha256)
 	defer delete(csha)
 	rc = sqlite.bind_text(stmt, 3, csha, -1, nil)
 	if rc != sqlite.OK {
@@ -350,10 +350,10 @@ db_fetch :: proc(db: ^Db, path: string) -> (EnvFile, bool) {
 	file_path := clone_cstring(sqlite.column_text(stmt, 0), allocator)
 
 	return EnvFile {
-			Path = file_path,
-			Dir = filepath.dir(file_path),
-			Remotes = remotes,
-			Sha256 = clone_cstring(sqlite.column_text(stmt, 2), allocator),
+			path = file_path,
+			dir = filepath.dir(file_path),
+			remotes = remotes,
+			sha256 = clone_cstring(sqlite.column_text(stmt, 2), allocator),
 			contents = clone_cstring(sqlite.column_text(stmt, 3), allocator),
 		},
 		true
@@ -413,10 +413,10 @@ new_env_file :: proc(path: string) -> (EnvFile, bool) {
 	digest := hash.hash_bytes(hash.Algorithm.SHA256, data, context.temp_allocator)
 	hex_bytes := hex.encode(digest, context.allocator)
 	return EnvFile {
-			Path = abs_path,
-			Dir = dir,
-			Remotes = remotes,
-			Sha256 = string(hex_bytes),
+			path = abs_path,
+			dir = dir,
+			remotes = remotes,
+			sha256 = string(hex_bytes),
 			contents = string(data),
 		},
 		true
@@ -426,9 +426,9 @@ new_env_file :: proc(path: string) -> (EnvFile, bool) {
 db_sync :: proc(db: ^Db, f: ^EnvFile) -> (SyncFlag, SyncError) {
 	allocator := db_allocator(db)
 	result: SyncFlag = {}
-	old_path := f.Path
+	old_path := f.path
 
-	if !os.exists(f.Dir) {
+	if !os.exists(f.dir) {
 		moved, err := try_move_dir(db, f, allocator)
 		if !moved {
 			return {}, err
@@ -436,10 +436,10 @@ db_sync :: proc(db: ^Db, f: ^EnvFile) -> (SyncFlag, SyncError) {
 		result += {.DirUpdated}
 	}
 
-	if !os.exists(f.Path) {
-		write_err := os.write_entire_file(f.Path, f.contents)
+	if !os.exists(f.path) {
+		write_err := os.write_entire_file(f.path, f.contents)
 		if write_err != nil {
-			fmt.eprintf("db_sync: failed to write %s: %v\n", f.Path, write_err)
+			fmt.eprintf("db_sync: failed to write %s: %v\n", f.path, write_err)
 			return result, .WriteFailed
 		}
 
@@ -449,9 +449,9 @@ db_sync :: proc(db: ^Db, f: ^EnvFile) -> (SyncFlag, SyncError) {
 		return result + {.Restored}, .None
 	}
 
-	data, read_err := os.read_entire_file_from_path(f.Path, allocator)
+	data, read_err := os.read_entire_file_from_path(f.path, allocator)
 	if read_err != nil {
-		fmt.eprintf("db_sync: failed to read %s: %v\n", f.Path, read_err)
+		fmt.eprintf("db_sync: failed to read %s: %v\n", f.path, read_err)
 		return result, .ReadFailed
 	}
 
@@ -459,7 +459,7 @@ db_sync :: proc(db: ^Db, f: ^EnvFile) -> (SyncFlag, SyncError) {
 	hex_bytes := hex.encode(digest, allocator)
 	current_sha := string(hex_bytes)
 
-	if current_sha == f.Sha256 {
+	if current_sha == f.sha256 {
 		if !db_persist(db, f, old_path) {
 			return result, .DbFailed
 		}
@@ -467,7 +467,7 @@ db_sync :: proc(db: ^Db, f: ^EnvFile) -> (SyncFlag, SyncError) {
 	}
 
 	f.contents = string(data)
-	f.Sha256 = current_sha
+	f.sha256 = current_sha
 	if !db_persist(db, f, old_path) {
 		return result, .DbFailed
 	}
@@ -475,7 +475,7 @@ db_sync :: proc(db: ^Db, f: ^EnvFile) -> (SyncFlag, SyncError) {
 }
 
 db_persist :: proc(db: ^Db, f: ^EnvFile, old_path: string) -> bool {
-	if f.Path != old_path {
+	if f.path != old_path {
 		if !db_delete(db, old_path) {
 			return false
 		}
@@ -509,11 +509,11 @@ try_move_dir :: proc(db: ^Db, f: ^EnvFile, allocator: mem.Allocator) -> (bool, S
 	case 0:
 		return false, .DirMissing
 	case 1:
-		f.Dir, _ = strings.clone(matched_dir, allocator)
-		base := filepath.base(f.Path)
-		new_path, _ := filepath.join({f.Dir, base}, allocator)
-		f.Path = new_path
-		f.Remotes = get_git_remotes(f.Dir, allocator)
+		f.dir, _ = strings.clone(matched_dir, allocator)
+		base := filepath.base(f.path)
+		new_path, _ := filepath.join({f.dir, base}, allocator)
+		f.path = new_path
+		f.remotes = get_git_remotes(f.dir, allocator)
 		return true, .None
 	case:
 		return false, .MultipleDirs
@@ -521,7 +521,7 @@ try_move_dir :: proc(db: ^Db, f: ^EnvFile, allocator: mem.Allocator) -> (bool, S
 }
 
 shares_remote :: proc(f: ^EnvFile, remotes: []string) -> bool {
-	for r1 in f.Remotes {
+	for r1 in f.remotes {
 		for r2 in remotes {
 			if r1 == r2 {
 				return true

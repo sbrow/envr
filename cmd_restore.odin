@@ -34,20 +34,20 @@ cmd_restore :: proc(cmd: ^Command) {
 		return
 	}
 
-	dir := filepath.dir(file.Path)
+	dir := filepath.dir(file.path)
 	if err := os.mkdir_all(dir); err != nil {
 		fmt.wprintf(cmd.err, "Failed to create directory: %v\n", err, flush = false)
 
 		return
 	}
 
-	write_err := os.write_entire_file(file.Path, file.contents)
+	write_err := os.write_entire_file(file.path, file.contents)
 	if write_err != nil {
 		fmt.wprintf(cmd.err, "Error writing file: %v\n", write_err, flush = false)
 
 		return
 	}
 
-	fmt.wprintf(cmd.out, "Restored %s\n", file.Path, flush = false)
+	fmt.wprintf(cmd.out, "Restored %s\n", file.path, flush = false)
 }
 

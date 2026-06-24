@@ -9,8 +9,8 @@ import "core:terminal"
 import "core:text/table"
 
 ListEntry :: struct {
-	Directory: string `json:"directory"`,
-	Path:      string `json:"path"`,
+	dir:  string `json:"directory"`,
+	path: string `json:"path"`,
 }
 
 // TODO: Support --format flag
@@ -40,10 +40,10 @@ cmd_list :: proc(cmd: ^Command) {
 
 		for row in rows {
 			dir_str := strings.concatenate(
-				{row.Dir, os.Path_Separator_String},
+				{row.dir, os.Path_Separator_String},
 				context.temp_allocator,
 			)
-			filename := filepath.base(row.Path)
+			filename := filepath.base(row.path)
 
 			table.row(&t, dir_str, filename)
 		}
@@ -53,12 +53,12 @@ cmd_list :: proc(cmd: ^Command) {
 		// TODO: Should we instead print full entries here?
 		entries: [dynamic]ListEntry
 		for row in rows {
-			filename := filepath.base(row.Path)
+			filename := filepath.base(row.path)
 			append(
 				&entries,
 				ListEntry {
-					Directory = strings.concatenate({row.Dir, "/"}, context.temp_allocator),
-					Path = filename,
+					dir = strings.concatenate({row.dir, "/"}, context.temp_allocator),
+					path = filename,
 				},
 			)
 		}

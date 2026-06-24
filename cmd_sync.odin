@@ -7,8 +7,8 @@ import "core:terminal"
 import "core:text/table"
 
 SyncEntry :: struct {
-	Path:   string `json:"path"`,
-	Status: string `json:"status"`,
+	path:   string `json:"path"`,
+	status: string `json:"status"`,
 }
 
 // TODO: Check for quiet failures.
@@ -44,8 +44,8 @@ cmd_sync :: proc(cmd: ^Command) {
 		}
 
 		results[i] = SyncEntry {
-			Path   = file.Path,
-			Status = status,
+			path   = file.path,
+			status = status,
 		}
 	}
 
@@ -62,7 +62,7 @@ cmd_sync :: proc(cmd: ^Command) {
 		)
 
 		for res in results {
-			table.row(&t, res.Path, res.Status)
+			table.row(&t, res.path, res.status)
 		}
 
 		table.write_decorated_table(cmd.out, &t, decorations, ansi_aware_width)

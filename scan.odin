@@ -19,7 +19,7 @@ scan_path :: proc(search_path: string, cfg: Config) -> (paths: [dynamic]string, 
 find_unbacked :: proc(local_files: []string, db_files: []EnvFile) -> []string {
 	backed_set := make(map[string]bool, len(db_files), context.temp_allocator)
 	for file in db_files {
-		backed_set[file.Path] = true
+		backed_set[file.path] = true
 	}
 
 	unbacked := make([dynamic]string, 0, len(db_files) / 2, context.temp_allocator)
