@@ -267,8 +267,7 @@ delete_remotes :: proc(remotes: [dynamic]string) {
 
 @(test)
 test_get_git_remotes_single :: proc(t: ^testing.T) {
-	base := fmt.tprintf("/tmp/envr-test-remotes-%d", os.get_pid())
-	os.mkdir_all(base)
+	base := test_temp_dir(t, "envr-test-remotes-*")
 	defer os.remove_all(base)
 
 	git_dir := fmt.tprintf("%s/.git", base)
@@ -288,8 +287,7 @@ test_get_git_remotes_single :: proc(t: ^testing.T) {
 
 @(test)
 test_get_git_remotes_multiple :: proc(t: ^testing.T) {
-	base := fmt.tprintf("/tmp/envr-test-remotes-multi-%d", os.get_pid())
-	os.mkdir_all(base)
+	base := test_temp_dir(t, "envr-test-remotes-multi-*")
 	defer os.remove_all(base)
 
 	git_dir := fmt.tprintf("%s/.git", base)
@@ -307,8 +305,7 @@ test_get_git_remotes_multiple :: proc(t: ^testing.T) {
 
 @(test)
 test_get_git_remotes_no_config :: proc(t: ^testing.T) {
-	base := fmt.tprintf("/tmp/envr-test-remotes-none-%d", os.get_pid())
-	os.mkdir_all(base)
+	base := test_temp_dir(t, "envr-test-remotes-none-*")
 	defer os.remove_all(base)
 
 	remotes := get_git_remotes(base, context.temp_allocator)
@@ -318,8 +315,7 @@ test_get_git_remotes_no_config :: proc(t: ^testing.T) {
 
 @(test)
 test_get_git_remotes_no_remotes :: proc(t: ^testing.T) {
-	base := fmt.tprintf("/tmp/envr-test-remotes-empty-%d", os.get_pid())
-	os.mkdir_all(base)
+	base := test_temp_dir(t, "envr-test-remotes-empty-*")
 	defer os.remove_all(base)
 
 	git_dir := fmt.tprintf("%s/.git", base)
@@ -337,8 +333,7 @@ test_get_git_remotes_no_remotes :: proc(t: ^testing.T) {
 
 @(test)
 test_new_env_file :: proc(t: ^testing.T) {
-	base := fmt.tprintf("/tmp/envr-test-envfile-%d", os.get_pid())
-	os.mkdir_all(base)
+	base := test_temp_dir(t, "envr-test-envfile-*")
 	defer os.remove_all(base)
 
 	env_path := fmt.tprintf("%s/.env", base)
@@ -367,8 +362,7 @@ test_new_env_file_missing :: proc(t: ^testing.T) {
 
 @(test)
 test_closing_db_has_no_leaks :: proc(t: ^testing.T) {
-	base := fmt.tprintf("/tmp/envr-test-leak-%d", os.get_pid())
-	os.mkdir_all(base)
+	base := test_temp_dir(t, "envr-test-leak-*")
 	defer os.remove_all(base)
 
 	cfg_path, err := filepath.join([]string{base, "config.json"}, context.temp_allocator)
@@ -387,8 +381,7 @@ test_closing_db_has_no_leaks :: proc(t: ^testing.T) {
 
 @(test)
 test_open_existing_db_has_no_leaks :: proc(t: ^testing.T) {
-	base := fmt.tprintf("/tmp/envr-test-leak-existing-%d", os.get_pid())
-	os.mkdir_all(base)
+	base := test_temp_dir(t, "envr-test-leak-existing-*")
 	defer os.remove_all(base)
 
 	cfg_path, err := filepath.join([]string{base, "config.json"}, context.temp_allocator)
@@ -423,8 +416,7 @@ test_open_existing_db_has_no_leaks :: proc(t: ^testing.T) {
 
 @(test)
 test_db_sync_noop :: proc(t: ^testing.T) {
-	base := fmt.tprintf("/tmp/envr-test-sync-noop-%d", os.get_pid())
-	os.mkdir_all(base)
+	base := test_temp_dir(t, "envr-test-sync-noop-*")
 	defer os.remove_all(base)
 
 	env_path := fmt.tprintf("%s/.env", base)
@@ -455,8 +447,7 @@ test_db_sync_noop :: proc(t: ^testing.T) {
 
 @(test)
 test_db_sync_backed_up :: proc(t: ^testing.T) {
-	base := fmt.tprintf("/tmp/envr-test-sync-backup-%d", os.get_pid())
-	os.mkdir_all(base)
+	base := test_temp_dir(t, "envr-test-sync-backup-*")
 	defer os.remove_all(base)
 
 	env_path := fmt.tprintf("%s/.env", base)
@@ -479,8 +470,7 @@ test_db_sync_backed_up :: proc(t: ^testing.T) {
 
 @(test)
 test_db_sync_restored :: proc(t: ^testing.T) {
-	base := fmt.tprintf("/tmp/envr-test-sync-restore-%d", os.get_pid())
-	os.mkdir_all(base)
+	base := test_temp_dir(t, "envr-test-sync-restore-*")
 	defer os.remove_all(base)
 
 	env_path := fmt.tprintf("%s/.env", base)
@@ -521,7 +511,7 @@ test_db_sync_dir_missing :: proc(t: ^testing.T) {
 
 @(test)
 test_db_sync_moved :: proc(t: ^testing.T) {
-	base := fmt.tprintf("/tmp/envr-test-sync-moved-%d", os.get_pid())
+	base := test_temp_dir(t, "envr-test-sync-moved-*")
 	search_root := fmt.tprintf("%s/search", base)
 	repo_dir := fmt.tprintf("%s/myproject", search_root)
 	git_dir := fmt.tprintf("%s/.git", repo_dir)

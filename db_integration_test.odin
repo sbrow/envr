@@ -11,6 +11,14 @@ import "sqlite"
 
 FIXTURES :: "fixtures"
 
+test_temp_dir :: proc(t: ^testing.T, prefix: string) -> string {
+	dir, err := os.mkdir_temp("", prefix, context.temp_allocator)
+	if err != nil {
+		testing.fail_now(t, fmt.tprintf("Failed to create temp dir: %v", err))
+	}
+	return dir
+}
+
 fixture_key :: proc() -> SshKeyPair {
 	priv, _ := strings.concatenate(
 		[]string{FIXTURES, "/keys/insecure-test-key"},
@@ -111,13 +119,14 @@ test_encrypt_write_read_decrypt :: proc(t: ^testing.T) {
 	}
 	defer delete(encrypted)
 
-	tmp_enc_path := fmt.tprintf("/tmp/envr-test-ewrd-%d.envr", os.get_pid())
+	ewrd_dir := test_temp_dir(t, "envr-test-ewrd-*")
+	defer os.remove_all(ewrd_dir)
+	tmp_enc_path, _ := filepath.join([]string{ewrd_dir, "data.envr"}, context.temp_allocator)
 	write_err := os.write_entire_file(tmp_enc_path, encrypted)
 	testing.expectf(t, write_err == nil, "failed to write encrypted file: %v", write_err)
 	if write_err != nil {
 		return
 	}
-	defer os.remove(tmp_enc_path)
 
 	read_back, rb_err := os.read_entire_file_from_path(tmp_enc_path, context.allocator)
 	testing.expectf(t, rb_err == nil, "failed to read back encrypted file: %v", rb_err)
@@ -223,11 +232,15 @@ test_full_db_cycle :: proc(t: ^testing.T) {
 	}
 	defer delete(encrypted)
 
-	envr_dir_path := fmt.tprintf("/tmp/envr-test-cycle-%d/.envr", os.get_pid())
-	os.mkdir_all(envr_dir_path)
+	cycle_dir := test_temp_dir(t, "envr-test-cycle-*")
+	defer os.remove_all(cycle_dir)
+	envr_dir_path, _ := filepath.join([]string{cycle_dir, ".envr"}, context.temp_allocator)
+	{
+		err := os.mkdir_all(envr_dir_path)
+		testing.expect_value(t, err, nil)
+	}
 
-	data_path, _ := filepath.join([]string{envr_dir_path, "data.envr"})
-	defer delete(data_path)
+	data_path, _ := filepath.join([]string{envr_dir_path, "data.envr"}, context.temp_allocator)
 	write_err := os.write_entire_file(data_path, encrypted)
 	testing.expectf(t, write_err == nil, "failed to write data.envr: %v", write_err)
 	if write_err != nil {

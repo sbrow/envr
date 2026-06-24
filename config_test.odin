@@ -71,8 +71,7 @@ test_new_config_exclude_patterns :: proc(t: ^testing.T) {
 
 @(test)
 test_save_load_config_roundtrip :: proc(t: ^testing.T) {
-	base := fmt.tprintf("/tmp/envr-test-cfg-rt-%d", os.get_pid())
-	os.mkdir_all(base)
+	base := test_temp_dir(t, "envr-test-cfg-rt-*")
 	defer os.remove_all(base)
 
 	cfgPath, err := filepath.join([]string{base, "config.json"}, context.temp_allocator)
@@ -105,8 +104,7 @@ test_load_config_missing :: proc(t: ^testing.T) {
 
 @(test)
 test_save_config_no_clobber :: proc(t: ^testing.T) {
-	base := fmt.tprintf("/tmp/envr-test-cfg-noclobber-%d", os.get_pid())
-	os.mkdir_all(base)
+	base := test_temp_dir(t, "envr-test-cfg-noclobber-*")
 	defer os.remove_all(base)
 
 	cfgPath, err := filepath.join([]string{base, "config.json"}, context.temp_allocator)
@@ -123,8 +121,7 @@ test_save_config_no_clobber :: proc(t: ^testing.T) {
 
 @(test)
 test_save_config_force_overwrites :: proc(t: ^testing.T) {
-	base := fmt.tprintf("/tmp/envr-test-cfg-force-%d", os.get_pid())
-	os.mkdir_all(base)
+	base := test_temp_dir(t, "envr-test-cfg-force-*")
 	defer os.remove_all(base)
 
 	cfgPath, err := filepath.join([]string{base, "config.json"}, context.temp_allocator)

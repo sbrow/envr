@@ -16,8 +16,6 @@
 
 12. Consistently ignore allocator errors
 
-13. **cmd_sync.odin:80, cmd_list.odin:33** — `make([]string, 2)` for table rows never freed. Leaks per row. Defer to memory pass.
-
 14. Check for prealloc opportunities. i.e. `make([dynamic]string)` -> `make([dynamic]string, 5)`.
 
 15. Add a text filter to the multi_select.
@@ -38,9 +36,7 @@
 
 24. Test all cmds / terminal branches.
 
-25. Replace `fmt.tprintf("/tmp/envr-test-...-%d", os.get_pid())` + `os.mkdir_all` in test files with `os.mkdir_temp` (race-free, honors `$TMPDIR`, matches `findr/test_env.odin` pattern).
-
-26. Adopt `core:log` across `db.odin`, `crypto.odin`, `config.odin`, `ssh.odin` — replace ~30 scattered `fmt.printf("Error ...")` calls with leveled logging for consistent stderr routing and source locations.
+26. Fix error messages to use fmt.eprintf (stderr) instead of fmt.printf (stdout)
 
 27. "Encryption failed" in tests. 
 

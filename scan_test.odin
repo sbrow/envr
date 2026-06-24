@@ -8,8 +8,7 @@ import "core:testing"
 
 @(test)
 test_scan_path_finds_gitignored_env_files :: proc(t: ^testing.T) {
-	base := fmt.tprintf("/tmp/envr-scan-test-%d", os.get_pid())
-	os.mkdir_all(base)
+	base := test_temp_dir(t, "envr-scan-test-*")
 	defer os.remove_all(base)
 
 	git_init := os.Process_Desc {
@@ -74,8 +73,7 @@ test_scan_path_finds_gitignored_env_files :: proc(t: ^testing.T) {
 
 @(test)
 test_scan_path_empty_dir :: proc(t: ^testing.T) {
-	base := fmt.tprintf("/tmp/envr-scan-empty-%d", os.get_pid())
-	os.mkdir_all(base)
+	base := test_temp_dir(t, "envr-scan-empty-*")
 	defer os.remove_all(base)
 
 	cfg := Config {
