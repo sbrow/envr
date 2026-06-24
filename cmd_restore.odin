@@ -42,7 +42,10 @@ cmd_restore :: proc(cmd: ^Command) {
 	}
 
 	dir := filepath.dir(file.Path)
-	os.mkdir_all(dir)
+	if err := os.mkdir_all(dir); err != nil {
+		fmt.wprintf(cmd.err, "failed to create directory: %s\n", err)
+		return
+	}
 
 	write_err := os.write_entire_file(file.Path, file.contents)
 	if write_err != nil {
