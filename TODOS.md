@@ -1,14 +1,12 @@
 # TODOs
 
-1. Commands are still leaking.
+1. Commands are still leaking. (Do 15. first)
 
 2. Add color flag and support non colored output.
 
 3. Rewrite `write_command_help` to use text/tables
 
 4. Generate md and man pages again.
-
-5. Json may be an expensive encoding for remotes. Confirm with spall, and use null terminated strings if necessary.
 
 6. Consistently ignore allocator errors
 

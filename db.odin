@@ -222,6 +222,7 @@ db_list :: proc(db: ^Db) -> ([]EnvFile, bool) {
 	allocator := db_allocator(db)
 	results := make([dynamic]EnvFile, 0, 10, allocator)
 
+	migrate := false
 	for {
 		rc = sqlite.step(stmt)
 		if rc == sqlite.DONE {
@@ -232,12 +233,22 @@ db_list :: proc(db: ^Db) -> ([]EnvFile, bool) {
 			#no_bounds_check return results[:], false
 		}
 
-		remotes_json := string(sqlite.column_text(stmt, 1))
+		// TODO: Remove json support after next major release
 		remotes: [dynamic]string = ---
-		if len(remotes_json) > 0 {
-			err := json.unmarshal_string(remotes_json, &remotes, allocator = allocator)
-			if err != nil {
-				fmt.eprintf("Warning: malformed remotes JSON: %v\n", err)
+		remotes_raw := string(sqlite.column_text(stmt, 1))
+		if len(remotes_raw) > 0 {
+			if remotes_raw[0] == '[' {
+				err := json.unmarshal_string(remotes_raw, &remotes, allocator = allocator)
+				if err != nil {
+					fmt.eprintf("Warning: malformed remotes JSON: %v\n", err)
+				}
+				migrate = true
+			} else {
+				split := strings.split_lines(remotes_raw, context.temp_allocator)
+				remotes = make([dynamic]string, 0, len(split), allocator = allocator)
+				for s in split {
+					append(&remotes, strings.clone(s, allocator))
+				}
 			}
 		}
 		path := clone_cstring(sqlite.column_text(stmt, 0), allocator)
@@ -254,16 +265,16 @@ db_list :: proc(db: ^Db) -> ([]EnvFile, bool) {
 		)
 	}
 
+	if migrate {
+		migrate_remotes(db)
+	}
+
 	#no_bounds_check return results[:], true
 }
 
 // TODO: Should we use context.temp_allocator for proc scoped lifetimes?
 db_insert :: proc(db: ^Db, file: EnvFile) -> bool {
-	remotes_json, marshal_err := json.marshal(file.remotes, allocator = context.temp_allocator)
-	if marshal_err != nil {
-		fmt.printf("Error marshaling remotes: %v\n", marshal_err)
-		return false
-	}
+	remotes := strings.join(file.remotes[:], "\n", allocator = context.temp_allocator)
 
 	sql: cstring =
 		"INSERT OR REPLACE INTO " +
@@ -285,7 +296,7 @@ db_insert :: proc(db: ^Db, file: EnvFile) -> bool {
 		return false
 	}
 
-	cremotes := to_cstring(string(remotes_json))
+	cremotes := to_cstring(remotes)
 	defer delete(cremotes)
 	rc = sqlite.bind_text(stmt, 2, cremotes, -1, nil)
 	if rc != sqlite.OK {
@@ -353,16 +364,32 @@ db_fetch :: proc(db: ^Db, path: string) -> (EnvFile, bool) {
 		return EnvFile{}, false
 	}
 
-	remotes_json := string(sqlite.column_text(stmt, 1))
+	// TODO: Remove json support after next major release
+	migrate := false
 	remotes: [dynamic]string = ---
-	if len(remotes_json) > 0 {
-		err := json.unmarshal_string(remotes_json, &remotes, allocator = allocator)
-		if err != nil {
-			fmt.eprintf("Warning: malformed remotes JSON: %v\n", err)
+	remotes_raw := string(sqlite.column_text(stmt, 1))
+	if len(remotes_raw) > 0 {
+		if remotes_raw[0] == '[' {
+			err := json.unmarshal_string(remotes_raw, &remotes, allocator = allocator)
+			if err != nil {
+				fmt.eprintf("Warning: malformed remotes JSON: %v\n", err)
+			}
+
+			migrate = true
+		} else {
+			split := strings.split_lines(remotes_raw, context.temp_allocator)
+			remotes = make([dynamic]string, 0, len(split), allocator = allocator)
+			for s in split {
+				append(&remotes, strings.clone(s, allocator))
+			}
 		}
 	}
 
 	file_path := clone_cstring(sqlite.column_text(stmt, 0), allocator)
+
+	if migrate {
+		migrate_remotes(db)
+	}
 
 	return EnvFile {
 			path = file_path,
@@ -496,6 +523,27 @@ db_persist :: proc(db: ^Db, f: ^EnvFile, old_path: string) -> bool {
 		}
 	}
 	return db_insert(db, f^)
+}
+
+// TODO: Remove after the next major release
+migrate_remotes :: proc(db: ^Db) {
+	sql ::
+		"UPDATE envr_env_files " +
+		"SET remotes = COALESCE((" +
+		"  SELECT group_concat(atom, char(10)) " +
+		"  FROM json_each(envr_env_files.remotes)" +
+		"), '') " +
+		"WHERE remotes LIKE '[%'"
+
+	rc := sqlite.exec(db.conn, sql, nil, nil, nil)
+	if rc != sqlite.OK {
+		fmt.eprintf("Warning: failed to migrate remotes: %s\n", sqlite.errmsg(db.conn))
+		return
+	}
+
+	if sqlite.changes(db.conn) > 0 {
+		db.changed = true
+	}
 }
 
 try_move_dir :: proc(db: ^Db, f: ^EnvFile, allocator: mem.Allocator) -> (bool, SyncError) {
