@@ -75,6 +75,8 @@
             ];
 
             buildInputs = [
+              pkgs.git
+
               pkgs.libsodium
               mysqlite
             ];
