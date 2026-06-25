@@ -26,11 +26,9 @@
 
 13. Test all cmds / terminal branches.
 
-14. Fix error messages to use fmt.eprintf (stderr) instead of fmt.printf (stdout)
+14. Pass allocator to findr?
 
-15. Pass allocator to findr?
-
-16. Update `read_wire_string` to use a slice.
+15. Update `read_wire_string` to use a slice.
 
 ## Double-check AI output
 

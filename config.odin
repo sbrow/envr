@@ -30,14 +30,14 @@ load_config :: proc(config_path: string, allocator := context.allocator) -> (Con
 	// TODO: Should we use context.allocator + defer delete()?
 	data, read_err := os.read_entire_file_from_path(config_path, context.temp_allocator)
 	if read_err != nil {
-		fmt.println("No config file found. Please run `envr init` to generate one.")
+		fmt.eprintln("No config file found. Please run `envr init` to generate one.")
 		return Config{}, false
 	}
 
 	cfg: Config
 	err := json.unmarshal(data, &cfg, .JSON5, allocator)
 	if err != nil {
-		fmt.printf("Error parsing config: %v\n", err)
+		fmt.eprintf("Error parsing config: %v\n", err)
 		return Config{}, false
 	}
 	cfg.config_path = config_path
@@ -79,7 +79,7 @@ save_config :: proc(cfg: Config, force: bool = false) -> bool {
 	if !os.exists(config_dir) {
 		mkdir_err := os.make_directory(config_dir)
 		if mkdir_err != nil {
-			fmt.printf("Error creating %s directory: %v\n", config_dir, mkdir_err)
+			fmt.eprintf("Error creating %s directory: %v\n", config_dir, mkdir_err)
 			return false
 		}
 	}
@@ -89,7 +89,7 @@ save_config :: proc(cfg: Config, force: bool = false) -> bool {
 		if stat_err == nil {
 			defer os.file_info_delete(info, context.temp_allocator)
 			if info.size > 0 {
-				fmt.println("Config file already exists. Run again with --force to reinitialize.")
+				fmt.eprintln("Config file already exists. Run again with --force to reinitialize.")
 				return false
 			}
 		}
@@ -101,13 +101,13 @@ save_config :: proc(cfg: Config, force: bool = false) -> bool {
 		context.temp_allocator,
 	)
 	if marshal_err != nil {
-		fmt.printf("Error marshaling config: %v\n", marshal_err)
+		fmt.eprintf("Error marshaling config: %v\n", marshal_err)
 		return false
 	}
 
 	write_err := os.write_entire_file(cfg.config_path, data)
 	if write_err != nil {
-		fmt.printf("Error writing config: %v\n", write_err)
+		fmt.eprintf("Error writing config: %v\n", write_err)
 		return false
 	}
 
@@ -150,19 +150,19 @@ new_config :: proc(
 find_ssh_private_keys :: proc() -> (keys: [dynamic]string, ok: bool) {
 	home, home_err := os.user_home_dir(context.allocator)
 	if home_err != nil {
-		fmt.printf("Error getting home dir: %v\n", home_err)
+		fmt.eprintf("Error getting home dir: %v\n", home_err)
 		return
 	}
 
 	ssh_dir, join_err := filepath.join([]string{home, ".ssh"})
 	if join_err != nil {
-		fmt.printf("Error building ssh path: %v\n", join_err)
+		fmt.eprintf("Error building ssh path: %v\n", join_err)
 		return
 	}
 
 	entries, dir_err := os.read_all_directory_by_path(ssh_dir, context.allocator)
 	if dir_err != nil {
-		fmt.printf("Could not read ~/.ssh directory: %v\n", dir_err)
+		fmt.eprintf("Could not read ~/.ssh directory: %v\n", dir_err)
 		return
 	}
 	defer os.file_info_slice_delete(entries, context.allocator)

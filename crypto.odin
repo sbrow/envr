@@ -60,7 +60,7 @@ encrypt :: proc(plaintext: []u8, keys: []SshKeyPair) -> (ciphertext: []u8, ok: b
 		&sym_key[0],
 	)
 	if rc != 0 {
-		fmt.println("Error: symmetric encryption failed")
+		fmt.eprintln("Error: symmetric encryption failed")
 		delete(secret_ct)
 		return
 	}
@@ -84,7 +84,7 @@ encrypt :: proc(plaintext: []u8, keys: []SshKeyPair) -> (ciphertext: []u8, ok: b
 			&x25519_pairs[0].Private[0],
 		)
 		if rc != 0 {
-			fmt.printf("Error: failed to encrypt for recipient %d\n", i)
+			fmt.eprintf("Error: failed to encrypt for recipient %d\n", i)
 			delete(entries)
 			delete(secret_ct)
 			return
@@ -132,13 +132,13 @@ encrypt :: proc(plaintext: []u8, keys: []SshKeyPair) -> (ciphertext: []u8, ok: b
 
 decrypt :: proc(ciphertext: []u8, keys: []SshKeyPair) -> (plaintext: []u8, ok: bool) {
 	if len(ciphertext) < HEADER_SIZE {
-		fmt.println("Error: ciphertext too short (header)")
+		fmt.eprintln("Error: ciphertext too short (header)")
 		return
 	}
 
 	for i in 0 ..< 4 {
 		if ciphertext[i] != MAGIC_BYTES[i] {
-			fmt.println("Error: invalid magic bytes")
+			fmt.eprintln("Error: invalid magic bytes")
 			return
 		}
 	}
@@ -166,7 +166,7 @@ decrypt :: proc(ciphertext: []u8, keys: []SshKeyPair) -> (plaintext: []u8, ok: b
 
 	recipients_end := offset + int(num_recipients) * RECIPIENT_ENTRY_SIZE
 	if recipients_end > len(ciphertext) {
-		fmt.println("Error: ciphertext too short (recipient data)")
+		fmt.eprintln("Error: ciphertext too short (recipient data)")
 		return
 	}
 
@@ -222,7 +222,7 @@ decrypt :: proc(ciphertext: []u8, keys: []SshKeyPair) -> (plaintext: []u8, ok: b
 	}
 
 	if !found {
-		fmt.println("Error: no matching recipient found")
+		fmt.eprintln("Error: no matching recipient found")
 		return
 	}
 
@@ -236,14 +236,14 @@ decrypt :: proc(ciphertext: []u8, keys: []SshKeyPair) -> (plaintext: []u8, ok: b
 		&x25519_pairs[matched_pi].Private[0],
 	)
 	if rc != 0 {
-		fmt.println("Error: failed to decrypt symmetric key")
+		fmt.eprintln("Error: failed to decrypt symmetric key")
 		return
 	}
 
 	ct_data := ciphertext[recipients_end:]
 	pt_len := len(ct_data) - CRYPTO_SECRETBOX_MAC_BYTES
 	if pt_len < 0 {
-		fmt.println("Error: ciphertext too short (no encrypted data)")
+		fmt.eprintln("Error: ciphertext too short (no encrypted data)")
 		return
 	}
 
@@ -260,7 +260,7 @@ decrypt :: proc(ciphertext: []u8, keys: []SshKeyPair) -> (plaintext: []u8, ok: b
 		&sym_key[0],
 	)
 	if rc != 0 {
-		fmt.println("Error: symmetric decryption failed")
+		fmt.eprintln("Error: symmetric decryption failed")
 		delete(plaintext)
 		return
 	}
@@ -285,21 +285,21 @@ ssh_to_x25519 :: proc(
 	for i in 0 ..< len(keys) {
 		ssh_kp, parse_ok := parse_ssh_private_key(keys[i].private)
 		if !parse_ok {
-			fmt.printf("Error: failed to parse SSH private key: %s\n", keys[i].private)
+			fmt.eprintf("Error: failed to parse SSH private key: %s\n", keys[i].private)
 			delete(pairs)
 			return pairs, false
 		}
 
 		ssh_pub, pub_ok := parse_ssh_public_key(keys[i].public)
 		if !pub_ok {
-			fmt.printf("Error: failed to parse SSH public key: %s\n", keys[i].public)
+			fmt.eprintf("Error: failed to parse SSH public key: %s\n", keys[i].public)
 			delete(pairs)
 			return pairs, false
 		}
 
 		pk_rc := crypto_sign_ed25519_pk_to_curve25519(&pairs[i].Public[0], &ssh_pub[0])
 		if pk_rc != 0 {
-			fmt.println("Error: failed to convert ed25519 public key to curve25519")
+			fmt.eprintln("Error: failed to convert ed25519 public key to curve25519")
 			delete(pairs)
 			return pairs, false
 		}
@@ -314,7 +314,7 @@ ssh_to_x25519 :: proc(
 
 		sk_rc := crypto_sign_ed25519_sk_to_curve25519(&pairs[i].Private[0], &ed25519_sk[0])
 		if sk_rc != 0 {
-			fmt.println("Error: failed to convert ed25519 private key to curve25519")
+			fmt.eprintln("Error: failed to convert ed25519 private key to curve25519")
 			delete(pairs)
 			return pairs, false
 		}
