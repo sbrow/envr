@@ -21,9 +21,9 @@ test_ansi_aware_width_with_color_codes :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_ansi_aware_width_unicode :: proc(t: ^testing.T) {
-	testing.expect_value(t, ansi_aware_width("\u2713 Available"), 11)
-	testing.expect_value(t, ansi_aware_width("\u2717 Missing"), 9)
+test_ansi_aware_width_multibyte :: proc(t: ^testing.T) {
+	testing.expect_value(t, ansi_aware_width("\u2713 Available"), 13)
+	testing.expect_value(t, ansi_aware_width("\u2717 Missing"), 11)
 }
 
 @(test)
