@@ -20,7 +20,7 @@
 
 10. Pass allocator to findr?
 
-11. `-h` short flag seems to fail, at least with `envr list`
+11. Smarter flag parsing?
 
 12. Rewrite `write_command_help` to use text/tables
 

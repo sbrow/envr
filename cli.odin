@@ -123,7 +123,7 @@ parse_args :: proc(args: []string, out: io.Stream, err: io.Stream) -> (cmd: Comm
 		cmd.config_path = default_config_path(home, context.temp_allocator)
 	}
 
-	if has_flag(&cmd, "help") {
+	if has_flag(&cmd, "help") || has_flag(&cmd, "h") {
 		print_command_help(&cmd)
 		return cmd, false
 	}

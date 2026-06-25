@@ -196,7 +196,7 @@ test_db_serialize :: proc(t: ^testing.T) {
 	db_insert(&db, f)
 
 	sz: i64
-	data := sqlite.serialize(db.conn, "main", &sz, 0)
+	data := sqlite.serialize(db.conn, "main", &sz, {})
 	testing.expect(t, data != nil, "serialize should return non-nil")
 	if data == nil do return
 	defer sqlite.free(data)
