@@ -17,6 +17,12 @@ DESERIALIZE_FLAGS :: bit_set[DESERIALIZE_FLAG]
 DESERIALIZE_FLAG :: enum u32 {
 	FREEONCLOSE = 1,
 	RESIZEABLE  = 2,
+	READONLY    = 4,
+}
+
+SERIALIZE_FLAGS :: bit_set[SERIALIZE_FLAG]
+SERIALIZE_FLAG :: enum u32 {
+	NOCOPY = 1,
 }
 
 foreign lib {
@@ -43,7 +49,7 @@ foreign lib {
 	@(link_name = "sqlite3_changes")
 	changes :: proc(db: Db) -> c.int ---
 	@(link_name = "sqlite3_serialize")
-	serialize :: proc(db: Db, zSchema: cstring, piSize: ^i64, mFlags: u32) -> [^]u8 ---
+	serialize :: proc(db: Db, zSchema: cstring, piSize: ^i64, mFlags: SERIALIZE_FLAGS) -> [^]u8 ---
 	@(link_name = "sqlite3_deserialize")
 	deserialize :: proc(db: Db, zSchema: cstring, pData: [^]u8, szDb: i64, szBuf: i64, mFlags: DESERIALIZE_FLAGS) -> c.int ---
 	@(link_name = "sqlite3_malloc64")

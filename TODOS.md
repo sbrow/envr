@@ -14,19 +14,19 @@
 
 7. Add tests for untested commands.
 
-8. add --format -f flag to commands that draw tables.
+8. procedures should be ordered by use, main at the top, then in the order they are called from main.
 
-9. procedures should be ordered by use, main at the top, then in the order they are called from main.
+9. Shell completion
 
-10. Shell completion
+10. Bring back windows support / cross-compilation.
 
-11. Bring back windows support / cross-compilation.
+11. Test all cmds / terminal branches.
 
-12. Test all cmds / terminal branches.
+12. Pass allocator to findr?
 
-13. Pass allocator to findr?
+13. Update `read_wire_string` to use a slice.
 
-14. Update `read_wire_string` to use a slice.
+14. `-h` short flag seems to fail, at least with `envr list`
 
 ## Double-check AI output
 

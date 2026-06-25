@@ -5,7 +5,6 @@ import "core:fmt"
 import "core:os"
 import "core:path/filepath"
 import "core:strings"
-import "core:terminal"
 import "core:text/table"
 
 ListEntry :: struct {
@@ -13,7 +12,6 @@ ListEntry :: struct {
 	path: string `json:"path"`,
 }
 
-// TODO: Support --format flag
 // TODO: Improve table rendering
 cmd_list :: proc(cmd: ^Command) {
 	db, db_ok := db_open(cmd.config_path)
@@ -27,7 +25,7 @@ cmd_list :: proc(cmd: ^Command) {
 		return
 	}
 
-	if terminal.is_terminal(os.stdout) {
+	if get_format(cmd) == .Table {
 		t: table.Table
 		table.init(&t, context.temp_allocator, context.temp_allocator)
 		table.padding(&t, 1, 1)
@@ -51,7 +49,7 @@ cmd_list :: proc(cmd: ^Command) {
 		table.write_decorated_table(cmd.out, &t, decorations, ansi_aware_width)
 	} else {
 		// TODO: Should we instead print full entries here?
-		entries: [dynamic]ListEntry
+		entries := make([dynamic]ListEntry, 0, len(rows), context.temp_allocator)
 		for row in rows {
 			filename := filepath.base(row.path)
 			append(
