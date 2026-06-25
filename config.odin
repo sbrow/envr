@@ -123,7 +123,7 @@ new_config :: proc(
 	for priv in private_key_paths {
 		// TODO: Is this bad?
 		priv_key := strings.clone(priv)
-		pub, _ := strings.concatenate([]string{priv_key, ".pub"})
+		pub := strings.concatenate([]string{priv_key, ".pub"})
 		append(&keys, SshKeyPair{private = priv_key, public = pub})
 	}
 

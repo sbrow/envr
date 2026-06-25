@@ -1,6 +1,6 @@
 # TODOs
 
-1. Commands are still leaking. (Do 13. first)
+1. Commands are still leaking. (Write tests for everything first)
 
 2. Add color flag and support non colored output.
 
@@ -8,27 +8,25 @@
 
 4. Generate md and man pages again.
 
-5. Consistently ignore allocator errors
+5. Check for prealloc opportunities. i.e. `make([dynamic]string)` -> `make([dynamic]string, 5)`.
 
-6. Check for prealloc opportunities. i.e. `make([dynamic]string)` -> `make([dynamic]string, 5)`.
+6. Add a text filter to the multi_select.
 
-7. Add a text filter to the multi_select.
+7. Add tests for untested commands.
 
-8. Add tests for untested commands.
+8. add --format -f flag to commands that draw tables.
 
-9. add --format -f flag to commands that draw tables.
+9. procedures should be ordered by use, main at the top, then in the order they are called from main.
 
-10. procedures should be ordered by use, main at the top, then in the order they are called from main.
+10. Shell completion
 
-11. Shell completion
+11. Bring back windows support / cross-compilation.
 
-12. Bring back windows support / cross-compilation.
+12. Test all cmds / terminal branches.
 
-13. Test all cmds / terminal branches.
+13. Pass allocator to findr?
 
-14. Pass allocator to findr?
-
-15. Update `read_wire_string` to use a slice.
+14. Update `read_wire_string` to use a slice.
 
 ## Double-check AI output
 

@@ -26,7 +26,7 @@ find_repos :: proc(roots: []string, results: ^[dynamic]string, thread_count: int
 	pool.threads = make([]^thread.Thread, thread_count)
 
 	for root in roots {
-		root_clone, _ := strings.clone(root)
+		root_clone := strings.clone(root)
 		append(&pool.queue, root_clone)
 		sync.atomic_sema_post(&pool.queue_sema)
 	}
@@ -97,7 +97,7 @@ process_repo_dir :: proc(pool: ^RepoPool, dir_path: string) {
 	defer linux.close(fd)
 
 	if has_git_dir(fd) {
-		cloned, _ := strings.clone(dir_path)
+		cloned := strings.clone(dir_path)
 		sync.mutex_lock(&pool.results_lock)
 		append(pool.results, cloned)
 		sync.mutex_unlock(&pool.results_lock)

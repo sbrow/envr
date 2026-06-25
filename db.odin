@@ -572,7 +572,7 @@ try_move_dir :: proc(db: ^Db, f: ^EnvFile, allocator: mem.Allocator) -> (bool, S
 	case 0:
 		return false, .DirMissing
 	case 1:
-		f.dir, _ = strings.clone(matched_dir, allocator)
+		f.dir = strings.clone(matched_dir, allocator)
 		base := filepath.base(f.path)
 		new_path, _ := filepath.join({f.dir, base}, allocator)
 		f.path = new_path
@@ -613,7 +613,7 @@ get_git_remotes :: proc(dir: string, allocator: mem.Allocator) -> [dynamic]strin
 				}
 				if !found {
 					// FIXME: Currently leaks when adding a file with envr scan
-					cloned, _ := strings.clone(url, allocator)
+					cloned := strings.clone(url, allocator)
 					append(&remotes, cloned)
 				}
 			}

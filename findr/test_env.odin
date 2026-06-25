@@ -137,7 +137,7 @@ collect_results :: proc(env: TestEnv, args: []string, opts: WalkOptions) -> [dyn
 			if len(stripped) > 0 && stripped[0] == os.Path_Separator {
 				stripped = stripped[1:]
 			}
-			new_r, _ := strings.clone(stripped)
+			new_r := strings.clone(stripped)
 			delete(r)
 			results[i] = new_r
 		}
