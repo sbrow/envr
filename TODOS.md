@@ -1,32 +1,32 @@
 # TODOs
 
-1. Commands are still leaking. (Write tests for everything first)
+1. Bring back windows support / cross-compilation.
 
-2. Add color flag and support non colored output.
+2. Commands are still leaking. (Write tests for everything first)
 
-3. Rewrite `write_command_help` to use text/tables
+3. procedures should be ordered by use, main at the top, then in the order they are called from main.
 
-4. Generate md and man pages again.
+4. Check for prealloc opportunities. i.e. `make([dynamic]string)` -> `make([dynamic]string, 5)`.
 
-5. Check for prealloc opportunities. i.e. `make([dynamic]string)` -> `make([dynamic]string, 5)`.
+5. Test all cmds / terminal branches.
 
-6. Add a text filter to the multi_select.
+6. Generate md and man pages again.
 
-7. Add tests for untested commands.
+7. Shell completion
 
-8. procedures should be ordered by use, main at the top, then in the order they are called from main.
+8. Add tests for untested commands.
 
-9. Shell completion
+9. Update `read_wire_string` to use a slice.
 
-10. Bring back windows support / cross-compilation.
+10. Pass allocator to findr?
 
-11. Test all cmds / terminal branches.
+11. `-h` short flag seems to fail, at least with `envr list`
 
-12. Pass allocator to findr?
+12. Rewrite `write_command_help` to use text/tables
 
-13. Update `read_wire_string` to use a slice.
+13. Add color flag and support non colored output.
 
-14. `-h` short flag seems to fail, at least with `envr list`
+14. Add a text filter to the multi_select.
 
 ## Double-check AI output
 
