@@ -2,8 +2,6 @@ package main
 
 import "core:encoding/json"
 import "core:fmt"
-import "core:os"
-import "core:terminal"
 import "core:text/table"
 
 SyncEntry :: struct {
@@ -12,7 +10,6 @@ SyncEntry :: struct {
 }
 
 // TODO: Check for quiet failures.
-// TODO: Support --format -f flags
 cmd_sync :: proc(cmd: ^Command) {
 	db, db_ok := db_open(cmd.config_path)
 	if !db_ok {
@@ -49,7 +46,7 @@ cmd_sync :: proc(cmd: ^Command) {
 		}
 	}
 
-	if terminal.is_terminal(os.stdout) {
+	if get_format(cmd) == .Table {
 		t: table.Table
 		table.init(&t, context.temp_allocator, context.temp_allocator)
 		table.padding(&t, 1, 1)

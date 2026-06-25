@@ -172,7 +172,7 @@ db_close :: proc(db: ^Db) {
 		}
 
 		sz: i64
-		data := sqlite.serialize(db.conn, "main", &sz, 0)
+		data := sqlite.serialize(db.conn, "main", &sz, {})
 		if data == nil {
 			fmt.eprintln("Error: failed to serialize database")
 			return

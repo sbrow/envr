@@ -361,3 +361,43 @@ test_parse_args_config_file_defaults :: proc(t: ^testing.T) {
 	)
 }
 
+@(test)
+test_get_format_long_json :: proc(t: ^testing.T) {
+	cmd, ok, _, _ := test_parse_args([]string{"envr", "list", "--format", "json"})
+	testing.expect(t, ok, "should succeed")
+	if !ok do return
+	defer delete_command(&cmd)
+
+	testing.expect_value(t, get_format(&cmd), Output_Format.JSON)
+}
+
+@(test)
+test_get_format_short_json :: proc(t: ^testing.T) {
+	cmd, ok, _, _ := test_parse_args([]string{"envr", "list", "-f", "json"})
+	testing.expect(t, ok, "should succeed")
+	if !ok do return
+	defer delete_command(&cmd)
+
+	testing.expect_value(t, get_format(&cmd), Output_Format.JSON)
+}
+
+@(test)
+test_get_format_long_table :: proc(t: ^testing.T) {
+	cmd, ok, _, _ := test_parse_args([]string{"envr", "list", "--format", "table"})
+	testing.expect(t, ok, "should succeed")
+	if !ok do return
+	defer delete_command(&cmd)
+
+	testing.expect_value(t, get_format(&cmd), Output_Format.Table)
+}
+
+@(test)
+test_get_format_short_table :: proc(t: ^testing.T) {
+	cmd, ok, _, _ := test_parse_args([]string{"envr", "list", "-f", "table"})
+	testing.expect(t, ok, "should succeed")
+	if !ok do return
+	defer delete_command(&cmd)
+
+	testing.expect_value(t, get_format(&cmd), Output_Format.Table)
+}
+

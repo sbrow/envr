@@ -5,6 +5,7 @@ import "core:fmt"
 import "core:io"
 import "core:os"
 import "core:strings"
+import "core:terminal"
 import "core:text/table"
 
 Command :: struct {
@@ -16,6 +17,11 @@ Command :: struct {
 	out_buf:     ^bufio.Writer,
 	out:         io.Writer,
 	err:         io.Writer,
+}
+
+Output_Format :: enum {
+	Table,
+	JSON,
 }
 
 CommandInfo :: struct {
@@ -288,6 +294,11 @@ at before, restore your backup with:
 		COLOR_FLAGS + "-c, --config-file" + ANSI_RESET + " <path>",
 		`config file (default "~/.envr/config.json")`,
 	)
+	table.row(
+		&tbl,
+		COLOR_FLAGS + "-f, --format" + ANSI_RESET + " 'json'|'table'",
+		`the format of output data. (default 'table', unless piping)`,
+	)
 	write_borderless_table(w, &tbl)
 
 	fmt.wprintf(
@@ -301,6 +312,22 @@ at before, restore your backup with:
 
 has_flag :: proc(cmd: ^Command, name: string) -> bool {
 	return name in cmd.flags || name in cmd.bool_set
+}
+
+get_format :: proc(cmd: ^Command) -> Output_Format {
+	flags :: []string{"format", "f"}
+	for name in flags {
+		if val, ok := cmd.flags[name]; ok {
+			switch val {
+			case "json":
+				return .JSON
+			case "table":
+				return .Table
+			}
+		}
+	}
+
+	return terminal.is_terminal(os.stdout) ? .Table : .JSON
 }
 
 delete_command :: proc(cmd: ^Command) {
