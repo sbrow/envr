@@ -11,9 +11,9 @@ test_filepath_base_equals_rel :: proc(t: ^testing.T) {
 	for path in cases {
 		dir := filepath.dir(path)
 		rel, rel_err := filepath.rel(dir, path, context.temp_allocator)
-		testing.expect(t, rel_err == nil, "filepath.rel returned an error")
+		testing.expect_value(t, rel_err, nil)
 		base := filepath.base(path)
-		testing.expect(t, rel == base, "filepath.rel(dir, path) should equal filepath.base(path)")
+		testing.expect_value(t, rel, base)
 	}
 }
 

@@ -27,13 +27,10 @@ test_encrypt_decrypt_roundtrip :: proc(t: ^testing.T) {
 	testing.expect(t, dec_ok, "decryption should succeed")
 	defer delete(decrypted)
 
-	testing.expect(
-		t,
-		len(decrypted) == len(original),
-		fmt.tprintf("expected %d bytes, got %d", len(original), len(decrypted)),
-	)
+	testing.expect_value(t, len(decrypted), len(original))
+	// TODO: Should this be a loop?
 	for i in 0 ..< len(original) {
-		testing.expect(t, decrypted[i] == original[i], fmt.tprintf("byte mismatch at index %d", i))
+		testing.expect_value(t, decrypted[i], original[i])
 	}
 }
 
@@ -56,16 +53,8 @@ test_encrypt_decrypt_multi_recipient :: proc(t: ^testing.T) {
 	defer delete(decrypted2)
 
 	for i in 0 ..< len(original) {
-		testing.expect(
-			t,
-			decrypted1[i] == original[i],
-			fmt.tprintf("key1: byte mismatch at %d", i),
-		)
-		testing.expect(
-			t,
-			decrypted2[i] == original[i],
-			fmt.tprintf("key2: byte mismatch at %d", i),
-		)
+		testing.expect_value(t, decrypted1[i], original[i])
+		testing.expect_value(t, decrypted2[i], original[i])
 	}
 }
 
@@ -96,7 +85,7 @@ test_encrypt_empty_plaintext :: proc(t: ^testing.T) {
 	testing.expect(t, dec_ok, "decryption should succeed")
 	defer delete(decrypted)
 
-	testing.expect(t, len(decrypted) == 0, "decrypted empty data should be empty")
+	testing.expect_value(t, len(decrypted), 0)
 }
 
 @(test)
@@ -113,8 +102,9 @@ test_recipient_can_decrypt_senders_data :: proc(t: ^testing.T) {
 	testing.expect(t, dec_ok, "second recipient should decrypt without the sender key present")
 	defer delete(decrypted)
 
+	// TODO: Should this be a loop?
 	for i in 0 ..< len(original) {
-		testing.expect(t, decrypted[i] == original[i], fmt.tprintf("byte mismatch at %d", i))
+		testing.expect_value(t, decrypted[i], original[i])
 	}
 }
 
@@ -128,9 +118,9 @@ test_ciphertext_has_magic :: proc(t: ^testing.T) {
 	defer delete(encrypted)
 
 	testing.expect(t, len(encrypted) >= 4, "ciphertext should have at least 4 bytes")
-	testing.expect(t, encrypted[0] == u8('E'), "magic byte 0")
-	testing.expect(t, encrypted[1] == u8('N'), "magic byte 1")
-	testing.expect(t, encrypted[2] == u8('V'), "magic byte 2")
-	testing.expect(t, encrypted[3] == u8('R'), "magic byte 3")
+	testing.expect_value(t, encrypted[0], u8('E'))
+	testing.expect_value(t, encrypted[1], u8('N'))
+	testing.expect_value(t, encrypted[2], u8('V'))
+	testing.expect_value(t, encrypted[3], u8('R'))
 }
 

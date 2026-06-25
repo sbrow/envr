@@ -1,6 +1,6 @@
 # TODOs
 
-1. Commands are still leaking. (Do 15. first)
+1. Commands are still leaking. (Do 13. first)
 
 2. Add color flag and support non colored output.
 
@@ -8,31 +8,29 @@
 
 4. Generate md and man pages again.
 
-6. Consistently ignore allocator errors
+5. Consistently ignore allocator errors
 
-7. Check for prealloc opportunities. i.e. `make([dynamic]string)` -> `make([dynamic]string, 5)`.
+6. Check for prealloc opportunities. i.e. `make([dynamic]string)` -> `make([dynamic]string, 5)`.
 
-8. Add a text filter to the multi_select.
+7. Add a text filter to the multi_select.
 
-9. Add tests for untested commands.
+8. Add tests for untested commands.
 
-10. add --format -f flag to commands that draw tables.
+9. add --format -f flag to commands that draw tables.
 
-11. Replace `testing.expect` calls with `testing.expect_value` calls where appropriate.
+10. procedures should be ordered by use, main at the top, then in the order they are called from main.
 
-12. procedures should be ordered by use, main at the top, then in the order they are called from main.
+11. Shell completion
 
-13. Shell completion
+12. Bring back windows support / cross-compilation.
 
-14. Bring back windows support / cross-compilation.
+13. Test all cmds / terminal branches.
 
-15. Test all cmds / terminal branches.
+14. Fix error messages to use fmt.eprintf (stderr) instead of fmt.printf (stdout)
 
-16. Fix error messages to use fmt.eprintf (stderr) instead of fmt.printf (stdout)
+15. Pass allocator to findr?
 
-17. Pass allocator to findr?
-
-18. Update `read_wire_string` to use a slice.
+16. Update `read_wire_string` to use a slice.
 
 ## Double-check AI output
 

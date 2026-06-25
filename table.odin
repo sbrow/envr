@@ -18,21 +18,18 @@ decorations := table.Decorations {
 	"─",
 }
 
-ansi_aware_width :: proc(str: string) -> int {
-	#no_bounds_check {
-		width := 0
-		i := 0
-		for i < len(str) {
-			if i + 1 < len(str) && str[i] == 0x1b && str[i + 1] == '[' {
-				i += 2
-				for i < len(str) {c := str[i]; i += 1; if c >= 0x40 && c <= 0x7E {break}}
-			} else {
-				width += 1
-				i += 1
-			}
+ansi_aware_width :: proc(str: string) -> int #no_bounds_check {
+	width := 0
+	for i := 0; i < len(str); {
+		if i + 1 < len(str) && str[i] == 0x1b && str[i + 1] == '[' {
+			i += 2
+			for i < len(str) {c := str[i]; i += 1; if c >= 0x40 && c <= 0x7E {break}}
+		} else {
+			width += 1
+			i += 1
 		}
-		return width
 	}
+	return width
 }
 
 write_borderless_table :: proc(w: io.Writer, t: ^table.Table) {

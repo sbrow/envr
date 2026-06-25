@@ -67,10 +67,10 @@ test_encrypt_decrypt_sqlite_roundtrip :: proc(t: ^testing.T) {
 	defer delete(encrypted)
 
 	testing.expect(t, len(encrypted) >= HEADER_SIZE, "ciphertext should have header")
-	testing.expect(t, encrypted[0] == u8('E'), "magic byte 0")
-	testing.expect(t, encrypted[1] == u8('N'), "magic byte 1")
-	testing.expect(t, encrypted[2] == u8('V'), "magic byte 2")
-	testing.expect(t, encrypted[3] == u8('R'), "magic byte 3")
+	testing.expect_value(t, encrypted[0], u8('E'))
+	testing.expect_value(t, encrypted[1], u8('N'))
+	testing.expect_value(t, encrypted[2], u8('V'))
+	testing.expect_value(t, encrypted[3], u8('R'))
 
 	plaintext, dec_ok := decrypt(encrypted, cfg.keys[:])
 	testing.expect(t, dec_ok, "decryption should succeed")
@@ -142,7 +142,7 @@ test_encrypt_write_read_decrypt :: proc(t: ^testing.T) {
 	}
 	defer delete(plaintext)
 
-	testing.expect(t, len(plaintext) == len(sqlite_data), "size mismatch after file round-trip")
+	testing.expect_value(t, len(plaintext), len(sqlite_data))
 }
 
 @(test)
@@ -189,7 +189,7 @@ test_decrypt_then_deserialize_sqlite :: proc(t: ^testing.T) {
 	copy(buf[:len(plaintext)], plaintext)
 
 	rc = sqlite.deserialize(mem_db, "main", buf, n, n, {.FREEONCLOSE, .RESIZEABLE})
-	testing.expect(t, rc == sqlite.OK, "deserialize should succeed")
+	testing.expect_value(t, rc, sqlite.OK)
 	if rc != sqlite.OK {
 		sqlite.free(buf)
 		return
@@ -198,14 +198,14 @@ test_decrypt_then_deserialize_sqlite :: proc(t: ^testing.T) {
 	sql: cstring = "SELECT path FROM envr_env_files"
 	stmt: sqlite.Stmt
 	rc = sqlite.prepare_v2(mem_db, sql, -1, &stmt, nil)
-	testing.expect(t, rc == sqlite.OK, "prepare failed")
+	testing.expect_value(t, rc, sqlite.OK)
 	if rc != sqlite.OK {
 		return
 	}
 	defer sqlite.finalize(stmt)
 
 	rc = sqlite.step(stmt)
-	testing.expect(t, rc == sqlite.ROW, "expected at least one row")
+	testing.expect_value(t, rc, sqlite.ROW)
 	if rc == sqlite.ROW {
 		path := string(sqlite.column_text(stmt, 0))
 		testing.expect(t, len(path) > 0, "path should not be empty")
@@ -275,15 +275,7 @@ test_full_db_cycle :: proc(t: ^testing.T) {
 	}
 	defer delete(plaintext2)
 
-	testing.expect(
-		t,
-		len(plaintext2) == len(original_data),
-		fmt.tprintf(
-			"double round-trip size mismatch: expected %d, got %d",
-			len(original_data),
-			len(plaintext2),
-		),
-	)
+	testing.expect_value(t, len(plaintext2), len(original_data))
 
 	os.remove(data_path)
 	os.remove(envr_dir_path)
@@ -317,7 +309,7 @@ test_ssh_key_parse_from_fixtures :: proc(t: ^testing.T) {
 		return
 	}
 
-	testing.expect(t, len(x25519_pairs) == 1, "should have 1 x25519 keypair")
+	testing.expect_value(t, len(x25519_pairs), 1)
 }
 
 @(test)
@@ -327,7 +319,7 @@ test_config_load_with_fixture_key :: proc(t: ^testing.T) {
 		delete(cfg.keys)
 	}
 
-	testing.expect(t, len(cfg.keys) == 1, "should have 1 key")
+	testing.expect_value(t, len(cfg.keys), 1)
 
 	key := cfg.keys[0]
 

@@ -81,7 +81,7 @@ test_db_insert_or_replace :: proc(t: ^testing.T) {
 	results, list_ok := db_list(&db)
 	testing.expect(t, list_ok, "list should succeed")
 
-	testing.expect(t, len(results) == 1, "should have 1 row, not 2")
+	testing.expect_value(t, len(results), 1)
 
 	fetched, fetch_ok := db_fetch(&db, "/project/.env")
 	testing.expect(t, fetch_ok, "fetch should succeed")
@@ -149,7 +149,7 @@ test_db_list_empty :: proc(t: ^testing.T) {
 
 	results, list_ok := db_list(&db)
 	testing.expect(t, list_ok, "list should succeed on empty db")
-	testing.expect(t, len(results) == 0, "should have 0 rows")
+	testing.expect_value(t, len(results), 0)
 }
 
 @(test)
@@ -276,11 +276,11 @@ test_get_git_remotes_single :: proc(t: ^testing.T) {
 	config_content := "[core]\n\trepositoryformatversion = 0\n[remote \"origin\"]\n\turl = git@github.com:user/repo.git\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n"
 	config_path := fmt.tprintf("%s/config", git_dir)
 	err := os.write_entire_file(config_path, transmute([]u8)config_content)
-	testing.expect(t, err == nil, "should write .git/config")
+	testing.expect_value(t, err, nil)
 
 	remotes := get_git_remotes(base, context.temp_allocator)
 
-	testing.expect(t, len(remotes) == 1, "should find 1 remote")
+	testing.expect_value(t, len(remotes), 1)
 	if len(remotes) != 1 do return
 	testing.expect_value(t, remotes[0], "git@github.com:user/repo.git")
 }
@@ -296,11 +296,11 @@ test_get_git_remotes_multiple :: proc(t: ^testing.T) {
 	config_content := "[remote \"origin\"]\n\turl = git@github.com:user/repo.git\n[remote \"upstream\"]\n\turl = https://gitlab.com/upstream/repo.git\n"
 	config_path := fmt.tprintf("%s/config", git_dir)
 	err := os.write_entire_file(config_path, transmute([]u8)config_content)
-	testing.expect(t, err == nil, "should write .git/config")
+	testing.expect_value(t, err, nil)
 
 	remotes := get_git_remotes(base, context.temp_allocator)
 
-	testing.expect(t, len(remotes) == 2, "should find 2 remotes")
+	testing.expect_value(t, len(remotes), 2)
 }
 
 @(test)
@@ -310,7 +310,7 @@ test_get_git_remotes_no_config :: proc(t: ^testing.T) {
 
 	remotes := get_git_remotes(base, context.temp_allocator)
 
-	testing.expect(t, len(remotes) == 0, "should return empty when no .git/config")
+	testing.expect_value(t, len(remotes), 0)
 }
 
 @(test)
@@ -324,11 +324,11 @@ test_get_git_remotes_no_remotes :: proc(t: ^testing.T) {
 	config_content := "[core]\n\trepositoryformatversion = 0\n\tbare = false\n"
 	config_path := fmt.tprintf("%s/config", git_dir)
 	err := os.write_entire_file(config_path, transmute([]u8)config_content)
-	testing.expect(t, err == nil, "should write .git/config")
+	testing.expect_value(t, err, nil)
 
 	remotes := get_git_remotes(base, context.temp_allocator)
 
-	testing.expect(t, len(remotes) == 0, "should return empty when no remote sections")
+	testing.expect_value(t, len(remotes), 0)
 }
 
 @(test)
@@ -338,7 +338,7 @@ test_new_env_file :: proc(t: ^testing.T) {
 
 	env_path := fmt.tprintf("%s/.env", base)
 	err := os.write_entire_file(env_path, "SECRET=value\n")
-	testing.expect(t, err == nil, ".env file should exists")
+	testing.expect_value(t, err, nil)
 
 	file, ok := new_env_file(env_path)
 	testing.expect(t, ok, "new_env_file should succeed")
@@ -350,8 +350,8 @@ test_new_env_file :: proc(t: ^testing.T) {
 
 	testing.expect(t, filepath.is_abs(file.path), "path should be absolute")
 	testing.expect(t, strings.has_suffix(file.path, "/.env"), "path should end with /.env")
-	testing.expect(t, file.contents == "SECRET=value\n", "contents mismatch")
-	testing.expect(t, len(file.sha256) == 64, "sha256 should be 64 hex chars")
+	testing.expect_value(t, file.contents, "SECRET=value\n")
+	testing.expect_value(t, len(file.sha256), 64)
 }
 
 @(test)
@@ -366,7 +366,7 @@ test_closing_db_has_no_leaks :: proc(t: ^testing.T) {
 	defer os.remove_all(base)
 
 	cfg_path, err := filepath.join([]string{base, "config.json"}, context.temp_allocator)
-	testing.expect(t, err == nil, "cfgPath should build successfully")
+	testing.expect_value(t, err, nil)
 
 	{
 		cfg := new_config([]string{"fixtures/keys/insecure-test-key"}, cfg_path)
@@ -385,7 +385,7 @@ test_open_existing_db_has_no_leaks :: proc(t: ^testing.T) {
 	defer os.remove_all(base)
 
 	cfg_path, err := filepath.join([]string{base, "config.json"}, context.temp_allocator)
-	testing.expect(t, err == nil, "cfgPath should build successfully")
+	testing.expect_value(t, err, nil)
 
 	{
 		cfg := new_config([]string{"fixtures/keys/insecure-test-key"}, cfg_path)
@@ -422,7 +422,7 @@ test_db_sync_noop :: proc(t: ^testing.T) {
 	env_path := fmt.tprintf("%s/.env", base)
 	content := "KEY=value\n"
 	write_err := os.write_entire_file(env_path, transmute([]u8)content)
-	testing.expect(t, write_err == nil, "should write .env file")
+	testing.expect_value(t, write_err, nil)
 
 	digest := hash.hash_bytes(
 		hash.Algorithm.SHA256,
@@ -441,8 +441,8 @@ test_db_sync_noop :: proc(t: ^testing.T) {
 	db_insert(&db, f)
 
 	result, sync_err := db_sync(&db, &f)
-	testing.expect(t, sync_err == .None, "sync should not error")
-	testing.expect(t, result == {}, "should be noop")
+	testing.expect_value(t, sync_err, SyncError.None)
+	testing.expect_value(t, result, nil)
 }
 
 @(test)
@@ -453,7 +453,7 @@ test_db_sync_backed_up :: proc(t: ^testing.T) {
 	env_path := fmt.tprintf("%s/.env", base)
 	changed_content := "KEY=changed\n"
 	write_err := os.write_entire_file(env_path, transmute([]u8)changed_content)
-	testing.expect(t, write_err == nil, "should write .env file")
+	testing.expect_value(t, write_err, nil)
 
 	db, ok := db_init()
 	testing.expect(t, ok, "failed to create test db")
@@ -464,7 +464,7 @@ test_db_sync_backed_up :: proc(t: ^testing.T) {
 	db_insert(&db, f)
 
 	result, sync_err := db_sync(&db, &f)
-	testing.expect(t, sync_err == .None, "sync should not error")
+	testing.expect_value(t, sync_err, SyncError.None)
 	testing.expect(t, .BackedUp in result, "should be backed up")
 }
 
@@ -485,11 +485,11 @@ test_db_sync_restored :: proc(t: ^testing.T) {
 	db_insert(&db, f)
 
 	result, err := db_sync(&db, &f)
-	testing.expect(t, err == .None, "sync should not error")
+	testing.expect_value(t, err, SyncError.None)
 	testing.expect(t, .Restored in result, "should be restored")
 
 	data, read_err := os.read_entire_file_from_path(env_path, context.temp_allocator)
-	testing.expect(t, read_err == nil, "file should exist after restore")
+	testing.expect_value(t, read_err, nil)
 	if read_err == nil {
 		testing.expect_value(t, string(data), "SECRET=value")
 	}
@@ -522,7 +522,7 @@ test_db_sync_moved :: proc(t: ^testing.T) {
 	config_content := "[remote \"origin\"]\n\turl = git@github.com:user/repo.git\n"
 	config_path := fmt.tprintf("%s/config", git_dir)
 	write_err := os.write_entire_file(config_path, transmute([]u8)config_content)
-	testing.expect(t, write_err == nil, "should write .git/config")
+	testing.expect_value(t, write_err, nil)
 
 	db, ok := db_init()
 	testing.expect(t, ok, "failed to create test db")
@@ -540,7 +540,7 @@ test_db_sync_moved :: proc(t: ^testing.T) {
 	testing.expect(t, db_insert(&db, f), "insert should succeed")
 
 	result, err := db_sync(&db, &f)
-	testing.expect(t, err == .None, "sync should not error")
+	testing.expect_value(t, err, SyncError.None)
 	if err != .None do return
 	testing.expect(t, .DirUpdated in result, "should have DirUpdated flag")
 	testing.expect(t, .Restored in result, "should have Restored flag")

@@ -123,7 +123,7 @@ test_command_help_unknown :: proc(t: ^testing.T) {
 	testing.expect(t, !ok, "write_command_help(\"nonexistent\") should return false")
 
 	text := strings.to_string(b)
-	testing.expect(t, len(text) == 0, "text should be empty for unknown command")
+	testing.expect_value(t, len(text), 0)
 }
 
 @(test)
@@ -236,9 +236,9 @@ test_parse_args_positional :: proc(t: ^testing.T) {
 	defer delete_command(&cmd)
 	testing.expect(t, ok, "should succeed")
 
-	testing.expect(t, cmd.name == "backup")
-	testing.expect(t, len(cmd.args) == 1)
-	testing.expect(t, cmd.args[0] == "/project/.env")
+	testing.expect_value(t, cmd.name, "backup")
+	testing.expect_value(t, len(cmd.args), 1)
+	testing.expect_value(t, cmd.args[0], "/project/.env")
 }
 
 @(test)
@@ -248,7 +248,7 @@ test_parse_args_long_flag_with_value :: proc(t: ^testing.T) {
 	if !ok do return
 	defer delete_command(&cmd)
 
-	testing.expect(t, cmd.flags["config"] == "x.json")
+	testing.expect_value(t, cmd.flags["config"], "x.json")
 }
 
 @(test)
@@ -258,7 +258,7 @@ test_parse_args_short_flag_with_value :: proc(t: ^testing.T) {
 	if !ok do return
 	defer delete_command(&cmd)
 
-	testing.expect(t, cmd.flags["c"] == "x.json")
+	testing.expect_value(t, cmd.flags["c"], "x.json")
 }
 
 @(test)
@@ -268,7 +268,7 @@ test_parse_args_long_bool_flag :: proc(t: ^testing.T) {
 	if !ok do return
 	defer delete_command(&cmd)
 
-	testing.expect(t, cmd.bool_set["force"] == true)
+	testing.expect_value(t, cmd.bool_set["force"], true)
 }
 
 @(test)
@@ -278,7 +278,7 @@ test_parse_args_short_bool_flag :: proc(t: ^testing.T) {
 	if !ok do return
 	defer delete_command(&cmd)
 
-	testing.expect(t, cmd.bool_set["l"] == true)
+	testing.expect_value(t, cmd.bool_set["l"], true)
 }
 
 @(test)
@@ -288,9 +288,9 @@ test_parse_args_multiple_positionals :: proc(t: ^testing.T) {
 	if !ok do return
 	defer delete_command(&cmd)
 
-	testing.expect(t, len(cmd.args) == 2)
-	testing.expect(t, cmd.args[0] == "a")
-	testing.expect(t, cmd.args[1] == "b")
+	testing.expect_value(t, len(cmd.args), 2)
+	testing.expect_value(t, cmd.args[0], "a")
+	testing.expect_value(t, cmd.args[1], "b")
 }
 
 @(test)
@@ -300,9 +300,9 @@ test_parse_args_mixed_flags_and_positionals :: proc(t: ^testing.T) {
 	if !ok do return
 	defer delete_command(&cmd)
 
-	testing.expect(t, cmd.bool_set["force"] == true)
-	testing.expect(t, len(cmd.args) == 1)
-	testing.expect(t, cmd.args[0] == "/project/.env")
+	testing.expect_value(t, cmd.bool_set["force"], true)
+	testing.expect_value(t, len(cmd.args), 1)
+	testing.expect_value(t, cmd.args[0], "/project/.env")
 }
 
 @(test)
@@ -318,10 +318,10 @@ test_parse_args_flag_then_positional_then_flag :: proc(t: ^testing.T) {
 	defer delete_command(&cmd)
 	testing.expect(t, ok, "should succeed")
 
-	testing.expect(t, cmd.bool_set["force"] == true)
-	testing.expect(t, cmd.bool_set["verbose"] == true)
-	testing.expect(t, len(cmd.args) == 1)
-	testing.expect(t, cmd.args[0] == "a.env")
+	testing.expect_value(t, cmd.bool_set["force"], true)
+	testing.expect_value(t, cmd.bool_set["verbose"], true)
+	testing.expect_value(t, len(cmd.args), 1)
+	testing.expect_value(t, cmd.args[0], "a.env")
 }
 
 @(test)
@@ -333,11 +333,7 @@ test_parse_args_config_file_long_flag :: proc(t: ^testing.T) {
 	if !ok do return
 	defer delete_command(&cmd)
 
-	testing.expect(
-		t,
-		cmd.config_path == "/custom/config.json",
-		"config_path should be set from --config-file",
-	)
+	testing.expect_value(t, cmd.config_path, "/custom/config.json")
 }
 
 @(test)
@@ -347,11 +343,7 @@ test_parse_args_config_file_short_flag :: proc(t: ^testing.T) {
 	if !ok do return
 	defer delete_command(&cmd)
 
-	testing.expect(
-		t,
-		cmd.config_path == "/custom/config.json",
-		"config_path should be set from -c",
-	)
+	testing.expect_value(t, cmd.config_path, "/custom/config.json")
 }
 
 @(test)

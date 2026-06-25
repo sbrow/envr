@@ -16,13 +16,9 @@ test_new_config_single_key :: proc(t: ^testing.T) {
 	cfg := new_config(paths)
 	defer delete_config(&cfg)
 
-	testing.expect(t, len(cfg.keys) == 1, "should have 1 key")
-	testing.expect(t, cfg.keys[0].private == "/home/user/.ssh/id_ed25519", "Private path mismatch")
-	testing.expect(
-		t,
-		cfg.keys[0].public == "/home/user/.ssh/id_ed25519.pub",
-		"Public path mismatch",
-	)
+	testing.expect_value(t, len(cfg.keys), 1)
+	testing.expect_value(t, cfg.keys[0].private, "/home/user/.ssh/id_ed25519")
+	testing.expect_value(t, cfg.keys[0].public, "/home/user/.ssh/id_ed25519.pub")
 }
 
 @(test)
@@ -31,9 +27,9 @@ test_new_config_multiple_keys :: proc(t: ^testing.T) {
 	cfg := new_config(paths)
 	defer delete_config(&cfg)
 
-	testing.expect(t, len(cfg.keys) == 2, "should have 2 keys")
-	testing.expect(t, cfg.keys[0].private == "/home/user/.ssh/id_ed25519")
-	testing.expect(t, cfg.keys[1].private == "/home/user/.ssh/id_rsa")
+	testing.expect_value(t, len(cfg.keys), 2)
+	testing.expect_value(t, cfg.keys[0].private, "/home/user/.ssh/id_ed25519")
+	testing.expect_value(t, cfg.keys[1].private, "/home/user/.ssh/id_rsa")
 }
 
 @(test)
@@ -42,7 +38,7 @@ test_new_config_empty_keys :: proc(t: ^testing.T) {
 	cfg := new_config(paths)
 	defer delete_config(&cfg)
 
-	testing.expect(t, len(cfg.keys) == 0, "should have 0 keys")
+	testing.expect_value(t, len(cfg.keys), 0)
 }
 
 @(test)
@@ -51,10 +47,10 @@ test_new_config_scan_defaults :: proc(t: ^testing.T) {
 	cfg := new_config(paths)
 	defer delete_config(&cfg)
 
-	testing.expect(t, cfg.scan_config.matcher == "\\.env", "matcher should be \\.env")
-	testing.expect(t, len(cfg.scan_config.exclude) == 4, "should have 4 exclude patterns")
-	testing.expect(t, len(cfg.scan_config.include) == 1, "should have 1 include path")
-	testing.expect(t, cfg.scan_config.include[0] == "~", "include should be ~")
+	testing.expect_value(t, cfg.scan_config.matcher, "\\.env")
+	testing.expect_value(t, len(cfg.scan_config.exclude), 4)
+	testing.expect_value(t, len(cfg.scan_config.include), 1)
+	testing.expect_value(t, cfg.scan_config.include[0], "~")
 }
 
 @(test)
@@ -65,7 +61,7 @@ test_new_config_exclude_patterns :: proc(t: ^testing.T) {
 
 	expected := []string{"*\\.envrc", "\\.local/", "node_modules", "vendor"}
 	for i in 0 ..< len(expected) {
-		testing.expect(t, cfg.scan_config.exclude[i] == expected[i])
+		testing.expect_value(t, cfg.scan_config.exclude[i], expected[i])
 	}
 }
 
@@ -75,7 +71,7 @@ test_save_load_config_roundtrip :: proc(t: ^testing.T) {
 	defer os.remove_all(base)
 
 	cfgPath, err := filepath.join([]string{base, "config.json"}, context.temp_allocator)
-	testing.expect(t, err == nil, "cfgPath should build successfully")
+	testing.expect_value(t, err, nil)
 
 	cfg := new_config([]string{"/home/user/.ssh/id_ed25519"}, cfgPath)
 	defer delete_config(&cfg)
@@ -87,13 +83,13 @@ test_save_load_config_roundtrip :: proc(t: ^testing.T) {
 	if !ok do return
 	defer delete_config(&loaded)
 
-	testing.expect(t, len(loaded.keys) == 1, "should have 1 key")
-	testing.expect(t, loaded.keys[0].private == "/home/user/.ssh/id_ed25519")
-	testing.expect(t, loaded.keys[0].public == "/home/user/.ssh/id_ed25519.pub")
-	testing.expect(t, loaded.scan_config.matcher == "\\.env")
-	testing.expect(t, len(loaded.scan_config.exclude) == 4)
-	testing.expect(t, len(loaded.scan_config.include) == 1)
-	testing.expect(t, loaded.scan_config.include[0] == "~")
+	testing.expect_value(t, len(loaded.keys), 1)
+	testing.expect_value(t, loaded.keys[0].private, "/home/user/.ssh/id_ed25519")
+	testing.expect_value(t, loaded.keys[0].public, "/home/user/.ssh/id_ed25519.pub")
+	testing.expect_value(t, loaded.scan_config.matcher, "\\.env")
+	testing.expect_value(t, len(loaded.scan_config.exclude), 4)
+	testing.expect_value(t, len(loaded.scan_config.include), 1)
+	testing.expect_value(t, loaded.scan_config.include[0], "~")
 }
 
 @(test)
@@ -108,7 +104,7 @@ test_save_config_no_clobber :: proc(t: ^testing.T) {
 	defer os.remove_all(base)
 
 	cfgPath, err := filepath.join([]string{base, "config.json"}, context.temp_allocator)
-	testing.expect(t, err == nil, "cfgPath should build successfully")
+	testing.expect_value(t, err, nil)
 
 	cfg := new_config([]string{"/home/user/.ssh/key1"}, cfgPath)
 	defer delete_config(&cfg)
@@ -125,7 +121,7 @@ test_save_config_force_overwrites :: proc(t: ^testing.T) {
 	defer os.remove_all(base)
 
 	cfgPath, err := filepath.join([]string{base, "config.json"}, context.temp_allocator)
-	testing.expect(t, err == nil, "cfgPath should build successfully")
+	testing.expect_value(t, err, nil)
 
 	cfg := new_config([]string{"/home/user/.ssh/key1"}, cfgPath)
 	defer delete_config(&cfg)
@@ -140,12 +136,8 @@ test_save_config_force_overwrites :: proc(t: ^testing.T) {
 	if !ok do return
 	defer delete_config(&loaded)
 
-	testing.expect(t, len(loaded.keys) == 1, "should have 1 key")
-	testing.expect(
-		t,
-		loaded.keys[0].private == "/home/user/.ssh/key2",
-		"should be the overwritten key",
-	)
+	testing.expect_value(t, len(loaded.keys), 1)
+	testing.expect_value(t, loaded.keys[0].private, "/home/user/.ssh/key2")
 }
 
 @(test)
@@ -190,7 +182,7 @@ test_search_paths_expands_tilde :: proc(t: ^testing.T) {
 
 	paths := search_paths(cfg, context.temp_allocator)
 
-	testing.expect(t, len(paths) == 1, "should have 1 path")
+	testing.expect_value(t, len(paths), 1)
 	if len(paths) > 0 {
 		testing.expectf(
 			t,

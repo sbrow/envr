@@ -83,6 +83,6 @@ test_scan_path_empty_dir :: proc(t: ^testing.T) {
 	results, ok := scan_path(base, cfg)
 	defer delete(results)
 	testing.expect(t, ok, "scan_path should succeed")
-	testing.expect(t, len(results) == 0, fmt.tprintf("expected 0 results, got %d", len(results)))
+	testing.expect_value(t, len(results), 0)
 }
 

@@ -46,15 +46,7 @@ test_private_key_pub_matches_public_key :: proc(t: ^testing.T) {
 	kp, priv_ok := parse_ssh_private_key(TEST_KEY_DIR + "/test_ed25519")
 	testing.expect(t, priv_ok, "expected private key to parse")
 
-	testing.expect(
-		t,
-		pub_from_pub == kp.Public,
-		fmt.tprintf(
-			"public key mismatch:\n  from .pub: %v\n  from priv: %v",
-			pub_from_pub,
-			kp.Public,
-		),
-	)
+	testing.expect_value(t, pub_from_pub, kp.Public)
 }
 
 @(test)
@@ -64,12 +56,11 @@ test_read_wire_string :: proc(t: ^testing.T) {
 
 	s, ok := read_wire_string(data, &offset)
 	testing.expect(t, ok, "expected read_wire_string to succeed")
-	testing.expect(t, s == "hello", fmt.tprintf("expected 'hello', got %q", s))
-	testing.expect(t, offset == 9, fmt.tprintf("expected offset 9, got %d", offset))
+	testing.expect_value(t, s, "hello")
+	testing.expect_value(t, offset, 9)
 
 	s2, ok2 := read_wire_string(data, &offset)
 	testing.expect(t, ok2, "expected second read to succeed")
-	testing.expect(t, s2 == "", "expected empty string")
+	testing.expect_value(t, s2, "")
 }
-
 
