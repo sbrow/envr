@@ -22,6 +22,7 @@ Flags :: struct {
 	help:        bool `args:"short=h"`,
 	config_file: string `args:"name=config-file,short=c"`,
 	output:      Output_Format `args:"short=o"`,
+	color:       Color_Mode,
 	force:       bool `args:"short=f"`,
 }
 
@@ -29,6 +30,12 @@ Output_Format :: enum {
 	Auto,
 	Table,
 	JSON,
+}
+
+Color_Mode :: enum {
+	Auto,
+	Always,
+	Never,
 }
 
 CommandInfo :: struct {
@@ -93,6 +100,13 @@ parse_args :: proc(args: []string, out: io.Stream, err: io.Stream) -> (cmd: Comm
 
 	if cmd.flags.output == .Auto {
 		cmd.flags.output = terminal.is_terminal(os.stdout) ? .Table : .JSON
+	}
+
+	if cmd.flags.color == .Auto {
+		cmd.flags.color = terminal.is_terminal(os.stdout) ? .Always : .Never
+	}
+	if cmd.flags.color == .Never {
+		cmd.out = make_ansi_strip_writer(cmd.out)
 	}
 
 	if cmd.flags.config_file == "" {
@@ -278,6 +292,11 @@ at before, restore your backup with:
 		&tbl,
 		COLOR_FLAGS + "-o, --output" + ANSI_RESET + " 'table'|'json'",
 		`the format of output data. (default 'table')`,
+	)
+	table.row(
+		&tbl,
+		COLOR_FLAGS + "--color" + ANSI_RESET + " 'auto'|'always'|'never'",
+		`Whether or not to colorize output. (default 'auto')`,
 	)
 	write_borderless_table(w, &tbl)
 
