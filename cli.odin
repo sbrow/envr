@@ -9,17 +9,24 @@ import "core:terminal"
 import "core:text/table"
 
 Command :: struct {
-	name:        string,
-	args:        [dynamic]string,
-	flags:       map[string]string,
-	bool_set:    map[string]bool,
-	config_path: string,
-	out_buf:     ^bufio.Writer,
-	out:         io.Writer,
-	err:         io.Writer,
+	name:    string,
+	args:    [dynamic]string,
+	flags:   Flags,
+	out_buf: ^bufio.Writer,
+	out:     io.Writer,
+	err:     io.Writer,
+}
+
+// TODO: Put help test in usage:"whatever" tag.
+Flags :: struct {
+	help:        bool `args:"short=h"`,
+	config_file: string `args:"name=config-file,short=c"`,
+	output:      Output_Format `args:"short=o"`,
+	force:       bool `args:"short=f"`,
 }
 
 Output_Format :: enum {
+	Auto,
 	Table,
 	JSON,
 }
@@ -77,53 +84,26 @@ parse_args :: proc(args: []string, out: io.Stream, err: io.Stream) -> (cmd: Comm
 	}
 
 	cmd.name = args[1]
-
 	cmd.args = make([dynamic]string)
-	cmd.flags = make(map[string]string)
-	cmd.bool_set = make(map[string]bool)
 
-	// TODO: Optimize loop?
-	i := 2
-	for i < len(args) {
-		arg := args[i]
-		if strings.starts_with(arg, "--") {
-			key := arg[2:]
-			if i + 1 < len(args) && !strings.starts_with(args[i + 1], "-") {
-				cmd.flags[key] = args[i + 1]
-				i += 2
-			} else {
-				cmd.bool_set[key] = true
-				i += 1
-			}
-		} else if strings.starts_with(arg, "-") && len(arg) == 2 {
-			key_slice := arg[1:2]
-			if i + 1 < len(args) && !strings.starts_with(args[i + 1], "-") {
-				cmd.flags[key_slice] = args[i + 1]
-				i += 2
-			} else {
-				cmd.bool_set[key_slice] = true
-				i += 1
-			}
-		} else {
-			append(&cmd.args, arg)
-			i += 1
-		}
+	overflow := parse_flags(&cmd.flags, args[2:])
+	for arg in overflow {
+		append(&cmd.args, arg)
 	}
 
-	val: string = ---
-	if val, ok = cmd.flags["config-file"]; ok {
-		cmd.config_path = val
-	} else if val, ok = cmd.flags["c"]; ok {
-		cmd.config_path = val
-	} else {
+	if cmd.flags.output == .Auto {
+		cmd.flags.output = terminal.is_terminal(os.stdout) ? .Table : .JSON
+	}
+
+	if cmd.flags.config_file == "" {
 		// FIXME: Handle err
 		// TODO: Is this right?
 		home, _ := os.user_home_dir(context.temp_allocator)
 		// TODO: should we copy out of the temp_allocator?
-		cmd.config_path = default_config_path(home, context.temp_allocator)
+		cmd.flags.config_file = default_config_path(home, context.temp_allocator)
 	}
 
-	if has_flag(&cmd, "help") || has_flag(&cmd, "h") {
+	if cmd.flags.help {
 		print_command_help(&cmd)
 		return cmd, false
 	}
@@ -296,8 +276,8 @@ at before, restore your backup with:
 	)
 	table.row(
 		&tbl,
-		COLOR_FLAGS + "-f, --format" + ANSI_RESET + " 'json'|'table'",
-		`the format of output data. (default 'table', unless piping)`,
+		COLOR_FLAGS + "-o, --output" + ANSI_RESET + " 'table'|'json'",
+		`the format of output data. (default 'table')`,
 	)
 	write_borderless_table(w, &tbl)
 
@@ -310,31 +290,9 @@ at before, restore your backup with:
 	)
 }
 
-has_flag :: proc(cmd: ^Command, name: string) -> bool {
-	return name in cmd.flags || name in cmd.bool_set
-}
-
-get_format :: proc(cmd: ^Command) -> Output_Format {
-	flags :: []string{"format", "f"}
-	for name in flags {
-		if val, ok := cmd.flags[name]; ok {
-			switch val {
-			case "json":
-				return .JSON
-			case "table":
-				return .Table
-			}
-		}
-	}
-
-	return terminal.is_terminal(os.stdout) ? .Table : .JSON
-}
-
 delete_command :: proc(cmd: ^Command) {
 	bufio.writer_flush(cmd.out_buf)
 	delete(cmd.args)
-	delete(cmd.flags)
-	delete(cmd.bool_set)
 	bufio.writer_destroy(cmd.out_buf)
 	free(cmd.out_buf)
 }

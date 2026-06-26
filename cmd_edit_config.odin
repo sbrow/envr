@@ -10,7 +10,7 @@ cmd_edit_config :: proc(cmd: ^Command) {
 		return
 	}
 
-	config_path := cmd.config_path
+	config_path := cmd.flags.config_file
 
 	if !os.exists(config_path) {
 		fmt.wprintf(

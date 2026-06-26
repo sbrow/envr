@@ -4,11 +4,12 @@ import "core:fmt"
 import "core:terminal/ansi"
 
 cmd_init :: proc(cmd: ^Command) {
-	force := has_flag(cmd, "force") || has_flag(cmd, "f")
+	force := cmd.flags.force
+	config_file := cmd.flags.config_file
 
-	fmt.wprintln(cmd.out, cmd.config_path, flush = false)
+	fmt.wprintln(cmd.out, cmd.flags.config_file, flush = false)
 
-	_, cfg_exists := load_config(cmd.config_path)
+	_, cfg_exists := load_config(config_file)
 	if cfg_exists && !force {
 		fmt.wprintln(
 			cmd.out,
@@ -25,15 +26,23 @@ Run again with the --force flag if you want to reinitialize.`,
 	}
 
 	if len(keys) == 0 {
-		fmt.wprintln(cmd.err, `No ssh-ed25519 keys found in ~/.ssh
-Generate one with: ssh-keygen -t ed25519`, flush = false)
+		fmt.wprintln(
+			cmd.err,
+			`No ssh-ed25519 keys found in ~/.ssh
+Generate one with: ssh-keygen -t ed25519`,
+			flush = false,
+		)
 		return
 	}
 
 	selected, result := multi_select("Select SSH private keys:", keys[:])
 	defer delete(selected)
 	if result == .Cancel {
-		fmt.wprintln(cmd.out, ansi.CSI + ansi.FAINT + ansi.SGR + "Cancelled." + ANSI_RESET, flush = false)
+		fmt.wprintln(
+			cmd.out,
+			ansi.CSI + ansi.FAINT + ansi.SGR + "Cancelled." + ANSI_RESET,
+			flush = false,
+		)
 		return
 	}
 
@@ -49,7 +58,7 @@ Generate one with: ssh-keygen -t ed25519`, flush = false)
 		return
 	}
 
-	cfg := new_config(selected_paths[:], cmd.config_path)
+	cfg := new_config(selected_paths[:], config_file)
 	if !save_config(cfg, force = force) {
 		return
 	}
@@ -61,3 +70,4 @@ Generate one with: ssh-keygen -t ed25519`, flush = false)
 		flush = false,
 	)
 }
+

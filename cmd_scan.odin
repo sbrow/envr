@@ -7,7 +7,7 @@ import "core:terminal"
 import "core:terminal/ansi"
 
 cmd_scan :: proc(cmd: ^Command) {
-	db, db_ok := db_open(cmd.config_path)
+	db, db_ok := db_open(cmd.flags.config_file)
 	if !db_ok {
 		return
 	}

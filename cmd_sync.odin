@@ -11,7 +11,7 @@ SyncEntry :: struct {
 
 // TODO: Check for quiet failures.
 cmd_sync :: proc(cmd: ^Command) {
-	db, db_ok := db_open(cmd.config_path)
+	db, db_ok := db_open(cmd.flags.config_file)
 	if !db_ok {
 		return
 	}
@@ -46,7 +46,7 @@ cmd_sync :: proc(cmd: ^Command) {
 		}
 	}
 
-	if get_format(cmd) == .Table {
+	if cmd.flags.output == .Table {
 		t: table.Table
 		table.init(&t, context.temp_allocator, context.temp_allocator)
 		table.padding(&t, 1, 1)

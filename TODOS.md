@@ -28,6 +28,8 @@
 
 14. Add a text filter to the multi_select.
 
+15. init -h doesn't show --force flag.
+
 ## Double-check AI output
 
 - [ ] cli.odin
@@ -54,6 +56,7 @@
 - [ ] db.odin
 - [ ] db_integration_test.odin
 - [ ] db_test.odin
+- [ ] flags.odin
 - [x] main.odin
 - [x] prompt.odin
 - [x] scan.odin

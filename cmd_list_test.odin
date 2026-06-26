@@ -22,7 +22,7 @@ test_filepath_base_equals_rel :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_cmd_list_format_json :: proc(t: ^testing.T) {
+test_cmd_list_output_json :: proc(t: ^testing.T) {
 	base := test_temp_dir(t, "envr-test-list-json-*")
 	defer os.remove_all(base)
 
@@ -47,7 +47,7 @@ test_cmd_list_format_json :: proc(t: ^testing.T) {
 	defer strings.builder_destroy(&err_b)
 
 	cmd, ok := parse_args(
-		[]string{"envr", "list", "--format", "json", "--config-file", cfg_path},
+		[]string{"envr", "list", "--output", "json", "--config-file", cfg_path},
 		strings.to_stream(&out_b),
 		strings.to_stream(&err_b),
 	)
@@ -68,7 +68,7 @@ test_cmd_list_format_json :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_cmd_list_format_table :: proc(t: ^testing.T) {
+test_cmd_list_output_table :: proc(t: ^testing.T) {
 	base := test_temp_dir(t, "envr-test-list-table-*")
 	defer os.remove_all(base)
 
@@ -93,7 +93,7 @@ test_cmd_list_format_table :: proc(t: ^testing.T) {
 	defer strings.builder_destroy(&err_b)
 
 	cmd, ok := parse_args(
-		[]string{"envr", "list", "--format", "table", "--config-file", cfg_path},
+		[]string{"envr", "list", "--output", "table", "--config-file", cfg_path},
 		strings.to_stream(&out_b),
 		strings.to_stream(&err_b),
 	)
