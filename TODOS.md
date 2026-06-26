@@ -24,11 +24,11 @@
 
 12. Rewrite `write_command_help` to use text/tables
 
-13. Add color flag and support non colored output.
+13. Instead of using a writer to strip colors, just don't print the colors.
 
 14. Add a text filter to the multi_select.
 
-15. init -h doesn't show --force flag.
+15. init -h doesn't show --force flag. Separate into multiple structs: Global_FLags, and Init_Flags?
 
 ## Double-check AI output
 
