@@ -22,7 +22,7 @@ cmd_remove :: proc(cmd: ^Command) {
 		return
 	}
 
-	db, db_ok := db_open(cmd.config_path)
+	db, db_ok := db_open(cmd.flags.config_file)
 	if !db_ok {
 		return
 	}
