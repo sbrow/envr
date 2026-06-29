@@ -38,11 +38,7 @@ Generate one with: ssh-keygen -t ed25519`,
 	selected, result := multi_select("Select SSH private keys:", keys[:])
 	defer delete(selected)
 	if result == .Cancel {
-		fmt.wprintln(
-			cmd.out,
-			ansi.CSI + ansi.FAINT + ansi.SGR + "Cancelled." + ANSI_RESET,
-			flush = false,
-		)
+		fmt.wprintln(cmd.out, colorize(.Message, "Cancelled."), flush = false)
 		return
 	}
 

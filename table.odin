@@ -42,7 +42,7 @@ write_borderless_table :: proc(w: io.Writer, t: ^table.Table) {
 	if t.caption != "" {
 		table.write_text_align(
 			w,
-			fmt.tprintf("%s%s%s", COLOR_HEADINGS, t.caption, ANSI_RESET),
+			colorize(.Heading, t.caption),
 			.Left,
 			0, //t.lpad,
 			0, //t.rpad,

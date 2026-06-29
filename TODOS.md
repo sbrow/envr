@@ -24,7 +24,7 @@
 
 12. Rewrite `write_command_help` to use text/tables
 
-13. Instead of using a writer to strip colors, just don't print the colors.
+13. Consider getting rid of color global.
 
 14. Add a text filter to the multi_select.
 

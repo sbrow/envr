@@ -2,6 +2,7 @@
 
 package main
 
+import "core:strings"
 import "core:testing"
 
 @(test)
@@ -16,7 +17,7 @@ test_ansi_aware_width_empty :: proc(t: ^testing.T) {
 
 @(test)
 test_ansi_aware_width_with_color_codes :: proc(t: ^testing.T) {
-	colored := COLOR_TABLE_HEADING + "Directory" + ANSI_RESET
+	colored := colorize(.Heading, "Directory", disable = false)
 	testing.expect_value(t, ansi_aware_width(colored), 9)
 }
 
@@ -28,6 +29,13 @@ test_ansi_aware_width_multibyte :: proc(t: ^testing.T) {
 
 @(test)
 test_ansi_aware_width_multiple_escape_sequences :: proc(t: ^testing.T) {
-	colored := COLOR_TABLE_HEADING + "a" + ANSI_RESET + "b" + COLOR_TABLE_HEADING + "c" + ANSI_RESET
+	colored := strings.concatenate(
+		{
+			colorize(.Heading, "a", disable = false),
+			colorize(.Heading, "b", disable = false),
+			colorize(.Heading, "c", disable = false),
+		},
+	)
 	testing.expect_value(t, ansi_aware_width(colored), 3)
 }
+

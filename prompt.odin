@@ -66,11 +66,17 @@ multi_select :: proc(
 		case .Space:
 			selected[cursor] = !selected[cursor]
 		case .Enter:
-			fmt.printf(ansi.CSI + "%d" + ansi.CUU + ansi.CSI + ansi.ED + ansi.CSI + ansi.DECTCEM_SHOW, visible + 1)
+			fmt.printf(
+				ansi.CSI + "%d" + ansi.CUU + ansi.CSI + ansi.ED + ansi.CSI + ansi.DECTCEM_SHOW,
+				visible + 1,
+			)
 			result = .Confirm
 			return
 		case .Escape:
-			fmt.printf(ansi.CSI + "%d" + ansi.CUU + ansi.CSI + ansi.ED + ansi.CSI + ansi.DECTCEM_SHOW, visible + 1)
+			fmt.printf(
+				ansi.CSI + "%d" + ansi.CUU + ansi.CSI + ansi.ED + ansi.CSI + ansi.DECTCEM_SHOW,
+				visible + 1,
+			)
 			result = .Cancel
 			return
 		case .Unknown:
@@ -89,7 +95,10 @@ render_options :: proc(
 	cursor: int,
 	scroll_offset: int,
 ) -> int {
-	fmt.printf(ansi.CSI + ansi.BOLD + ";" + ansi.FG_CYAN + ansi.SGR + "%s" + ANSI_RESET + " (↑/↓ move, space select, enter confirm)\r\n", prompt)
+	fmt.printf(
+		"%s (↑/↓ move, space select, enter confirm)\r\n",
+		colorize(.Option_Label, prompt),
+	)
 
 	end := scroll_offset + MAX_VISIBLE
 	if end > len(options) {
@@ -102,9 +111,14 @@ render_options :: proc(
 			checkbox = "x"
 		}
 		if i == cursor {
-			fmt.printf(ansi.CSI + ansi.BOLD + ";" + ansi.FG_GREEN + ansi.SGR + "> " + ANSI_RESET + "[" + ansi.CSI + ansi.FG_GREEN + ansi.SGR + "%s" + ANSI_RESET + "] %s\r\n", checkbox, options[i])
+			fmt.printf(
+				"%s [%s] %s\r\n",
+				colorize(.Caret, ">"),
+				colorize(.Sucess, checkbox),
+				options[i],
+			)
 		} else {
-			fmt.printf("  [" + ansi.CSI + ansi.FAINT + ansi.SGR + "%s" + ANSI_RESET + "] %s\r\n", checkbox, options[i])
+			fmt.printf("  [%s] %s\r\n", colorize(.Sucess, checkbox), options[i])
 		}
 	}
 

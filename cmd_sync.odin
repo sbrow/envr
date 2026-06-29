@@ -54,8 +54,8 @@ cmd_sync :: proc(cmd: ^Command) {
 		table.aligned_header_of_values(
 			&t,
 			.Center,
-			COLOR_TABLE_HEADING + "File" + ANSI_RESET,
-			COLOR_TABLE_HEADING + "Status" + ANSI_RESET,
+			colorize(.Table_Heading, "File"),
+			colorize(.Table_Heading, "Status"),
 		)
 
 		for res in results {

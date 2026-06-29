@@ -106,7 +106,7 @@ parse_args :: proc(args: []string, out: io.Stream, err: io.Stream) -> (cmd: Comm
 		cmd.flags.color = terminal.is_terminal(os.stdout) ? .Always : .Never
 	}
 	if cmd.flags.color == .Never {
-		cmd.out = make_ansi_strip_writer(cmd.out)
+		disable_color = true
 	}
 
 	if cmd.flags.config_file == "" {
@@ -141,36 +141,23 @@ write_command_help :: proc(name: string, w: io.Writer) -> bool {
 
 	fmt.wprintf(
 		w,
-		"%s\n\n\n" +
-		COLOR_HEADINGS +
-		"Usage:" +
-		ANSI_RESET +
-		"\n\n  " +
-		COLOR_FLAGS +
-		"%s" +
-		ANSI_RESET +
-		" [flags]\n\n",
+		"%s\n\n\n%s\n\n  %s [flags]\n\n",
 		info.short,
-		info.usage,
+		colorize(.Heading, "Usage:"),
+		colorize(.Flag, info.usage),
 		flush = false,
 	)
 
 	if len(info.aliases) > 0 {
 		fmt.wprintf(
 			w,
-			"\n" +
-			COLOR_HEADINGS +
-			"Aliases:" +
-			ANSI_RESET +
-			"\n\n  " +
-			COLOR_COMMANDS +
-			"%s" +
-			ANSI_RESET,
-			info.name,
+			"\n%s\n\n  %s",
+			colorize(.Heading, "Aliases:"),
+			colorize(.Command, info.name),
 			flush = false,
 		)
 		for a in info.aliases {
-			fmt.wprintf(w, ", " + COLOR_COMMANDS + "%s" + ANSI_RESET, a, flush = false)
+			fmt.wprintf(w, ", %s", colorize(.Command, a), flush = false)
 		}
 		fmt.wprintf(w, "\n", flush = false)
 	}
@@ -181,21 +168,14 @@ write_command_help :: proc(name: string, w: io.Writer) -> bool {
 
 	fmt.wprintf(
 		w,
-		"\n" +
-		COLOR_HEADINGS +
-		"Flags:" +
-		ANSI_RESET +
-		"\n\n  " +
-		COLOR_FLAGS +
-		"-h, --help" +
-		ANSI_RESET +
-		"   help for %s\n  " +
-		COLOR_FLAGS +
-		"-c, --config-file" +
-		ANSI_RESET +
-		` <path>   config file (default "~/.envr/config.json")
+		"\n%s\n\n  %s" +
+		`   help for %s
+  %s <path>   config file (default "~/.envr/config.json")
 `,
+		colorize(.Heading, "Flags:"),
+		colorize(.Flag, "-h, --help"),
 		info.name,
+		colorize(.Flag, "-c, --config-file"),
 		flush = false,
 	)
 	return true
@@ -250,15 +230,13 @@ at before, restore your backup with:
 
 > envr restore ~/<path to repository>/.env
 
-%sUsage:%s
+%s
 
-  %senvr%s [command]
+  %s [command]
 
 `,
-		COLOR_HEADINGS,
-		ANSI_RESET,
-		COLOR_FLAGS,
-		ANSI_RESET,
+		colorize(.Heading, "Usage:"),
+		colorize(.Flag, "envr"),
 		flush = false,
 	)
 
@@ -274,7 +252,7 @@ at before, restore your backup with:
 		for a in c.aliases {
 			name = strings.join([]string{name, a}, ", ", tbl.format_allocator)
 		}
-		table.row(&tbl, table.format(&tbl, "%s%s%s", COLOR_COMMANDS, name, ANSI_RESET), c.short)
+		table.row(&tbl, colorize(.Command, name, tbl.format_allocator), c.short)
 	}
 
 	write_borderless_table(w, &tbl)
@@ -282,29 +260,40 @@ at before, restore your backup with:
 
 	table.caption(&tbl, "Flags:")
 
-	table.row(&tbl, COLOR_FLAGS + "-h, --help" + ANSI_RESET, `show this documentation`)
+	table.row(&tbl, colorize(.Flag, "-h, --help", tbl.format_allocator), `show this documentation`)
 	table.row(
 		&tbl,
-		COLOR_FLAGS + "-c, --config-file" + ANSI_RESET + " <path>",
+		table.format(
+			&tbl,
+			"%s <path>",
+			colorize(.Flag, "-c, --config-file", tbl.format_allocator),
+		),
 		`config file (default "~/.envr/config.json")`,
 	)
 	table.row(
 		&tbl,
-		COLOR_FLAGS + "-o, --output" + ANSI_RESET + " 'table'|'json'",
-		`the format of output data. (default 'table')`,
+		table.format(
+			&tbl,
+			"%s 'table'|'json'",
+			colorize(.Flag, "-o, --output", tbl.format_allocator),
+		),
+		`The format of output data. (default 'table')`,
 	)
 	table.row(
 		&tbl,
-		COLOR_FLAGS + "--color" + ANSI_RESET + " 'auto'|'always'|'never'",
+		table.format(
+			&tbl,
+			"%s 'auto'|'always'|'never'",
+			colorize(.Flag, "--color", tbl.format_allocator),
+		),
 		`Whether or not to colorize output. (default 'auto')`,
 	)
 	write_borderless_table(w, &tbl)
 
 	fmt.wprintf(
 		w,
-		`Use "%senvr%s [command] --help" for more information about a command.`,
-		COLOR_FLAGS,
-		ANSI_RESET,
+		`Use "%s [command] --help" for more information about a command.`,
+		colorize(.Flag, "envr", tbl.format_allocator),
 		flush = false,
 	)
 }

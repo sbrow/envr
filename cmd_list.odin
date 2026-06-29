@@ -32,8 +32,8 @@ cmd_list :: proc(cmd: ^Command) {
 		table.aligned_header_of_values(
 			&t,
 			.Center,
-			COLOR_TABLE_HEADING + "Directory" + ANSI_RESET,
-			COLOR_TABLE_HEADING + "Path" + ANSI_RESET,
+			colorize(.Table_Heading, "Directory"),
+			colorize(.Table_Heading, "Path"),
 		)
 
 		for row in rows {
