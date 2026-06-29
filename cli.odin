@@ -107,7 +107,7 @@ key somewhere, otherwise your data could be lost forever.`,
 		"Generate custom completions for nushell",
 		"",
 		{},
-		GLOBAL_FLAGS - {.Color},
+		{.Help},
 	},
 }
 
