@@ -110,7 +110,8 @@ test_command_help_init_no_aliases :: proc(t: ^testing.T) {
 	testing.expect(t, strings.contains(text, "Usage:"), "missing Usage line")
 	testing.expect(t, !strings.contains(text, "Aliases:"), "init should not have Aliases section")
 	testing.expect(t, strings.contains(text, "Flags:"), "missing Flags section")
-	testing.expect(t, strings.contains(text, "help for init"), "missing 'help for init'")
+	testing.expect(t, strings.contains(text, "show this documentation"), "missing help flag description")
+	testing.expect(t, strings.contains(text, "--force"), "missing --force flag")
 }
 
 @(test)

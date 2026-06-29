@@ -1,9 +1,11 @@
 package main
 
+import "base:runtime"
 import "core:bufio"
 import "core:fmt"
 import "core:io"
 import "core:os"
+import "core:reflect"
 import "core:strings"
 import "core:terminal"
 import "core:text/table"
@@ -17,13 +19,20 @@ Command :: struct {
 	err:     io.Writer,
 }
 
-// TODO: Put help test in usage:"whatever" tag.
 Flags :: struct {
-	help:        bool `args:"short=h"`,
-	config_file: string `args:"name=config-file,short=c"`,
-	output:      Output_Format `args:"short=o"`,
-	color:       Color_Mode,
-	force:       bool `args:"short=f"`,
+	help:        bool `args:"short=h" usage:"show this documentation"`,
+	config_file: string `args:"name=config-file,short=c" usage:"config file" default:"~/.envr/config.json"`,
+	output:      Output_Format `args:"short=o" usage:"the format of output data" default:"table"`,
+	color:       Color_Mode `usage:"Whether or not to colorize output" default:"auto"`,
+	force:       bool `args:"short=f" usage:"Overwrite existing config"`,
+}
+
+Flag_Type :: enum {
+	Help,
+	Config_File,
+	Output,
+	Color,
+	Force,
 }
 
 Output_Format :: enum {
@@ -44,7 +53,11 @@ CommandInfo :: struct {
 	short:   string,
 	long:    string,
 	aliases: []string,
+	// Flags supported by the command
+	flags:   bit_set[Flag_Type],
 }
+
+GLOBAL_FLAGS: bit_set[Flag_Type] = {.Help, .Config_File, .Color}
 
 COMMANDS := []CommandInfo {
 	{
@@ -56,22 +69,45 @@ COMMANDS := []CommandInfo {
 encrypt your databse. **Make 100% sure** that you have **a remote copy** of this
 key somewhere, otherwise your data could be lost forever.`,
 		{},
+		GLOBAL_FLAGS + {.Force},
 	},
-	{"scan", "envr scan", "Find and select .env files for backup", "", {}},
-	{"sync", "envr sync", "Update or restore your env backups", "", {}},
-	{"backup", "envr backup <path>", "Import a .env file into envr", "", {"add"}},
-	{"restore", "envr restore <path>", "Restore a .env file from the database", "", {}},
-	{"list", "envr list", "View your tracked files", "", {}},
-	{"remove", "envr remove <path>", "Remove a .env file from your database", "", {}},
-	{"check", "envr check [path]", "Check if files are backed up", "", {}},
-	{"version", "envr version", "Show envr's version", "", {}},
-	{"edit-config", "envr edit-config", "Edit your config with your default editor", "", {}},
+	{"scan", "envr scan", "Find and select .env files for backup", "", {}, GLOBAL_FLAGS},
+	{"sync", "envr sync", "Update or restore your env backups", "", {}, GLOBAL_FLAGS + {.Output}},
+	{"backup", "envr backup <path>", "Import a .env file into envr", "", {"add"}, GLOBAL_FLAGS},
+	{
+		"restore",
+		"envr restore <path>",
+		"Restore a .env file from the database",
+		"",
+		{},
+		GLOBAL_FLAGS,
+	},
+	{"list", "envr list", "View your tracked files", "", {}, GLOBAL_FLAGS + {.Output}},
+	{
+		"remove",
+		"envr remove <path>",
+		"Remove a .env file from your database",
+		"",
+		{},
+		GLOBAL_FLAGS,
+	},
+	{"check", "envr check [path]", "Check if files are backed up", "", {}, GLOBAL_FLAGS},
+	{"version", "envr version", "Show envr's version", "", {}, {.Help}},
+	{
+		"edit-config",
+		"envr edit-config",
+		"Edit your config with your default editor",
+		"",
+		{},
+		GLOBAL_FLAGS,
+	},
 	{
 		"nushell-completion",
 		"envr nushell-completion",
 		"Generate custom completions for nushell",
 		"",
 		{},
+		GLOBAL_FLAGS - {.Color},
 	},
 }
 
@@ -134,6 +170,7 @@ print_command_help :: proc(cmd: ^Command) {
 }
 
 write_command_help :: proc(name: string, w: io.Writer) -> bool {
+	// TODO: rename info to cmd?
 	info, found := find_command(name)
 	if !found {
 		return false
@@ -166,18 +203,88 @@ write_command_help :: proc(name: string, w: io.Writer) -> bool {
 		fmt.wprintf(w, "\n%s\n", info.long, flush = false)
 	}
 
-	fmt.wprintf(
-		w,
-		"\n%s\n\n  %s" +
-		`   help for %s
-  %s <path>   config file (default "~/.envr/config.json")
-`,
-		colorize(.Heading, "Flags:"),
-		colorize(.Flag, "-h, --help"),
-		info.name,
-		colorize(.Flag, "-c, --config-file"),
-		flush = false,
-	)
+	tbl: table.Table
+	table.init(&tbl, context.temp_allocator, context.temp_allocator)
+	table.padding(&tbl, 2, 0)
+	if write_flags_table(&tbl, info.flags) {
+		fmt.wprintf(w, "\n", flush = false)
+		write_borderless_table(w, &tbl)
+	}
+	table_reset(&tbl)
+	return true
+}
+
+flag_field_info :: proc(
+	ft: Flag_Type,
+) -> (
+	names: string,
+	value_hint: string,
+	description: string,
+) {
+	field := reflect.struct_field_at(Flags, int(ft))
+
+	args_tag := reflect.struct_tag_get(field.tag, "args")
+	long_name, _ := strings.replace(field.name, "_", "-", -1, context.temp_allocator)
+	if n, ok := get_subtag(args_tag, "name"); ok {
+		long_name = n
+	}
+
+	short, has_short := get_subtag(args_tag, "short")
+	if has_short {
+		names = fmt.tprintf("-%s, --%s", short, long_name)
+	} else {
+		names = fmt.tprintf("--%s", long_name)
+	}
+
+	base_ti := runtime.type_info_base(field.type)
+
+	if _, is_bool := base_ti.variant.(runtime.Type_Info_Boolean); is_bool {
+		value_hint = ""
+	} else if _, is_string := base_ti.variant.(runtime.Type_Info_String); is_string {
+		value_hint = " <value>"
+	} else if enum_ti, is_enum := base_ti.variant.(runtime.Type_Info_Enum); is_enum {
+		parts := make([dynamic]string, 0, len(enum_ti.names), context.temp_allocator)
+		for name in enum_ti.names {
+			lower := strings.to_lower(name, context.temp_allocator)
+			append(&parts, fmt.tprintf("'%s'", lower))
+		}
+		value_hint = fmt.tprintf(" %s", strings.join(parts[:], "|", context.temp_allocator))
+		delete(parts)
+	}
+
+	usage := reflect.struct_tag_get(field.tag, "usage")
+	default_val := reflect.struct_tag_get(field.tag, "default")
+
+	description = usage
+	if len(default_val) > 0 {
+		if _, is_string := base_ti.variant.(runtime.Type_Info_String); is_string {
+			description = fmt.tprintf(`%s (default "%s")`, usage, default_val)
+		} else if _, is_enum := base_ti.variant.(runtime.Type_Info_Enum); is_enum {
+			description = fmt.tprintf("%s (default '%s')", usage, default_val)
+		}
+	}
+
+	return
+}
+
+write_flags_table :: proc(tbl: ^table.Table, flags: bit_set[Flag_Type]) -> (has_rows: bool) {
+	if flags == {} do return false
+	table.caption(tbl, "Flags:")
+	for ft in Flag_Type {
+		if ft not_in flags do continue
+		names, hint, desc := flag_field_info(ft)
+		if len(hint) > 0 {
+			display := table.format(
+				tbl,
+				"%s%s",
+				colorize(.Flag, names, tbl.format_allocator),
+				hint,
+			)
+			table.row(tbl, display, desc)
+		} else {
+			table.row(tbl, colorize(.Flag, names, tbl.format_allocator), desc)
+		}
+	}
 	return true
 }
 
@@ -258,37 +365,10 @@ at before, restore your backup with:
 	write_borderless_table(w, &tbl)
 	table_reset(&tbl)
 
-	table.caption(&tbl, "Flags:")
-
-	table.row(&tbl, colorize(.Flag, "-h, --help", tbl.format_allocator), `show this documentation`)
-	table.row(
-		&tbl,
-		table.format(
-			&tbl,
-			"%s <path>",
-			colorize(.Flag, "-c, --config-file", tbl.format_allocator),
-		),
-		`config file (default "~/.envr/config.json")`,
-	)
-	table.row(
-		&tbl,
-		table.format(
-			&tbl,
-			"%s 'table'|'json'",
-			colorize(.Flag, "-o, --output", tbl.format_allocator),
-		),
-		`The format of output data. (default 'table')`,
-	)
-	table.row(
-		&tbl,
-		table.format(
-			&tbl,
-			"%s 'auto'|'always'|'never'",
-			colorize(.Flag, "--color", tbl.format_allocator),
-		),
-		`Whether or not to colorize output. (default 'auto')`,
-	)
-	write_borderless_table(w, &tbl)
+	if write_flags_table(&tbl, GLOBAL_FLAGS) {
+		write_borderless_table(w, &tbl)
+	}
+	table_reset(&tbl)
 
 	fmt.wprintf(
 		w,

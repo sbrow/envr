@@ -20,15 +20,11 @@
 
 10. Pass allocator to findr?
 
-11. Smarter flag parsing?
+11. Consider getting rid of color global.
 
-12. Rewrite `write_command_help` to use text/tables
+12. `write_flags_table` should never return false.
 
-13. Consider getting rid of color global.
-
-14. Add a text filter to the multi_select.
-
-15. init -h doesn't show --force flag. Separate into multiple structs: Global_FLags, and Init_Flags?
+13. Add a text filter to the multi_select.
 
 ## Double-check AI output
 
