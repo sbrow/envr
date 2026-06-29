@@ -2,7 +2,7 @@
 # Builds release artifacts for GitHub releases
 
 APP_NAME := envr
-VERSION := $(shell grep 'version = ' flake.nix | head -1 | sed 's/.*version = "\(.*\)";/\1/')
+VERSION := $(file < version.txt)
 BUILD_DIR := builds
 
 # Binary names

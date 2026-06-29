@@ -66,7 +66,7 @@
 
           packages.default = pkgs.stdenv.mkDerivation rec {
             pname = "envr";
-            version = "0.3.0";
+            version = nixpkgs.lib.trim (builtins.readFile ./version.txt);
             src = ./.;
 
             nativeBuildInputs = [
