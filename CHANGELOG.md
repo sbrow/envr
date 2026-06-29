@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.4.0](https://github.com/sbrow/envr/compare/v0.3.0...v0.4.0) (2026-06-29)
+
+
+### Features
+
+* Added `--color` flag. ([c3e667e](https://github.com/sbrow/envr/commit/c3e667e7bca660b21b5851460691ec8bd5026f80))
+* Added `--format`, `-f` flag. ([bb84c56](https://github.com/sbrow/envr/commit/bb84c56c98bead9ce9bad3f89fb3b61b53d05a10))
+* Colorized console output. ([33cd7c4](https://github.com/sbrow/envr/commit/33cd7c4eda43287fe3dc2d2289a4e1531b524ef6))
+* Removed runtime git dependency. ([12574e1](https://github.com/sbrow/envr/commit/12574e123bdedba3aca813143e906ec5e0b95719))
+
+
+### Bug Fixes
+
+* -h short flag now works on subcommands. ([2b68617](https://github.com/sbrow/envr/commit/2b68617b5d6c17444b04307d7b4b7f4a3aefb978))
+* Databases errors are less likely to go unnoticed. ([f825bc2](https://github.com/sbrow/envr/commit/f825bc2b096632bb258d5681b1072941e9d4233d))
+* Fixed leaks. ([c7c254f](https://github.com/sbrow/envr/commit/c7c254f6f2ac871182f3fcc233766884753e2049))
+* Fixed memory leaks in the db. ([5059572](https://github.com/sbrow/envr/commit/5059572951b3ec20b3d2027032a9c3be5cb14dba))
+* Fixed some leaks in `backup` and `scan`. ([dc72ff5](https://github.com/sbrow/envr/commit/dc72ff56fd0e165930771682b2fd266eef3e7e16))
+* Fixed vet errors. ([1562fb3](https://github.com/sbrow/envr/commit/1562fb3665b8704dcffd4944047f7984b308e52e))
+* Flags in help text are now customized per command. ([fb90342](https://github.com/sbrow/envr/commit/fb903421265baa65adbbe092f6bf797639f1fb1f))
+* Handled mk_dir error. ([de1594d](https://github.com/sbrow/envr/commit/de1594d9d1fe46dd9ebc3be01fc5a5ebaf4064e5))
+* **scan:** Fixed a bug preventing TUI from working. ([0083e4e](https://github.com/sbrow/envr/commit/0083e4e0dbc5b949a3cf4cd8b64af4f698ed9d33))
+* Used os path separator rather than '/' where appropriate. ([5cc7973](https://github.com/sbrow/envr/commit/5cc79737753f0f19db2bc55304ea5f70237cbffd))
+
+
+### Performance Improvements
+
+* Improved the performance of table rendering. ([0b5bf4d](https://github.com/sbrow/envr/commit/0b5bf4db73113bdd43d8a225ec0ae53fedd25918))
+* remotes are now stored as a newline delimited list. ([96b3d63](https://github.com/sbrow/envr/commit/96b3d6340a95b67c884ba940b46461e51989fcbb))
+* Replaced `fd` with custom internals. ([2ef733f](https://github.com/sbrow/envr/commit/2ef733fe58594b0a0b6e3ef85142b74af445ccb8))
+
 ## [0.3.0](https://github.com/sbrow/envr/compare/v0.2.1...v0.3.0) (2026-06-16)
 
 Version 0.3.0 represents a significant departure (and improvement) for envr.
