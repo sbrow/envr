@@ -35,18 +35,18 @@ parse_ssh_public_key :: proc(pub_path: string) -> (pub: [32]u8, ok: bool) {
 		return
 	}
 
-	offset := 0
-	key_type, type_ok := read_wire_string(decoded, &offset)
-	if !type_ok || key_type != SSH_ED25519 {
+	rest := decoded
+	key_type, type_ok := read_wire_string(&rest)
+	if !type_ok || string(key_type) != SSH_ED25519 {
 		return
 	}
 
-	pk_data, pk_ok := read_wire_string(decoded, &offset)
+	pk_data, pk_ok := read_wire_string(&rest)
 	if !pk_ok || len(pk_data) != 32 {
 		return
 	}
 
-	mem.copy_non_overlapping(&pub[0], raw_data(pk_data), 32)
+	mem.copy_non_overlapping(&pub[0], &pk_data[0], 32)
 
 	ok = true
 	return
@@ -91,81 +91,63 @@ parse_ssh_private_key :: proc(priv_path: string) -> (kp: Ed25519Keypair, ok: boo
 		return
 	}
 
-	offset := len(magic)
+	rest := decoded[len(magic):]
 
-	ciphername, cipher_ok := read_wire_string(decoded, &offset)
-	if !cipher_ok || ciphername != "none" {
+	ciphername, cipher_ok := read_wire_string(&rest)
+	if !cipher_ok || string(ciphername) != "none" {
 		return
 	}
 
-	kdfname, kdf_ok := read_wire_string(decoded, &offset)
-	if !kdf_ok || kdfname != "none" {
+	kdfname, kdf_ok := read_wire_string(&rest)
+	if !kdf_ok || string(kdfname) != "none" {
 		return
 	}
 
-	_, opts_ok := read_wire_string(decoded, &offset)
+	_, opts_ok := read_wire_string(&rest)
 	if !opts_ok {
 		return
 	}
 
-	if offset + 4 > len(decoded) {
+	num_keys, nkeys_ok := read_wire_u32(&rest)
+	if !nkeys_ok || num_keys != 1 {
 		return
 	}
 
-	num_keys := endian.get_u32(decoded[offset:offset + 4], .Big) or_return
-	offset += 4
-
-	if num_keys != 1 {
-		return
-	}
-
-	_, pub_blob_ok := read_wire_string(decoded, &offset)
+	_, pub_blob_ok := read_wire_string(&rest)
 	if !pub_blob_ok {
 		return
 	}
 
-	priv_blob, priv_blob_ok := read_wire_string(decoded, &offset)
+	priv_blob, priv_blob_ok := read_wire_string(&rest)
 	if !priv_blob_ok {
 		return
 	}
 
-	inner_offset := 0
-	if inner_offset + 8 > len(priv_blob) {
+	inner := priv_blob
+
+	check1, c1_ok := read_wire_u32(&inner)
+	check2, c2_ok := read_wire_u32(&inner)
+	if !c1_ok || !c2_ok || check1 != check2 {
 		return
 	}
 
-	check1 := endian.get_u32(
-		transmute([]u8)(priv_blob)[inner_offset:inner_offset + 4],
-		.Big,
-	) or_return
-	inner_offset += 4
-	check2 := endian.get_u32(
-		transmute([]u8)(priv_blob)[inner_offset:inner_offset + 4],
-		.Big,
-	) or_return
-	inner_offset += 4
-
-	if check1 != check2 {
+	priv_type, type_ok := read_wire_string(&inner)
+	if !type_ok || string(priv_type) != SSH_ED25519 {
 		return
 	}
 
-	priv_type, type_ok := read_wire_string(transmute([]u8)priv_blob, &inner_offset)
-	if !type_ok || priv_type != SSH_ED25519 {
-		return
-	}
-
-	pub_wire, pub_ok := read_wire_string(transmute([]u8)priv_blob, &inner_offset)
+	pub_wire, pub_ok := read_wire_string(&inner)
 	if !pub_ok || len(pub_wire) != 32 {
 		return
 	}
-	mem.copy_non_overlapping(&kp.Public[0], raw_data(pub_wire), 32)
+	mem.copy_non_overlapping(&kp.Public[0], &pub_wire[0], 32)
 
-	priv_wire, priv_ok := read_wire_string(transmute([]u8)priv_blob, &inner_offset)
+	priv_wire, priv_ok := read_wire_string(&inner)
 	if !priv_ok || len(priv_wire) != 64 {
 		return
 	}
 
-	mem.copy_non_overlapping(&kp.Private[0], raw_data(priv_wire), 32)
+	mem.copy_non_overlapping(&kp.Private[0], &priv_wire[0], 32)
 
 	ok = true
 	return
@@ -182,19 +164,22 @@ is_ed25519_key :: proc(
 	return ok, nil
 }
 
-read_wire_string :: proc(data: []u8, offset: ^int) -> (s: string, ok: bool) {
-	if offset^ + 4 > len(data) {
-		return
-	}
-	length := endian.get_u32(data[offset^:offset^ + 4], .Big) or_return
-	offset^ += 4
+read_wire_string :: proc(data: ^[]u8) -> (s: []u8, ok: bool) {
+	if len(data^) < 4 do return
+	length := endian.get_u32(data^[:4], .Big) or_return
+	data^ = data^[4:]
 
-	if offset^ + int(length) > len(data) {
-		return
-	}
+	if len(data^) < int(length) do return
+	s = data^[:int(length)]
+	data^ = data^[int(length):]
+	ok = true
+	return
+}
 
-	s = string(data[offset^:offset^ + int(length)])
-	offset^ += int(length)
+read_wire_u32 :: proc(data: ^[]u8) -> (v: u32, ok: bool) {
+	if len(data^) < 4 do return
+	v = endian.get_u32(data^[:4], .Big) or_return
+	data^ = data^[4:]
 	ok = true
 	return
 }

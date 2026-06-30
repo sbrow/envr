@@ -52,15 +52,15 @@ test_private_key_pub_matches_public_key :: proc(t: ^testing.T) {
 @(test)
 test_read_wire_string :: proc(t: ^testing.T) {
 	data := []u8{0, 0, 0, 5, u8('h'), u8('e'), u8('l'), u8('l'), u8('o'), 0, 0, 0, 0}
-	offset := 0
 
-	s, ok := read_wire_string(data, &offset)
+	buf := data
+	s, ok := read_wire_string(&buf)
 	testing.expect(t, ok, "expected read_wire_string to succeed")
-	testing.expect_value(t, s, "hello")
-	testing.expect_value(t, offset, 9)
+	testing.expect_value(t, string(s), "hello")
+	testing.expect_value(t, len(data) - len(buf), 9)
 
-	s2, ok2 := read_wire_string(data, &offset)
+	s2, ok2 := read_wire_string(&buf)
 	testing.expect(t, ok2, "expected second read to succeed")
-	testing.expect_value(t, s2, "")
+	testing.expect_value(t, len(s2), 0)
 }
 
