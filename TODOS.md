@@ -24,8 +24,6 @@
 
 12. `write_flags_table` should never return false.
 
-13. Add a text filter to the multi_select.
-
 ## Double-check AI output
 
 - [ ] cli.odin
@@ -54,7 +52,7 @@
 - [ ] db_test.odin
 - [ ] flags.odin
 - [x] main.odin
-- [x] prompt.odin
+- [ ] prompt.odin
 - [x] scan.odin
 - [ ] scan_test.odin
 - [ ] sodium.odin

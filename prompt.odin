@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+import "core:strings"
 import "core:sys/posix"
 import "core:terminal/ansi"
 
@@ -15,6 +16,8 @@ Key :: enum {
 	Space,
 	Enter,
 	Escape,
+	Backspace,
+	Char,
 	Unknown,
 }
 
@@ -38,11 +41,17 @@ multi_select :: proc(
 	}
 
 	selected = make([dynamic]bool, len(options))
+	filter: [dynamic]u8
+	defer delete(filter)
+	filtered: [dynamic]int
+	defer delete(filtered)
+	rebuild_filtered(options, filter[:], &filtered)
+
 	cursor: int = 0
 	scroll_offset: int = 0
 
 	fmt.printf(ansi.CSI + ansi.DECTCEM_HIDE)
-	visible := render_options(prompt, options, selected[:], cursor, scroll_offset)
+	visible := render_options(prompt, options, selected[:], filtered[:], string(filter[:]), cursor, scroll_offset)
 
 	raw, ok := enable_raw_mode(posix.STDIN_FILENO)
 	if !ok {
@@ -52,19 +61,31 @@ multi_select :: proc(
 	defer disable_raw_mode(&raw)
 
 	for {
-		key := read_key()
+		key, ch := read_key()
 
 		switch key {
+		case .Char:
+			append(&filter, u8(ch))
+			rebuild_filtered(options, filter[:], &filtered)
+			cursor = clamp(cursor, 0, max(0, len(filtered) - 1))
+		case .Backspace:
+			if len(filter) > 0 {
+				pop(&filter)
+				rebuild_filtered(options, filter[:], &filtered)
+				cursor = clamp(cursor, 0, max(0, len(filtered) - 1))
+			}
 		case .Up:
 			if cursor > 0 {
 				cursor -= 1
 			}
 		case .Down:
-			if cursor < len(options) - 1 {
+			if cursor < len(filtered) - 1 {
 				cursor += 1
 			}
 		case .Space:
-			selected[cursor] = !selected[cursor]
+			if len(filtered) > 0 {
+				selected[filtered[cursor]] = !selected[filtered[cursor]]
+			}
 		case .Enter:
 			fmt.printf(
 				ansi.CSI + "%d" + ansi.CUU + ansi.CSI + ansi.ED + ansi.CSI + ansi.DECTCEM_SHOW,
@@ -82,9 +103,21 @@ multi_select :: proc(
 		case .Unknown:
 		}
 
-		scroll_offset = max(0, min(cursor - MAX_VISIBLE / 2, len(options) - MAX_VISIBLE))
+		scroll_offset = max(0, min(cursor - MAX_VISIBLE / 2, len(filtered) - MAX_VISIBLE))
 		fmt.printf(ansi.CSI + "%d" + ansi.CUU + ansi.CSI + ansi.RESET + ansi.ED, visible + 1)
-		visible = render_options(prompt, options, selected[:], cursor, scroll_offset)
+		visible = render_options(prompt, options, selected[:], filtered[:], string(filter[:]), cursor, scroll_offset)
+	}
+}
+
+rebuild_filtered :: proc(options: []string, filter: []u8, filtered: ^[dynamic]int) {
+	clear(filtered)
+	filter_str := string(filter)
+	filter_lower := strings.to_lower(filter_str, context.temp_allocator)
+	for opt, i in options {
+		opt_lower := strings.to_lower(opt, context.temp_allocator)
+		if strings.contains(opt_lower, filter_lower) {
+			append(filtered, i)
+		}
 	}
 }
 
@@ -92,22 +125,34 @@ render_options :: proc(
 	prompt: string,
 	options: []string,
 	selected: []bool,
+	filtered: []int,
+	filter_text: string,
 	cursor: int,
 	scroll_offset: int,
 ) -> int {
 	fmt.printf(
-		"%s (↑/↓ move, space select, enter confirm)\r\n",
+		"%s (type to filter, ↑/↓ move, space select, enter confirm)\r\n",
 		colorize(.Option_Label, prompt),
 	)
 
+	fmt.printf("filter: %s\r\n", filter_text)
+
+	line_count := 1
+
+	if len(filtered) == 0 {
+		fmt.printf("  No matches\r\n")
+		return line_count + 1
+	}
+
 	end := scroll_offset + MAX_VISIBLE
-	if end > len(options) {
-		end = len(options)
+	if end > len(filtered) {
+		end = len(filtered)
 	}
 
 	for i in scroll_offset ..< end {
+		original := filtered[i]
 		checkbox := " "
-		if selected[i] {
+		if selected[original] {
 			checkbox = "x"
 		}
 		if i == cursor {
@@ -115,14 +160,14 @@ render_options :: proc(
 				"%s [%s] %s\r\n",
 				colorize(.Caret, ">"),
 				colorize(.Sucess, checkbox),
-				options[i],
+				options[original],
 			)
 		} else {
-			fmt.printf("  [%s] %s\r\n", colorize(.Sucess, checkbox), options[i])
+			fmt.printf("  [%s] %s\r\n", colorize(.Sucess, checkbox), options[original])
 		}
 	}
 
-	return end - scroll_offset
+	return line_count + (end - scroll_offset)
 }
 
 enable_raw_mode :: proc(fd: posix.FD) -> (Raw_State, bool) {
@@ -152,21 +197,23 @@ disable_raw_mode :: proc(state: ^Raw_State) {
 	posix.tcsetattr(state.fd, .TCSAFLUSH, &state.original)
 }
 
-read_key :: proc() -> Key {
+read_key :: proc() -> (key: Key, ch: rune) {
 	buf: [3]u8
 
 	n := posix.read(posix.STDIN_FILENO, &buf[0], 1)
 	if n <= 0 {
-		return .Unknown
+		return .Unknown, 0
 	}
 
 	switch buf[0] {
 	case ' ':
-		return .Space
+		return .Space, 0
 	case '\n', '\r':
-		return .Enter
+		return .Enter, 0
 	case 0x03:
-		return .Escape
+		return .Escape, 0
+	case 0x08, 0x7F:
+		return .Backspace, 0
 	case 0x1b:
 		tv: posix.timeval
 		tv.tv_sec = 0
@@ -178,12 +225,12 @@ read_key :: proc() -> Key {
 
 		ready := posix.select(1, &set, nil, nil, &tv)
 		if ready <= 0 {
-			return .Escape
+			return .Escape, 0
 		}
 
 		n2 := posix.read(posix.STDIN_FILENO, &buf[1], 1)
 		if n2 <= 0 || buf[1] != '[' {
-			return .Escape
+			return .Escape, 0
 		}
 
 		posix.FD_ZERO(&set)
@@ -193,24 +240,27 @@ read_key :: proc() -> Key {
 
 		ready = posix.select(1, &set, nil, nil, &tv)
 		if ready <= 0 {
-			return .Escape
+			return .Escape, 0
 		}
 
 		n3 := posix.read(posix.STDIN_FILENO, &buf[2], 1)
 		if n3 <= 0 {
-			return .Escape
+			return .Escape, 0
 		}
 
 		switch buf[2] {
 		case 'A':
-			return .Up
+			return .Up, 0
 		case 'B':
-			return .Down
+			return .Down, 0
 		case:
-			return .Escape
+			return .Escape, 0
 		}
 	case:
-		return .Unknown
+		if buf[0] >= 0x20 && buf[0] <= 0x7E {
+			return .Char, rune(buf[0])
+		}
+		return .Unknown, 0
 	}
 }
 
