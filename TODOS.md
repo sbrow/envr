@@ -18,11 +18,9 @@
 
 9. Update `read_wire_string` to use a slice.
 
-10. Pass allocator to findr?
+10. Consider getting rid of color global.
 
-11. Consider getting rid of color global.
-
-12. `write_flags_table` should never return false.
+11. `write_flags_table` should never return false.
 
 ## Double-check AI output
 

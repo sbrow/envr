@@ -201,8 +201,7 @@ find_git_roots :: proc(
 	ok: bool,
 ) {
 	paths := search_paths(cfg, allocator)
-	// TODO: Pass allocator to findr
-	findr.find_repos(paths[:], &roots, os.get_processor_core_count())
+	findr.find_repos(paths[:], &roots, os.get_processor_core_count(), allocator)
 	ok = true
 	return
 }
@@ -214,6 +213,7 @@ search_paths :: proc(cfg: Config, allocator := context.allocator) -> [dynamic]st
 	}
 
 	paths := new_clone(cfg.scan_config.include, allocator)
+	defer free(paths, allocator)
 
 	for &include in paths {
 		expanded, _ := strings.replace(include, "~", home, 1, allocator)
@@ -227,7 +227,8 @@ search_paths :: proc(cfg: Config, allocator := context.allocator) -> [dynamic]st
 			}
 		}
 	}
-	return paths^
+	result := paths^
+	return result
 }
 
 envr_dir :: proc(config_path: string) -> string {

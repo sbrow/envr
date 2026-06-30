@@ -78,7 +78,15 @@ collect_worker :: proc(t: ^thread.Thread) {
 	}
 }
 
-walk :: proc(roots: []string, results: ^[dynamic]string, opts: WalkOptions, thread_count: int) {
+walk :: proc(
+	roots: []string,
+	results: ^[dynamic]string,
+	opts: WalkOptions,
+	thread_count: int,
+	allocator := context.allocator,
+) {
+	// TODO: This may be a code smell
+	context.allocator = allocator
 	if len(roots) == 0 do return
 
 	ch, _ := chan.create(chan.Chan([]u8), max(2 * thread_count, 2), context.allocator)

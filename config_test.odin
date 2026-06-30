@@ -2,6 +2,7 @@
 package main
 
 import "core:fmt"
+import "core:mem"
 import "core:os"
 import "core:path/filepath"
 import "core:strings"
@@ -192,5 +193,16 @@ test_search_paths_expands_tilde :: proc(t: ^testing.T) {
 		)
 		testing.expect(t, !strings.contains(paths[0], "~"), "should not contain literal ~")
 	}
+}
+
+@(test)
+test_search_paths_no_leak :: proc(t: ^testing.T) {
+	cfg := Config {
+		scan_config = ScanConfig{include = make([dynamic]string, 0, 1)},
+	}
+	defer delete(cfg.scan_config.include)
+	append(&cfg.scan_config.include, "/tmp")
+
+	_ = search_paths(cfg, context.allocator)
 }
 

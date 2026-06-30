@@ -16,7 +16,14 @@ RepoPool :: struct {
 	threads:      []^thread.Thread,
 }
 
-find_repos :: proc(roots: []string, results: ^[dynamic]string, thread_count: int) {
+find_repos :: proc(
+	roots: []string,
+	results: ^[dynamic]string,
+	thread_count: int,
+	allocator := context.allocator,
+) {
+	// TODO: This may be a code smell
+	context.allocator = allocator
 	if len(roots) == 0 do return
 
 	pool := new(RepoPool)
@@ -126,3 +133,4 @@ process_repo_dir :: proc(pool: ^RepoPool, dir_path: string) {
 		}
 	}
 }
+

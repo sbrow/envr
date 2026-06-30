@@ -491,7 +491,7 @@ db_persist :: proc(db: ^Db, f: ^EnvFile, old_path: string) -> bool {
 }
 
 try_move_dir :: proc(db: ^Db, f: ^EnvFile, allocator: mem.Allocator) -> (bool, SyncError) {
-	roots, ok := find_git_roots(db.cfg)
+	roots, ok := find_git_roots(db.cfg, context.allocator)
 	if !ok {
 		return false, .GitRootFailed
 	}
