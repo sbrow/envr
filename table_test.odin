@@ -35,6 +35,7 @@ test_ansi_aware_width_multiple_escape_sequences :: proc(t: ^testing.T) {
 			colorize(.Heading, "b", disable = false),
 			colorize(.Heading, "c", disable = false),
 		},
+		context.temp_allocator,
 	)
 	testing.expect_value(t, ansi_aware_width(colored), 3)
 }
