@@ -16,9 +16,7 @@
 
 8. Add tests for untested commands.
 
-9. Consider getting rid of color global.
-
-10. Audit ssh.odin for places where `#no_bounds_check` would be appropriate.
+9. Audit ssh.odin for places where `#no_bounds_check` would be appropriate.
 
 ## Double-check AI output
 
