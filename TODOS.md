@@ -12,7 +12,7 @@
 
 6. Generate md and man pages again.
 
-7. Shell completion
+7. Bash Shell completion
 
 8. Add tests for untested commands.
 

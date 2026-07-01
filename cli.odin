@@ -22,8 +22,8 @@ Command :: struct {
 Flags :: struct {
 	help:        bool `args:"short=h" usage:"show this documentation"`,
 	config_file: string `args:"name=config-file,short=c" usage:"config file" default:"~/.envr/config.json"`,
-	output:      Output_Format `args:"short=o" usage:"the format of output data" default:"table"`,
-	color:       Color_Mode `usage:"Whether or not to colorize output" default:"auto"`,
+	output:      Output_Format `args:"short=o" usage:"the format of output data" default:"table" completion:"output"`,
+	color:       Color_Mode `usage:"Whether or not to colorize output" default:"auto" completion:"color"`,
 	force:       bool `args:"short=f" usage:"Overwrite existing config"`,
 }
 
@@ -47,6 +47,12 @@ Color_Mode :: enum {
 	Never,
 }
 
+Positional_Arg :: struct {
+	name:       string,
+	completion: string,
+	optional:   bool,
+}
+
 CommandInfo :: struct {
 	name:    string,
 	usage:   string,
@@ -55,6 +61,7 @@ CommandInfo :: struct {
 	aliases: []string,
 	// Flags supported by the command
 	flags:   bit_set[Flag_Type],
+	args:    []Positional_Arg,
 }
 
 GLOBAL_FLAGS: bit_set[Flag_Type] = {.Help, .Config_File, .Color}
@@ -70,10 +77,27 @@ encrypt your databse. **Make 100% sure** that you have **a remote copy** of this
 key somewhere, otherwise your data could be lost forever.`,
 		{},
 		GLOBAL_FLAGS + {.Force},
+		{},
 	},
-	{"scan", "envr scan", "Find and select .env files for backup", "", {}, GLOBAL_FLAGS},
-	{"sync", "envr sync", "Update or restore your env backups", "", {}, GLOBAL_FLAGS + {.Output}},
-	{"backup", "envr backup <path>", "Import a .env file into envr", "", {"add"}, GLOBAL_FLAGS},
+	{"scan", "envr scan", "Find and select .env files for backup", "", {}, GLOBAL_FLAGS, {}},
+	{
+		"sync",
+		"envr sync",
+		"Update or restore your env backups",
+		"",
+		{},
+		GLOBAL_FLAGS + {.Output},
+		{},
+	},
+	{
+		"backup",
+		"envr backup <path>",
+		"Import a .env file into envr",
+		"",
+		{"add"},
+		GLOBAL_FLAGS,
+		{{name = "path", completion = "untracked-paths"}},
+	},
 	{
 		"restore",
 		"envr restore <path>",
@@ -81,8 +105,9 @@ key somewhere, otherwise your data could be lost forever.`,
 		"",
 		{},
 		GLOBAL_FLAGS,
+		{{name = "path", completion = "tracked-paths"}},
 	},
-	{"list", "envr list", "View your tracked files", "", {}, GLOBAL_FLAGS + {.Output}},
+	{"list", "envr list", "View your tracked files", "", {}, GLOBAL_FLAGS + {.Output}, {}},
 	{
 		"remove",
 		"envr remove <path>",
@@ -90,9 +115,18 @@ key somewhere, otherwise your data could be lost forever.`,
 		"",
 		{},
 		GLOBAL_FLAGS,
+		{{name = "path", completion = "tracked-paths"}},
 	},
-	{"check", "envr check [path]", "Check if files are backed up", "", {}, GLOBAL_FLAGS},
-	{"version", "envr version", "Show envr's version", "", {}, {.Help}},
+	{
+		"check",
+		"envr check [path]",
+		"Check if files are backed up",
+		"",
+		{},
+		GLOBAL_FLAGS,
+		{{name = "path", optional = true}},
+	},
+	{"version", "envr version", "Show envr's version", "", {}, {.Help}, {}},
 	{
 		"edit-config",
 		"envr edit-config",
@@ -100,6 +134,7 @@ key somewhere, otherwise your data could be lost forever.`,
 		"",
 		{},
 		GLOBAL_FLAGS,
+		{},
 	},
 	{
 		"nushell-completion",
@@ -108,6 +143,7 @@ key somewhere, otherwise your data could be lost forever.`,
 		"",
 		{},
 		{.Help},
+		{},
 	},
 }
 
@@ -213,13 +249,23 @@ write_command_help :: proc(name: string, w: io.Writer) -> bool {
 	return true
 }
 
-flag_field_info :: proc(
-	ft: Flag_Type,
-) -> (
-	names: string,
-	value_hint: string,
-	description: string,
-) {
+Flag_Kind :: enum {
+	Bool,
+	String,
+	Enum,
+}
+
+Flag_Field :: struct {
+	long_name:   string,
+	short_name:  string,
+	kind:        Flag_Kind,
+	usage:       string,
+	default_val: string,
+	enum_values: string,
+	completion:  string,
+}
+
+flag_field :: proc(ft: Flag_Type) -> Flag_Field {
 	field := reflect.struct_field_at(Flags, int(ft))
 
 	args_tag := reflect.struct_tag_get(field.tag, "args")
@@ -229,37 +275,74 @@ flag_field_info :: proc(
 	}
 
 	short, has_short := get_subtag(args_tag, "short")
-	if has_short {
-		names = fmt.tprintf("-%s, --%s", short, long_name)
-	} else {
-		names = fmt.tprintf("--%s", long_name)
-	}
 
 	base_ti := runtime.type_info_base(field.type)
+	kind: Flag_Kind
+	enum_values: string
 
 	if _, is_bool := base_ti.variant.(runtime.Type_Info_Boolean); is_bool {
-		value_hint = ""
+		kind = .Bool
 	} else if _, is_string := base_ti.variant.(runtime.Type_Info_String); is_string {
-		value_hint = " <value>"
+		kind = .String
 	} else if enum_ti, is_enum := base_ti.variant.(runtime.Type_Info_Enum); is_enum {
+		kind = .Enum
 		parts := make([dynamic]string, 0, len(enum_ti.names), context.temp_allocator)
 		for name in enum_ti.names {
 			lower := strings.to_lower(name, context.temp_allocator)
 			append(&parts, fmt.tprintf("'%s'", lower))
 		}
-		value_hint = fmt.tprintf(" %s", strings.join(parts[:], "|", context.temp_allocator))
+		enum_values = strings.join(parts[:], "|", context.temp_allocator)
 		delete(parts)
 	}
 
 	usage := reflect.struct_tag_get(field.tag, "usage")
 	default_val := reflect.struct_tag_get(field.tag, "default")
+	completion := reflect.struct_tag_get(field.tag, "completion")
 
-	description = usage
-	if len(default_val) > 0 {
-		if _, is_string := base_ti.variant.(runtime.Type_Info_String); is_string {
-			description = fmt.tprintf(`%s (default "%s")`, usage, default_val)
-		} else if _, is_enum := base_ti.variant.(runtime.Type_Info_Enum); is_enum {
-			description = fmt.tprintf("%s (default '%s')", usage, default_val)
+	return {
+		long_name = long_name,
+		short_name = has_short ? short : "",
+		kind = kind,
+		usage = usage,
+		default_val = default_val,
+		enum_values = enum_values,
+		completion = completion,
+	}
+}
+
+flag_field_info :: proc(
+	ft: Flag_Type,
+) -> (
+	names: string,
+	value_hint: string,
+	description: string,
+) {
+	f := flag_field(ft)
+
+	if len(f.short_name) > 0 {
+		names = fmt.tprintf("-%s, --%s", f.short_name, f.long_name)
+	} else {
+		names = fmt.tprintf("--%s", f.long_name)
+	}
+
+	switch f.kind {
+	case .Bool:
+		value_hint = ""
+	case .String:
+		value_hint = " <value>"
+	case .Enum:
+		value_hint = fmt.tprintf(" %s", f.enum_values)
+	}
+
+	description = f.usage
+	if len(f.default_val) > 0 {
+		switch f.kind {
+		case .Bool:
+		// do nothing
+		case .String:
+			description = fmt.tprintf(`%s (default "%s")`, f.usage, f.default_val)
+		case .Enum:
+			description = fmt.tprintf("%s (default '%s')", f.usage, f.default_val)
 		}
 	}
 
