@@ -206,10 +206,9 @@ write_command_help :: proc(name: string, w: io.Writer) -> bool {
 	tbl: table.Table
 	table.init(&tbl, context.temp_allocator, context.temp_allocator)
 	table.padding(&tbl, 2, 0)
-	if write_flags_table(&tbl, info.flags) {
-		fmt.wprintf(w, "\n", flush = false)
-		write_borderless_table(w, &tbl)
-	}
+	write_flags_table(&tbl, info.flags)
+	fmt.wprintf(w, "\n", flush = false)
+	write_borderless_table(w, &tbl)
 	table_reset(&tbl)
 	return true
 }
@@ -267,8 +266,7 @@ flag_field_info :: proc(
 	return
 }
 
-write_flags_table :: proc(tbl: ^table.Table, flags: bit_set[Flag_Type]) -> (has_rows: bool) {
-	if flags == {} do return false
+write_flags_table :: proc(tbl: ^table.Table, flags: bit_set[Flag_Type]) {
 	table.caption(tbl, "Flags:")
 	for ft in Flag_Type {
 		if ft not_in flags do continue
@@ -285,7 +283,6 @@ write_flags_table :: proc(tbl: ^table.Table, flags: bit_set[Flag_Type]) -> (has_
 			table.row(tbl, colorize(.Flag, names, tbl.format_allocator), desc)
 		}
 	}
-	return true
 }
 
 find_command :: proc(name: string) -> (CommandInfo, bool) {
@@ -365,9 +362,8 @@ at before, restore your backup with:
 	write_borderless_table(w, &tbl)
 	table_reset(&tbl)
 
-	if write_flags_table(&tbl, GLOBAL_FLAGS) {
-		write_borderless_table(w, &tbl)
-	}
+	write_flags_table(&tbl, GLOBAL_FLAGS)
+	write_borderless_table(w, &tbl)
 	table_reset(&tbl)
 
 	fmt.wprintf(

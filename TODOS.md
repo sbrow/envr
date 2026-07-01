@@ -18,9 +18,7 @@
 
 9. Consider getting rid of color global.
 
-10. `write_flags_table` should never return false.
-
-11. Audit ssh.odin for places where `#no_bounds_check` would be appropriate.
+10. Audit ssh.odin for places where `#no_bounds_check` would be appropriate.
 
 ## Double-check AI output
 
