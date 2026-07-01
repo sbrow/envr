@@ -8,7 +8,7 @@
 
 4. Check for prealloc opportunities. i.e. `make([dynamic]string)` -> `make([dynamic]string, 5)`.
 
-5. Test all cmds / terminal branches.
+5. Test all command branches.
 
 6. Generate md and man pages again.
 

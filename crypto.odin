@@ -5,7 +5,7 @@ import "core:mem"
 import "core:os"
 
 MAGIC :: "ENVR"
-MAGIC_BYTES := [4]u8{u8('E'), u8('N'), u8('V'), u8('R')}
+MAGIC_BYTES: [4]u8 = MAGIC
 
 RECIPIENT_ENTRY_SIZE ::
 	CRYPTO_BOX_PUBLICKEY_BYTES +
