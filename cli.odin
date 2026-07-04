@@ -68,76 +68,71 @@ GLOBAL_FLAGS: bit_set[Flag_Type] = {.Help, .Config_File, .Color}
 
 COMMANDS := []CommandInfo {
 	{
-		name  = "init",
+		name = "init",
 		usage = "envr init",
 		short = "Set up envr",
-		long  = `The init command generates your initial config and saves it to
+		long = `The init command generates your initial config and saves it to
 ~/.envr/config in JSON format.\n\nDuring setup, you will be prompted to select one or more ssh keys with which to
 encrypt your databse. **Make 100% sure** that you have **a remote copy** of this
 key somewhere, otherwise your data could be lost forever.`,
 		flags = GLOBAL_FLAGS + {.Force},
 	},
 	{
-		name  = "scan",
+		name = "scan",
 		usage = "envr scan",
 		short = "Find and select .env files for backup",
 		flags = GLOBAL_FLAGS,
 	},
 	{
-		name  = "sync",
+		name = "sync",
 		usage = "envr sync",
 		short = "Update or restore your env backups",
 		flags = GLOBAL_FLAGS + {.Output},
 	},
 	{
-		name    = "backup",
-		usage   = "envr backup <path>",
-		short   = "Import a .env file into envr",
+		name = "backup",
+		usage = "envr backup <path>",
+		short = "Import a .env file into envr",
 		aliases = {"add"},
-		flags   = GLOBAL_FLAGS,
-		args    = {{name = "path", completion = "untracked-paths"}},
+		flags = GLOBAL_FLAGS,
+		args = {{name = "path", completion = "untracked-paths"}},
 	},
 	{
-		name  = "restore",
+		name = "restore",
 		usage = "envr restore <path>",
 		short = "Restore a .env file from the database",
 		flags = GLOBAL_FLAGS,
-		args  = {{name = "path", completion = "tracked-paths"}},
+		args = {{name = "path", completion = "tracked-paths"}},
 	},
 	{
-		name  = "list",
+		name = "list",
 		usage = "envr list",
 		short = "View your tracked files",
 		flags = GLOBAL_FLAGS + {.Output},
 	},
 	{
-		name  = "remove",
+		name = "remove",
 		usage = "envr remove <path>",
 		short = "Remove a .env file from your database",
 		flags = GLOBAL_FLAGS,
-		args  = {{name = "path", completion = "tracked-paths"}},
+		args = {{name = "path", completion = "tracked-paths"}},
 	},
 	{
-		name  = "check",
+		name = "check",
 		usage = "envr check [path]",
 		short = "Check if files are backed up",
 		flags = GLOBAL_FLAGS,
-		args  = {{name = "path", optional = true}},
+		args = {{name = "path", optional = true}},
 	},
+	{name = "version", usage = "envr version", short = "Show envr's version", flags = {.Help}},
 	{
-		name  = "version",
-		usage = "envr version",
-		short = "Show envr's version",
-		flags = {.Help},
-	},
-	{
-		name  = "edit-config",
+		name = "edit-config",
 		usage = "envr edit-config",
 		short = "Edit your config with your default editor",
 		flags = GLOBAL_FLAGS,
 	},
 	{
-		name  = "nushell-completion",
+		name = "nushell-completion",
 		usage = "envr nushell-completion",
 		short = "Generate custom completions for nushell",
 		flags = {.Help},
@@ -160,7 +155,7 @@ parse_args :: proc(args: []string, out: io.Stream, err: io.Stream) -> (cmd: Comm
 	}
 
 	cmd.name = args[1]
-	cmd.args = make([dynamic]string)
+	cmd.args = make([dynamic]string, 0, len(args[2:]))
 
 	overflow := parse_flags(&cmd.flags, args[2:])
 	for arg in overflow {

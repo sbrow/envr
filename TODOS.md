@@ -6,15 +6,13 @@
 
 3. procedures should be ordered by use, main at the top, then in the order they are called from main.
 
-4. Check for prealloc opportunities. i.e. `make([dynamic]string)` -> `make([dynamic]string, 5)`.
+4. Test all command branches.
 
-5. Test all command branches.
+5. Generate md and man pages again.
 
-6. Generate md and man pages again.
+6. Bash Shell completion
 
-7. Bash Shell completion
-
-8. Add tests for untested commands.
+7. Add tests for untested commands.
 
 
 ## Double-check AI output
