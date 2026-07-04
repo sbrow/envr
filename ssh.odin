@@ -164,20 +164,26 @@ is_ed25519_key :: proc(
 	return ok, nil
 }
 
-read_wire_string :: proc(data: ^[]u8) -> (s: []u8, ok: bool) {
-	if len(data^) < 4 do return
+read_wire_string :: proc(data: ^[]u8) -> (s: []u8, ok: bool) #no_bounds_check {
+	if len(data^) < 4 {
+		return
+	}
 	length := endian.get_u32(data^[:4], .Big) or_return
 	data^ = data^[4:]
 
-	if len(data^) < int(length) do return
+	if len(data^) < int(length) {
+		return
+	}
 	s = data^[:int(length)]
 	data^ = data^[int(length):]
 	ok = true
 	return
 }
 
-read_wire_u32 :: proc(data: ^[]u8) -> (v: u32, ok: bool) {
-	if len(data^) < 4 do return
+read_wire_u32 :: proc(data: ^[]u8) -> (v: u32, ok: bool) #no_bounds_check {
+	if len(data^) < 4 {
+		return
+	}
 	v = endian.get_u32(data^[:4], .Big) or_return
 	data^ = data^[4:]
 	ok = true

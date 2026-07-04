@@ -16,7 +16,6 @@
 
 8. Add tests for untested commands.
 
-9. Audit ssh.odin for places where `#no_bounds_check` would be appropriate.
 
 ## Double-check AI output
 
