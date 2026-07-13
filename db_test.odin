@@ -7,6 +7,7 @@ import "core:fmt"
 import "core:os"
 import "core:path/filepath"
 import "core:strings"
+import "core:sys/posix"
 import "core:testing"
 
 import "sqlite"
@@ -557,5 +558,71 @@ test_db_sync_moved :: proc(t: ^testing.T) {
 	if new_ok {
 		testing.expect_value(t, new_fetched.contents, "SECRET=value")
 	}
+}
+
+@(test)
+test_db_close_preserves_inodes :: proc(t: ^testing.T) {
+	base := test_temp_dir(t, "envr-test-inode-*")
+	defer os.remove_all(base)
+
+	envr_dir, _ := filepath.join([]string{base, ".envr"}, context.temp_allocator)
+	config_path, _ := filepath.join([]string{envr_dir, "config.json"}, context.temp_allocator)
+	os.mkdir_all(envr_dir)
+
+	key_abs, _ := filepath.abs("fixtures/keys/insecure-test-key", context.temp_allocator)
+
+	cfg := new_config([]string{key_abs}, config_path)
+	defer delete_config(&cfg)
+	testing.expect(t, save_config(cfg, force = true), "save_config should succeed")
+
+	// Create database
+	{
+		db, ok := db_open(config_path)
+		defer db_close(&db)
+		testing.expect(t, ok, "first db_open should succeed")
+		if !ok do return
+
+		env_path, _ := filepath.join([]string{base, ".env"}, context.temp_allocator)
+		f := make_test_env_file(env_path, "sha", "KEY=value")
+		db_insert(&db, f)
+	}
+
+	// Record inode of data.envr
+	data_file, _ := data_path(config_path, context.temp_allocator)
+	cdata := strings.clone_to_cstring(data_file)
+	defer delete(cdata)
+
+	sb1: posix.stat_t
+	testing.expect(t, posix.stat(cdata, &sb1) == .OK, "stat should succeed")
+	inode_before := sb1.st_ino
+
+	// Create hardlink
+	link_path, _ := filepath.join([]string{envr_dir, "data.envr.link"}, context.temp_allocator)
+	clink := strings.clone_to_cstring(link_path)
+	defer delete(clink)
+	testing.expect(t, posix.link(cdata, clink) == .OK, "hardlink should succeed")
+
+	// Update database
+	{
+		db, ok2 := db_open(config_path)
+		defer db_close(&db)
+		testing.expect(t, ok2, "second db_open should succeed")
+		if !ok2 do return
+
+		env_path2, _ := filepath.join([]string{base, ".env2"}, context.temp_allocator)
+		f2 := make_test_env_file(env_path2, "sha2", "KEY2=value2")
+		db_insert(&db, f2)
+	}
+
+	// Verify inode preserved
+	sb2: posix.stat_t
+	testing.expect(t, posix.stat(cdata, &sb2) == .OK, "stat should succeed after rewrite")
+	testing.expect(t, sb2.st_ino == inode_before, "data.envr inode should be unchanged")
+
+	// Verify hardlink still valid
+	sb_link: posix.stat_t
+	testing.expect(t, posix.stat(clink, &sb_link) == .OK, "stat on hardlink should succeed")
+	testing.expect(t, sb_link.st_ino == inode_before, "hardlink inode should match")
+	testing.expect(t, sb_link.st_nlink == 2, "hardlink count should still be 2")
 }
 

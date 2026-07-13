@@ -16,8 +16,6 @@
 
 8. Add purge command?
 
-9. Ensure updates to db don't break hardlinks.
-
 
 ## Double-check AI output
 
