@@ -10,15 +10,13 @@
 
 5. Generate md and man pages again.
 
-6. Bash Shell completion
+6. Add tests for untested commands.
 
-7. Add tests for untested commands.
+7. Add uninstall command.
 
-8. Add uninstall command.
+8. Add purge command?
 
-9. Add purge command?
-
-10. Ensure updates to db don't break hardlinks.
+9. Ensure updates to db don't break hardlinks.
 
 
 ## Double-check AI output

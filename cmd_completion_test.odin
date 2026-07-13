@@ -76,3 +76,58 @@ test_nushell_completion_no_help_command :: proc(t: ^testing.T) {
 		"script should not contain 'envr help' (not a real command)",
 	)
 }
+
+@(test)
+test_bash_completion_nonempty :: proc(t: ^testing.T) {
+	script := generate_bash_completion()
+	testing.expect(t, len(script) > 0, "bash completion script should not be empty")
+}
+
+@(test)
+test_bash_completion_contains_registration :: proc(t: ^testing.T) {
+	script := generate_bash_completion()
+	testing.expect(
+		t,
+		strings.contains(script, "complete -F _envr envr"),
+		"expected bash script to register completion function",
+	)
+}
+
+@(test)
+test_bash_completion_contains_commands :: proc(t: ^testing.T) {
+	script := generate_bash_completion()
+	expected := []string{
+		"init", "scan", "sync", "backup", "add",
+		"restore", "list", "remove", "check",
+		"version", "edit-config", "completion",
+	}
+	for cmd in expected {
+		testing.expect(
+			t,
+			strings.contains(script, cmd),
+			fmt.tprintf("expected bash script to contain %q", cmd),
+		)
+	}
+}
+
+@(test)
+test_bash_completion_contains_flags :: proc(t: ^testing.T) {
+	script := generate_bash_completion()
+	expected := []string{
+		"--help", "--config-file", "--color", "--force", "--output",
+	}
+	for flag in expected {
+		testing.expect(
+			t,
+			strings.contains(script, flag),
+			fmt.tprintf("expected bash script to contain %q", flag),
+		)
+	}
+}
+
+@(test)
+test_bash_completion_contains_enum_values :: proc(t: ^testing.T) {
+	script := generate_bash_completion()
+	testing.expect(t, strings.contains(script, "auto table json"), "missing output enum values")
+	testing.expect(t, strings.contains(script, "auto always never"), "missing color enum values")
+}

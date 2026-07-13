@@ -138,7 +138,8 @@ key somewhere, otherwise your data could be lost forever.`,
 		short = "Generate shell completion scripts",
 		long = `Supported shells:
 
-  nushell`,
+  nushell
+  bash`,
 		flags = {.Help},
 		args = {{name = "shell", ntype = "string", completion = "shells"}},
 	},
