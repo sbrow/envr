@@ -14,6 +14,12 @@
 
 7. Add tests for untested commands.
 
+8. Add uninstall command.
+
+9. Add purge command?
+
+10. Ensure updates to db don't break hardlinks.
+
 
 ## Double-check AI output
 

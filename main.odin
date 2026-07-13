@@ -77,8 +77,8 @@ main :: proc() {
 		cmd_scan(&cmd)
 	case "sync":
 		cmd_sync(&cmd)
-	case "nushell-completion":
-		cmd_nushell_completion(&cmd)
+	case "completion":
+		cmd_completion(&cmd)
 	case:
 		fmt.wprintf(cmd.err, "Unknown command: %s\n", cmd.name)
 		write_usage(cmd.out)

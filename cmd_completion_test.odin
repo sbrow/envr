@@ -27,7 +27,7 @@ test_nushell_completion_contains_commands :: proc(t: ^testing.T) {
 		"envr scan",
 		"envr sync",
 		"envr version",
-		"envr nushell-completion",
+		"envr completion",
 	}
 	for ext in expected {
 		testing.expect(

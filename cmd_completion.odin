@@ -28,10 +28,25 @@ def output [] {
   ['auto' 'table' 'json']
 }
 
+def shells [] {
+  ['nushell']
+}
+
 `
 
-cmd_nushell_completion :: proc(cmd: ^Command) {
-	fmt.wprint(cmd.out, generate_nushell_completion(), flush = true)
+cmd_completion :: proc(cmd: ^Command) {
+	if len(cmd.args) == 0 {
+		print_command_help(cmd)
+		return
+	}
+
+	switch cmd.args[0] {
+	case "nushell":
+		fmt.wprint(cmd.out, generate_nushell_completion(), flush = true)
+	case:
+		fmt.wprintf(cmd.err, "Unsupported shell: %s\n", cmd.args[0])
+		fmt.wprintln(cmd.err, "Supported shells: nushell")
+	}
 }
 
 generate_nushell_completion :: proc() -> string {
@@ -91,9 +106,10 @@ nushell_positional_line :: proc(arg: Positional_Arg) -> string {
 	if arg.optional {
 		name = fmt.tprintf("%s?", name)
 	}
+	ntype := len(arg.ntype) > 0 ? arg.ntype : "path"
 	if len(arg.completion) > 0 {
-		return fmt.tprintf("%s: path@%s", name, arg.completion)
+		return fmt.tprintf("%s: %s@%s", name, ntype, arg.completion)
 	}
-	return fmt.tprintf("%s: path", name)
+	return fmt.tprintf("%s: %s", name, ntype)
 }
 

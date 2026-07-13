@@ -49,6 +49,7 @@ Color_Mode :: enum {
 
 Positional_Arg :: struct {
 	name:       string,
+	ntype:      string, // nushell type: "path", "string". "" defaults to "path"
 	completion: string,
 	optional:   bool,
 }
@@ -132,10 +133,14 @@ key somewhere, otherwise your data could be lost forever.`,
 		flags = GLOBAL_FLAGS,
 	},
 	{
-		name = "nushell-completion",
-		usage = "envr nushell-completion",
-		short = "Generate custom completions for nushell",
+		name = "completion",
+		usage = "envr completion <shell>",
+		short = "Generate shell completion scripts",
+		long = `Supported shells:
+
+  nushell`,
 		flags = {.Help},
+		args = {{name = "shell", ntype = "string", completion = "shells"}},
 	},
 }
 
