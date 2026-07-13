@@ -79,6 +79,8 @@ main :: proc() {
 		cmd_sync(&cmd)
 	case "completion":
 		cmd_completion(&cmd)
+	case "uninstall":
+		cmd_uninstall(&cmd)
 	case:
 		fmt.wprintf(cmd.err, "Unknown command: %s\n", cmd.name)
 		write_usage(cmd.out)

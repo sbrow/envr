@@ -12,9 +12,7 @@
 
 6. Add tests for untested commands.
 
-7. Add uninstall command.
-
-8. Add purge command?
+7. Add purge command?
 
 
 ## Double-check AI output
