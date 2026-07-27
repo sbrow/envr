@@ -231,10 +231,6 @@ search_paths :: proc(cfg: Config, allocator := context.allocator) -> [dynamic]st
 	return result
 }
 
-envr_dir :: proc(config_path: string) -> string {
-	return filepath.dir(config_path)
-}
-
 // User is responsible for freeing the path
 data_path :: proc(
 	config_path: string,
@@ -244,5 +240,9 @@ data_path :: proc(
 	runtime.Allocator_Error,
 ) #optional_allocator_error {
 	return filepath.join([]string{envr_dir(config_path), "data.envr"}, allocator)
+}
+
+envr_dir :: proc(config_path: string) -> string {
+	return filepath.dir(config_path)
 }
 

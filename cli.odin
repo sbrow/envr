@@ -97,14 +97,18 @@ key somewhere, otherwise your data could be lost forever.`,
 		short = "Import a .env file into envr",
 		aliases = {"add"},
 		flags = GLOBAL_FLAGS,
-		args = {{name = "path", completion = "untracked-paths", desc = "Path to .env file to backup"}},
+		args = {
+			{name = "path", completion = "untracked-paths", desc = "Path to .env file to backup"},
+		},
 	},
 	{
 		name = "restore",
 		usage = "envr restore <path>",
 		short = "Restore a .env file from the database",
 		flags = GLOBAL_FLAGS,
-		args = {{name = "path", completion = "tracked-paths", desc = "Path to .env file to restore"}},
+		args = {
+			{name = "path", completion = "tracked-paths", desc = "Path to .env file to restore"},
+		},
 	},
 	{
 		name = "list",
@@ -117,14 +121,22 @@ key somewhere, otherwise your data could be lost forever.`,
 		usage = "envr remove <path>",
 		short = "Remove a .env file from your database",
 		flags = GLOBAL_FLAGS,
-		args = {{name = "path", completion = "tracked-paths", desc = "Path to .env file to remove"}},
+		args = {
+			{name = "path", completion = "tracked-paths", desc = "Path to .env file to remove"},
+		},
 	},
 	{
 		name = "check",
 		usage = "envr check [path]",
 		short = "Check if files are backed up",
 		flags = GLOBAL_FLAGS,
-		args = {{name = "path", optional = true, desc = "Path to check (defaults to current directory)"}},
+		args = {
+			{
+				name = "path",
+				optional = true,
+				desc = "Path to check (defaults to current directory)",
+			},
+		},
 	},
 	{name = "version", usage = "envr version", short = "Show envr's version", flags = {.Help}},
 	{
@@ -142,7 +154,14 @@ key somewhere, otherwise your data could be lost forever.`,
   nushell
   bash`,
 		flags = {.Help},
-		args = {{name = "shell", ntype = "string", completion = "shells", desc = "Shell to generate completions for"}},
+		args = {
+			{
+				name = "shell",
+				ntype = "string",
+				completion = "shells",
+				desc = "Shell to generate completions for",
+			},
+		},
 	},
 	{
 		name = "uninstall",
@@ -271,48 +290,22 @@ Flag_Field :: struct {
 	completion:  string,
 }
 
-flag_field :: proc(ft: Flag_Type) -> Flag_Field {
-	field := reflect.struct_field_at(Flags, int(ft))
-
-	args_tag := reflect.struct_tag_get(field.tag, "args")
-	long_name, _ := strings.replace(field.name, "_", "-", -1, context.temp_allocator)
-	if n, ok := get_subtag(args_tag, "name"); ok {
-		long_name = n
-	}
-
-	short, has_short := get_subtag(args_tag, "short")
-
-	base_ti := runtime.type_info_base(field.type)
-	kind: Flag_Kind
-	enum_values: string
-
-	if _, is_bool := base_ti.variant.(runtime.Type_Info_Boolean); is_bool {
-		kind = .Bool
-	} else if _, is_string := base_ti.variant.(runtime.Type_Info_String); is_string {
-		kind = .String
-	} else if enum_ti, is_enum := base_ti.variant.(runtime.Type_Info_Enum); is_enum {
-		kind = .Enum
-		parts := make([dynamic]string, 0, len(enum_ti.names), context.temp_allocator)
-		for name in enum_ti.names {
-			lower := strings.to_lower(name, context.temp_allocator)
-			append(&parts, fmt.tprintf("'%s'", lower))
+write_flags_table :: proc(tbl: ^table.Table, flags: bit_set[Flag_Type]) {
+	table.caption(tbl, "Flags:")
+	for ft in Flag_Type {
+		if ft not_in flags do continue
+		names, hint, desc := flag_field_info(ft)
+		if len(hint) > 0 {
+			display := table.format(
+				tbl,
+				"%s%s",
+				colorize(.Flag, names, tbl.format_allocator),
+				hint,
+			)
+			table.row(tbl, display, desc)
+		} else {
+			table.row(tbl, colorize(.Flag, names, tbl.format_allocator), desc)
 		}
-		enum_values = strings.join(parts[:], "|", context.temp_allocator)
-		delete(parts)
-	}
-
-	usage := reflect.struct_tag_get(field.tag, "usage")
-	default_val := reflect.struct_tag_get(field.tag, "default")
-	completion := reflect.struct_tag_get(field.tag, "completion")
-
-	return {
-		long_name = long_name,
-		short_name = has_short ? short : "",
-		kind = kind,
-		usage = usage,
-		default_val = default_val,
-		enum_values = enum_values,
-		completion = completion,
 	}
 }
 
@@ -355,22 +348,48 @@ flag_field_info :: proc(
 	return
 }
 
-write_flags_table :: proc(tbl: ^table.Table, flags: bit_set[Flag_Type]) {
-	table.caption(tbl, "Flags:")
-	for ft in Flag_Type {
-		if ft not_in flags do continue
-		names, hint, desc := flag_field_info(ft)
-		if len(hint) > 0 {
-			display := table.format(
-				tbl,
-				"%s%s",
-				colorize(.Flag, names, tbl.format_allocator),
-				hint,
-			)
-			table.row(tbl, display, desc)
-		} else {
-			table.row(tbl, colorize(.Flag, names, tbl.format_allocator), desc)
+flag_field :: proc(ft: Flag_Type) -> Flag_Field {
+	field := reflect.struct_field_at(Flags, int(ft))
+
+	args_tag := reflect.struct_tag_get(field.tag, "args")
+	long_name, _ := strings.replace(field.name, "_", "-", -1, context.temp_allocator)
+	if n, ok := get_subtag(args_tag, "name"); ok {
+		long_name = n
+	}
+
+	short, has_short := get_subtag(args_tag, "short")
+
+	base_ti := runtime.type_info_base(field.type)
+	kind: Flag_Kind
+	enum_values: string
+
+	if _, is_bool := base_ti.variant.(runtime.Type_Info_Boolean); is_bool {
+		kind = .Bool
+	} else if _, is_string := base_ti.variant.(runtime.Type_Info_String); is_string {
+		kind = .String
+	} else if enum_ti, is_enum := base_ti.variant.(runtime.Type_Info_Enum); is_enum {
+		kind = .Enum
+		parts := make([dynamic]string, 0, len(enum_ti.names), context.temp_allocator)
+		for name in enum_ti.names {
+			lower := strings.to_lower(name, context.temp_allocator)
+			append(&parts, fmt.tprintf("'%s'", lower))
 		}
+		enum_values = strings.join(parts[:], "|", context.temp_allocator)
+		delete(parts)
+	}
+
+	usage := reflect.struct_tag_get(field.tag, "usage")
+	default_val := reflect.struct_tag_get(field.tag, "default")
+	completion := reflect.struct_tag_get(field.tag, "completion")
+
+	return {
+		long_name = long_name,
+		short_name = has_short ? short : "",
+		kind = kind,
+		usage = usage,
+		default_val = default_val,
+		enum_values = enum_values,
+		completion = completion,
 	}
 }
 
