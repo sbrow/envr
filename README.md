@@ -10,6 +10,8 @@ in an encyrpted sqlite database. Changes can be effortlessly synced with
 `envr` puts all your .env files in one safe place, so you can back them up with
 the tool [of your choosing](#backup-options).
 
+Please read the [AI Disclosure](ai-disclosure) if you're concerned about AI code.
+
 ## Features
 
 - **Encrypted Storage**: All `.env` files are encrypted using your ssh key and
@@ -124,6 +126,22 @@ location.
 ### restic
 
 [restic](https://restic.readthedocs.io/en/latest/010_introduction.html).
+
+## AI Disclosure
+
+This project was largely built by AI. The original project (written in go) was
+written almost entirely with AI, using libraries that I requested (i.e. cobra).
+
+I wrote it at work because I needed the tool and wanted it fast. The Odin version
+was also primarily written by AI, but I stepped in a lot more, and took care to
+architect the project in the way that I wanted, and made sure tests were written
+to catch leaks.
+
+Most of the documentation was written by hand, but I think the original `README.md`
+was at least fleshed out by AI.
+
+It is by no means perfect, but I have spent a lot of time doing code review and
+testing to make sure the program (and documentation) meet my personal standards.
 
 ## License
 

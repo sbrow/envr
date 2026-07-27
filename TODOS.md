@@ -14,8 +14,6 @@
 
 8. Add docs for "building from source"
 
-9. Add AI Usage Disclaimer to README.md
-
 
 ## Double-check AI output
 
