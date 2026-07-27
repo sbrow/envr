@@ -15,5 +15,6 @@ envr-prof
 findr/findr
 findr/findr-prof
 findr/bench-*.md
+gendocs
 result
 version.odin

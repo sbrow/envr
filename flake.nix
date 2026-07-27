@@ -91,6 +91,11 @@
             buildPhase = ''
               runHook preBuild
               echo '${version}' > version.txt
+
+              # Generate man pages before main build (binary gets clobbered)
+              odin build . -define:GENDOCS=true -out:gendocs
+              ./gendocs --man
+              
               odin build . -o:speed -out:${pname}
               runHook postBuild
             '';
@@ -98,6 +103,9 @@
             installPhase = ''
               runHook preInstall
               install -Dm755 ${pname} $out/bin/${pname}
+
+              mkdir -p $out/share/man/man1
+              cp docs/man/*.1 $out/share/man/man1/
               runHook postInstall
             '';
           };

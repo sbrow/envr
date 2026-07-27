@@ -9,11 +9,9 @@ envr version [flags]
 ### Options
 
 ```
-  -h, --help   help for version
-  -l, --long   Show all version information
+  -h, --help   show this documentation
 ```
 
 ### SEE ALSO
 
 * [envr](envr.md)	 - Manage your .env files.
-

@@ -52,6 +52,7 @@ Positional_Arg :: struct {
 	ntype:      string, // nushell type: "path", "string". "" defaults to "path"
 	completion: string,
 	optional:   bool,
+	desc:       string,
 }
 
 CommandInfo :: struct {
@@ -96,14 +97,14 @@ key somewhere, otherwise your data could be lost forever.`,
 		short = "Import a .env file into envr",
 		aliases = {"add"},
 		flags = GLOBAL_FLAGS,
-		args = {{name = "path", completion = "untracked-paths"}},
+		args = {{name = "path", completion = "untracked-paths", desc = "Path to .env file to backup"}},
 	},
 	{
 		name = "restore",
 		usage = "envr restore <path>",
 		short = "Restore a .env file from the database",
 		flags = GLOBAL_FLAGS,
-		args = {{name = "path", completion = "tracked-paths"}},
+		args = {{name = "path", completion = "tracked-paths", desc = "Path to .env file to restore"}},
 	},
 	{
 		name = "list",
@@ -116,14 +117,14 @@ key somewhere, otherwise your data could be lost forever.`,
 		usage = "envr remove <path>",
 		short = "Remove a .env file from your database",
 		flags = GLOBAL_FLAGS,
-		args = {{name = "path", completion = "tracked-paths"}},
+		args = {{name = "path", completion = "tracked-paths", desc = "Path to .env file to remove"}},
 	},
 	{
 		name = "check",
 		usage = "envr check [path]",
 		short = "Check if files are backed up",
 		flags = GLOBAL_FLAGS,
-		args = {{name = "path", optional = true}},
+		args = {{name = "path", optional = true, desc = "Path to check (defaults to current directory)"}},
 	},
 	{name = "version", usage = "envr version", short = "Show envr's version", flags = {.Help}},
 	{
@@ -141,7 +142,7 @@ key somewhere, otherwise your data could be lost forever.`,
   nushell
   bash`,
 		flags = {.Help},
-		args = {{name = "shell", ntype = "string", completion = "shells"}},
+		args = {{name = "shell", ntype = "string", completion = "shells", desc = "Shell to generate completions for"}},
 	},
 	{
 		name = "uninstall",
@@ -387,11 +388,7 @@ find_command :: proc(name: string) -> (CommandInfo, bool) {
 	return CommandInfo{}, false
 }
 
-// TODO: command args should be shown in usage.
-write_usage :: proc(w: io.Writer) {
-	fmt.wprintf(
-		w,
-		`envr keeps your .env synced to a local, encrypted database.
+ENVR_DESCRIPTION :: `envr keeps your .env synced to a local, encrypted database.
 Is a safe and easy way to gather all your .env files in one place where they can
 easily be backed by another tool such as restic or git.
 
@@ -420,13 +417,14 @@ Select the files you want to back up from the interactive list.
 5. If you lose a repository, after re-cloning the repo into the same path it was
 at before, restore your backup with:
 
-> envr restore ~/<path to repository>/.env
+> envr restore ~/<path to repository>/.env`
 
-%s
-
-  %s [command]
-
-`,
+// TODO: command args should be shown in usage.
+write_usage :: proc(w: io.Writer) {
+	fmt.wprintf(
+		w,
+		"%s\n\n%s\n\n  %s [command]\n\n",
+		ENVR_DESCRIPTION,
 		colorize(.Heading, "Usage:"),
 		colorize(.Flag, "envr"),
 		flush = false,

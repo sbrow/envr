@@ -8,8 +8,6 @@
 
 4. Test all command branches.
 
-5. Generate md and man pages again.
-
 6. Add tests for untested commands.
 
 7. Add purge command?
