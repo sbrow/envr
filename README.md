@@ -10,7 +10,7 @@ in an encyrpted sqlite database. Changes can be effortlessly synced with
 `envr` puts all your .env files in one safe place, so you can back them up with
 the tool [of your choosing](#backup-options).
 
-Please read the [AI Disclosure](ai-disclosure) if you're concerned about AI code.
+Please read the [AI Disclosure](#ai-disclosure) if you're concerned about AI code.
 
 ## Features
 
