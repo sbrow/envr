@@ -221,7 +221,8 @@ search_paths :: proc(cfg: Config, allocator := context.allocator) -> [dynamic]st
 			include = expanded
 		} else {
 			// TODO: show errors?
-			resolved, err := filepath.abs(expanded, allocator)
+			resolved: string
+			resolved, err = filepath.abs(expanded, allocator)
 			if err == nil {
 				include = resolved
 			}

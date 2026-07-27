@@ -1,7 +1,6 @@
 package main
 
 import "core:fmt"
-import "core:terminal/ansi"
 
 cmd_init :: proc(cmd: ^Command) {
 	force := cmd.flags.force

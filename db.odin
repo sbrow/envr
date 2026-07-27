@@ -1,6 +1,5 @@
 package main
 
-import "base:runtime"
 import "core:crypto/hash"
 import "core:encoding/hex"
 import "core:encoding/ini"
