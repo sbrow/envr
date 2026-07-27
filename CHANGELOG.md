@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.0.0](https://github.com/sbrow/envr/compare/v0.4.0...v1.0.0) (2026-07-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* Renamed `nushell-completion` command to `completion nushell`.
+* Databases with a JSON formatted remotes column will no longer parse correctly. If you have an old database, make sure you upgrade to envr 0.4.0 and run `envr list` before upgrading to this version.
+
+### Features
+
+* Added `uninstall` command. ([222a0a3](https://github.com/sbrow/envr/commit/222a0a3452b978d9bd14d6d2b91e40cd8f4959e3))
+* Added bash completion support. ([e0a339e](https://github.com/sbrow/envr/commit/e0a339e8ec996c0e91e27357854abd9a78bd695a))
+* Brought back the docs generator. ([86a4da6](https://github.com/sbrow/envr/commit/86a4da6cbaae698379c73b8345e6d238b2a11a46))
+* Improved nushell wrapper output. ([209ec89](https://github.com/sbrow/envr/commit/209ec89addbed4718c5aed845ab20b386d1e425d))
+* Scan results can now be filtered during selection. ([ae42d53](https://github.com/sbrow/envr/commit/ae42d53f029dd185143a645fb3f3a787051c1bb4))
+
+
+### Bug Fixes
+
+* Removed irrelevent flags from `nushell-completion` command help text. ([af1860c](https://github.com/sbrow/envr/commit/af1860c970604470992182bbfe9ecb15609a0acf))
+
+
+### Performance Improvements
+
+* Added `#no_bounds_check` to ssh parsers. ([f5624e9](https://github.com/sbrow/envr/commit/f5624e91f1236eecb263f28600ce7f4b2fda149f))
+* Added a pre-alloc opportunity. ([997f11b](https://github.com/sbrow/envr/commit/997f11b257f1c981f73c6ae97d6e821147b5e2fc))
+* Removed support for JSON formatted remotes. ([5282a44](https://github.com/sbrow/envr/commit/5282a4414b9a0211604553f2cb9434025aa5296b))
+
+
+### Code Refactoring
+
+* Renamed `nushell-completion` command to `completion nushell`. ([b0635e0](https://github.com/sbrow/envr/commit/b0635e035c44fb20f9b02265cff1ed8db30aa9d0))
+
 ## [0.4.0](https://github.com/sbrow/envr/compare/v0.3.0...v0.4.0) (2026-06-29)
 
 
