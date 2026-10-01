@@ -14,6 +14,11 @@
 
 8. Add docs for "building from source"
 
+9. Add `envr show` command that uses pager (`less`) unless -no-pager is passed.
+
+10. Run remote SSH sync operations in parallel.
+
+11. Envr sync should require confirmation before pushing remote files.
 
 ## Double-check AI output
 

@@ -105,7 +105,7 @@ key somewhere, otherwise your data could be lost forever.`,
 		name = "restore",
 		usage = "envr restore <path>",
 		short = "Restore a .env file from the database",
-		flags = GLOBAL_FLAGS,
+		flags = GLOBAL_FLAGS + {.Force},
 		args = {
 			{name = "path", completion = "tracked-paths", desc = "Path to .env file to restore"},
 		},
@@ -485,4 +485,3 @@ delete_command :: proc(cmd: ^Command) {
 	bufio.writer_destroy(cmd.out_buf)
 	free(cmd.out_buf)
 }
-
