@@ -16,11 +16,17 @@ cmd_restore :: proc(cmd: ^Command) {
 		fmt.wprintln(cmd.err, "Error: No path provided", flush = false)
 		return
 	}
-	abs_path, abs_err := filepath.abs(path, context.temp_allocator)
-	if abs_err != nil {
-		fmt.wprintf(cmd.err, "Error getting absolute path: %v\n", abs_err, flush = false)
-
+	resolved_path, host, remote_path, is_remote, path_ok := normalize_remote_identity(path)
+	if is_remote && !path_ok {
 		return
+	}
+	if !is_remote {
+		abs_path, abs_err := filepath.abs(path, context.temp_allocator)
+		if abs_err != nil {
+			fmt.wprintf(cmd.err, "Error getting absolute path: %v\n", abs_err, flush = false)
+			return
+		}
+		resolved_path = abs_path
 	}
 
 	db, db_ok := db_open(cmd.flags.config_file)
@@ -29,8 +35,15 @@ cmd_restore :: proc(cmd: ^Command) {
 	}
 	defer db_close(&db)
 
-	file, fetch_ok := db_fetch(&db, abs_path)
+	file, fetch_ok := db_fetch(&db, resolved_path)
 	if !fetch_ok {
+		return
+	}
+	if is_remote {
+		if !write_remote_file(host, remote_path, file.contents, file.sha256, cmd.flags.force) {
+			return
+		}
+		fmt.wprintf(cmd.out, "Restored %s\n", file.path, flush = false)
 		return
 	}
 

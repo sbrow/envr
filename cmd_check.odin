@@ -7,21 +7,28 @@ import "core:path/filepath"
 // TODO: What happens if you pass a non existent path to cmd_check?
 // TODO: UX could be improved, so "run envr add ." if file not exists.
 cmd_check :: proc(cmd: ^Command) {
-	_check_path: string
+	input_path: string
 	if len(cmd.args) > 0 {
-		_check_path = cmd.args[0]
+		input_path = cmd.args[0]
 	} else {
 		cwd, cwd_err := os.get_working_directory(context.temp_allocator)
 		if cwd_err != nil {
 			fmt.wprintf(cmd.err, "Error getting current directory: %v\n", cwd_err, flush = false)
 			return
 		}
-		_check_path = cwd
+		input_path = cwd
 	}
-	check_path, abs_err := filepath.abs(_check_path, context.temp_allocator)
-	if abs_err != nil {
-		fmt.wprintf(cmd.err, "Error getting absolute path: %v\n", abs_err, flush = false)
+	resolved_path, _, _, is_remote, path_resolved := normalize_remote_identity(input_path)
+	if is_remote && !path_resolved {
 		return
+	}
+	if !is_remote {
+		abs_path, abs_err := filepath.abs(input_path, context.temp_allocator)
+		if abs_err != nil {
+			fmt.wprintf(cmd.err, "Error getting absolute path: %v\n", abs_err, flush = false)
+			return
+		}
+		resolved_path = abs_path
 	}
 
 	db, db_ok := db_open(cmd.flags.config_file)
@@ -30,20 +37,23 @@ cmd_check :: proc(cmd: ^Command) {
 	}
 	defer db_close(&db)
 
-	is_dir := os.is_directory(check_path)
+	is_dir := false
+	if !is_remote {
+		is_dir = os.is_directory(resolved_path)
+	}
 
 	// TODO: set a reasonable default
 	files_in_path := make([dynamic]string, context.temp_allocator)
 
 	if is_dir {
-		scanned, scan_ok := scan_path(check_path, db.cfg)
+		scanned, scan_ok := scan_path(resolved_path, db.cfg)
 		if !scan_ok {
 			fmt.wprintln(cmd.err, "Error scanning directory for .env files", flush = false)
 			return
 		}
 		files_in_path = scanned
 	} else {
-		append(&files_in_path, check_path)
+		append(&files_in_path, resolved_path)
 	}
 
 	db_files, list_ok := db_list(&db)
@@ -56,6 +66,8 @@ cmd_check :: proc(cmd: ^Command) {
 	if len(not_backed) == 0 {
 		if len(files_in_path) == 0 {
 			fmt.wprintln(cmd.out, "No .env files found in the specified directory.", flush = false)
+		} else if is_remote {
+			fmt.wprintln(cmd.out, "✓ Remote file is backed up.", flush = false)
 		} else {
 			fmt.wprintln(
 				cmd.out,
@@ -73,7 +85,10 @@ cmd_check :: proc(cmd: ^Command) {
 		for file in not_backed {
 			fmt.wprintf(cmd.out, "  %s\n", file, flush = false)
 		}
-		fmt.wprintln(cmd.out, "\nRun 'envr sync' to back up these files.", flush = false)
+		if is_remote {
+			fmt.wprintf(cmd.out, "\nRun 'envr backup %s' to back up this remote file.\n", resolved_path, flush = false)
+		} else {
+			fmt.wprintln(cmd.out, "\nRun 'envr sync' to back up these files.", flush = false)
+		}
 	}
 }
-

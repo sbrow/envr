@@ -7,6 +7,7 @@ import "core:fmt"
 import "core:mem"
 import "core:os"
 import "core:path/filepath"
+import "core:path/slashpath"
 import "core:strings"
 
 import "sqlite"
@@ -316,7 +317,11 @@ db_insert :: proc(db: ^Db, file: EnvFile) -> bool {
 //
 // Expects an absolute path
 db_fetch :: proc(db: ^Db, path: string) -> (EnvFile, bool) {
-	assert(os.is_absolute_path(path))
+	if _, remote_path, is_remote := parse_remote_path(path); is_remote {
+		assert(slashpath.is_abs(remote_path))
+	} else {
+		assert(os.is_absolute_path(path))
+	}
 
 	sql: cstring = "SELECT path, remotes, sha256, contents FROM envr_env_files WHERE path = ?"
 	stmt: sqlite.Stmt
@@ -399,6 +404,17 @@ db_delete :: proc(db: ^Db, path: string) -> bool {
 
 // Caller is responsible for the returned memory
 new_env_file :: proc(path: string) -> (EnvFile, bool) {
+	if identity, host, remote_path, is_remote, resolved := normalize_remote_identity(path); is_remote {
+		if !resolved {
+			return EnvFile{}, false
+		}
+		contents, read_ok := read_remote_file(host, remote_path)
+		if !read_ok {
+			return EnvFile{}, false
+		}
+		return new_remote_env_file(identity, contents), true
+	}
+
 	abs_path, abs_err := filepath.abs(path)
 	if abs_err != nil {
 		fmt.eprintf("Error getting absolute path: %v\n", abs_err)
@@ -428,11 +444,59 @@ new_env_file :: proc(path: string) -> (EnvFile, bool) {
 		true
 }
 
+// Takes ownership of contents and returns an EnvFile that owns all its fields.
+new_remote_env_file :: proc(path: string, contents: []byte) -> EnvFile {
+	digest := hash.hash_bytes(hash.Algorithm.SHA256, contents, context.temp_allocator)
+	hex_bytes := hex.encode(digest, context.allocator)
+
+	return EnvFile {
+		path = strings.clone(path, context.allocator),
+		dir = "",
+		sha256 = string(hex_bytes),
+		contents = string(contents),
+	}
+}
+
 // Reconciles `f` with the filesystem and persists changes to the database.
 db_sync :: proc(db: ^Db, f: ^EnvFile) -> (SyncFlag, SyncError) {
 	allocator := db_allocator(db)
 	result: SyncFlag = {}
 	old_path := f.path
+
+	if _, _, is_remote := parse_remote_path(f.path); is_remote {
+		identity, host, remote_path, _, resolved := normalize_remote_identity(f.path)
+		if !resolved {
+			return {}, .ReadFailed
+		}
+		contents, read_ok := read_remote_file(host, remote_path)
+		if !read_ok {
+			return {}, .ReadFailed
+		}
+
+		digest := hash.hash_bytes(hash.Algorithm.SHA256, contents, context.temp_allocator)
+		hex_bytes := hex.encode(digest, allocator)
+		current_sha := string(hex_bytes)
+		if current_sha == f.sha256 {
+			delete(contents)
+			if identity != old_path {
+				f.path = strings.clone(identity, allocator)
+				if !db_persist(db, f, old_path) {
+					return {}, .DbFailed
+				}
+			}
+			return {}, .None
+		}
+
+		if identity != old_path {
+			f.path = strings.clone(identity, allocator)
+		}
+		f.contents = string(contents)
+		f.sha256 = current_sha
+		if !db_persist(db, f, old_path) {
+			return {}, .DbFailed
+		}
+		return {.BackedUp}, .None
+	}
 
 	if !os.exists(f.dir) {
 		moved, err := try_move_dir(db, f, allocator)
@@ -478,6 +542,211 @@ db_sync :: proc(db: ^Db, f: ^EnvFile) -> (SyncFlag, SyncError) {
 		return result, .DbFailed
 	}
 	return result + {.BackedUp}, .None
+}
+
+// A remote identity uses user@host:path; CLI input is expanded to an absolute path.
+parse_remote_path :: proc(path: string) -> (host, remote_path: string, is_remote: bool) {
+	separator := strings.index(path, ":")
+	if separator <= 0 || separator + 1 >= len(path) {
+		return
+	}
+	host = path[:separator]
+	if strings.index(host, "@") <= 0 ||
+	   strings.index(host, " ") >= 0 ||
+	   strings.index(host, "'") >= 0 {
+		return "", "", false
+	}
+	remote_path = path[separator + 1:]
+	is_remote = true
+	return
+}
+
+// Resolves relative and tilde-prefixed remote input against the remote HOME.
+// Absolute paths stay absolute, independent of the local host OS.
+normalize_remote_identity :: proc(path: string) -> (
+	identity, host, remote_path: string,
+	is_remote, ok: bool,
+) {
+	parsed_host, parsed_path, parsed_is_remote := parse_remote_path(path)
+	if !parsed_is_remote {
+		return path, "", "", false, true
+	}
+	host = parsed_host
+	is_remote = true
+
+	if slashpath.is_abs(parsed_path) {
+		remote_path = slashpath.clean(parsed_path, context.temp_allocator)
+	} else {
+		home, home_ok := remote_home_directory(host)
+		if !home_ok {
+			return "", host, "", true, false
+		}
+		remote_path = expand_remote_path(home, parsed_path)
+	}
+
+	identity = fmt.tprintf("%s:%s", host, remote_path)
+	ok = true
+	return
+}
+
+// Expands relative and tilde-prefixed remote input against an absolute POSIX home.
+expand_remote_path :: proc(home, path: string) -> string {
+	if slashpath.is_abs(path) {
+		return slashpath.clean(path, context.temp_allocator)
+	}
+	relative := path
+	if strings.has_prefix(relative, "~") {
+		relative = relative[1:]
+		if strings.has_prefix(relative, "/") {
+			relative = relative[1:]
+		}
+	}
+	return slashpath.join({home, relative}, context.temp_allocator)
+}
+
+remote_home_directory :: proc(host: string) -> (home: string, ok: bool) {
+	// The command is constant; HOME is expanded by the remote shell and no
+	// user-supplied path is interpolated into it.
+	desc := os.Process_Desc {
+		command = []string{"ssh", "-T", "--", host, "printf '%s' \"$HOME\""},
+	}
+	state, stdout, stderr, err := os.process_exec(desc, context.temp_allocator)
+	delete(stderr)
+	if err != nil {
+		fmt.eprintf("Error querying remote home directory over ssh: %v\n", err)
+		delete(stdout)
+		return "", false
+	}
+	if !state.success {
+		fmt.eprintf("Error querying remote home directory over ssh (exit code %d)\n", state.exit_code)
+		delete(stdout)
+		return "", false
+	}
+
+	home = string(stdout)
+	if !slashpath.is_abs(home) {
+		fmt.eprintf("Error: remote HOME is not an absolute POSIX path\n")
+		return "", false
+	}
+	home = slashpath.clean(home, context.temp_allocator)
+	ok = true
+	return
+}
+
+// Read a remote file through OpenSSH. The path is quoted for the remote shell;
+// the host and command are passed as distinct local argv elements.
+read_remote_file :: proc(host, remote_path: string) -> (contents: []byte, ok: bool) {
+	quoted_path := quote_remote_shell_path(remote_path)
+	remote_command := fmt.tprintf("cat -- '%s'", quoted_path)
+	desc := os.Process_Desc {
+		command = []string{"ssh", "-T", "--", host, remote_command},
+		stdin   = nil,
+	}
+	state, stdout, stderr, err := os.process_exec(desc, context.allocator)
+	if err != nil {
+		fmt.eprintf("Error starting ssh: %v\n", err)
+		delete(stdout)
+		delete(stderr)
+		return nil, false
+	}
+	delete(stderr)
+	if !state.success {
+		fmt.eprintf("Error reading remote file via ssh (exit code %d)\n", state.exit_code)
+		delete(stdout)
+		return nil, false
+	}
+	return stdout, true
+}
+
+quote_remote_shell_path :: proc(path: string) -> string {
+	quoted_path, _ := strings.replace_all(path, "'", "'\"'\"'", context.temp_allocator)
+	return quoted_path
+}
+
+// Atomically writes a remote file via SSH stdin, never staging plaintext locally.
+// Existing remote contents must match the stored digest unless force is set.
+write_remote_file :: proc(host, remote_path, contents, expected_sha: string, force: bool) -> bool {
+	if len(expected_sha) != 64 {
+		fmt.eprintf("Error: invalid stored SHA-256 digest for remote restore\n")
+		return false
+	}
+	for c in expected_sha {
+		if !(c >= '0' && c <= '9') && !(c >= 'a' && c <= 'f') && !(c >= 'A' && c <= 'F') {
+			fmt.eprintf("Error: invalid stored SHA-256 digest for remote restore\n")
+			return false
+		}
+	}
+	quoted_path := quote_remote_shell_path(remote_path)
+	force_check := force ? ":" : fmt.tprintf(`
+if [ -e "$target" ]; then
+	if command -v sha256sum >/dev/null 2>&1; then
+		current=$(sha256sum -- "$target" | cut -d ' ' -f 1)
+	elif command -v shasum >/dev/null 2>&1; then
+		current=$(shasum -a 256 -- "$target" | cut -d ' ' -f 1)
+	else
+		echo 'Remote restore requires sha256sum or shasum; use --force to bypass conflict checking' >&2
+		exit 74
+	fi
+	if [ "$current" != '%s' ]; then
+		echo 'Remote file changed since backup; use --force to overwrite' >&2
+		exit 73
+	fi
+fi
+`, expected_sha)
+	remote_command := fmt.tprintf(`
+set -eu
+target='%s'
+dir=${target%/*}
+[ -n "$dir" ] || dir=/
+mkdir -p -- "$dir"
+umask 077
+tmp=$(mktemp "$dir/.envr.XXXXXXXX")
+trap 'rm -f -- "$tmp"' EXIT HUP INT TERM
+cat > "$tmp"
+%s
+mv -f -- "$tmp" "$target"
+trap - EXIT HUP INT TERM
+`, quoted_path, force_check)
+	read_pipe, write_pipe, pipe_err := os.pipe()
+	if pipe_err != nil {
+		fmt.eprintf("Error creating SSH input pipe: %v\n", pipe_err)
+		return false
+	}
+	desc := os.Process_Desc {
+		command = []string{"ssh", "-T", "--", host, remote_command},
+		stdin = read_pipe,
+	}
+	process, start_err := os.process_start(desc)
+	_ = os.close(read_pipe)
+	if start_err != nil {
+		_ = os.close(write_pipe)
+		fmt.eprintf("Error starting ssh: %v\n", start_err)
+		return false
+	}
+	remaining := transmute([]byte)contents
+	write_err: os.Error
+	for len(remaining) > 0 {
+		written, err := os.write(write_pipe, remaining)
+		if err != nil {
+			write_err = err
+			break
+		}
+		if written == 0 {
+			break
+		}
+		remaining = remaining[written:]
+	}
+	_ = os.close(write_pipe)
+	state, wait_err := os.process_wait(process)
+	if write_err != nil {
+		fmt.eprintf("Error sending file contents over ssh: %v\n", write_err)
+		return false
+	}
+	if wait_err != nil || !state.success {
+		fmt.eprintf("Error writing remote file via ssh (exit code %d)\n", state.exit_code)
+		return false
+	}
+	return true
 }
 
 db_persist :: proc(db: ^Db, f: ^EnvFile, old_path: string) -> bool {
@@ -591,4 +860,3 @@ clone_cstring :: proc(c: cstring, allocator := context.allocator) -> string {
 
 	return str
 }
-
