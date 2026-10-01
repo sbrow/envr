@@ -72,10 +72,12 @@
             nativeBuildInputs = [
               pkgs.unstable.odin
               pkgs.pkg-config
+              pkgs.makeWrapper
             ];
 
             buildInputs = [
               pkgs.git
+              pkgs.openssh
 
               pkgs.libsodium
               mysqlite
@@ -107,6 +109,10 @@
               mkdir -p $out/share/man/man1
               cp docs/man/*.1 $out/share/man/man1/
               runHook postInstall
+            '';
+
+            postFixup = ''
+              wrapProgram $out/bin/envr --prefix PATH : ${nixpkgs.lib.makeBinPath [ pkgs.openssh ]}
             '';
           };
 

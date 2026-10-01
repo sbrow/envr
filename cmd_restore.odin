@@ -16,6 +16,10 @@ cmd_restore :: proc(cmd: ^Command) {
 		fmt.wprintln(cmd.err, "Error: No path provided", flush = false)
 		return
 	}
+	if _, _, is_remote := parse_remote_path(path); is_remote {
+		fmt.wprintln(cmd.err, "Remote restore is not supported yet", flush = false)
+		return
+	}
 	abs_path, abs_err := filepath.abs(path, context.temp_allocator)
 	if abs_err != nil {
 		fmt.wprintf(cmd.err, "Error getting absolute path: %v\n", abs_err, flush = false)
@@ -50,4 +54,3 @@ cmd_restore :: proc(cmd: ^Command) {
 
 	fmt.wprintf(cmd.out, "Restored %s\n", file.path, flush = false)
 }
-

@@ -399,6 +399,14 @@ db_delete :: proc(db: ^Db, path: string) -> bool {
 
 // Caller is responsible for the returned memory
 new_env_file :: proc(path: string) -> (EnvFile, bool) {
+	if host, remote_path, is_remote := parse_remote_path(path); is_remote {
+		contents, read_ok := read_remote_file(host, remote_path)
+		if !read_ok {
+			return EnvFile{}, false
+		}
+		return new_remote_env_file(path, contents), true
+	}
+
 	abs_path, abs_err := filepath.abs(path)
 	if abs_err != nil {
 		fmt.eprintf("Error getting absolute path: %v\n", abs_err)
@@ -428,11 +436,45 @@ new_env_file :: proc(path: string) -> (EnvFile, bool) {
 		true
 }
 
+// Takes ownership of contents and returns an EnvFile that owns all its fields.
+new_remote_env_file :: proc(path: string, contents: []byte) -> EnvFile {
+	digest := hash.hash_bytes(hash.Algorithm.SHA256, contents, context.temp_allocator)
+	hex_bytes := hex.encode(digest, context.allocator)
+
+	return EnvFile {
+		path = strings.clone(path, context.allocator),
+		dir = "",
+		sha256 = string(hex_bytes),
+		contents = string(contents),
+	}
+}
+
 // Reconciles `f` with the filesystem and persists changes to the database.
 db_sync :: proc(db: ^Db, f: ^EnvFile) -> (SyncFlag, SyncError) {
 	allocator := db_allocator(db)
 	result: SyncFlag = {}
 	old_path := f.path
+
+	if host, remote_path, is_remote := parse_remote_path(f.path); is_remote {
+		contents, read_ok := read_remote_file(host, remote_path)
+		if !read_ok {
+			return {}, .ReadFailed
+		}
+
+		digest := hash.hash_bytes(hash.Algorithm.SHA256, contents, context.temp_allocator)
+		hex_bytes := hex.encode(digest, allocator)
+		current_sha := string(hex_bytes)
+		if current_sha == f.sha256 {
+			return {}, .None
+		}
+
+		f.contents = string(contents)
+		f.sha256 = current_sha
+		if !db_persist(db, f, old_path) {
+			return {}, .DbFailed
+		}
+		return {.BackedUp}, .None
+	}
 
 	if !os.exists(f.dir) {
 		moved, err := try_move_dir(db, f, allocator)
