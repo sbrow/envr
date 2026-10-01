@@ -2,6 +2,10 @@
 
 Update or restore your env backups
 
+For both local and remote files, `sync` backs up changed file contents and
+restores missing files from the backup. Remote SSH and permission errors are
+reported instead of being treated as missing files.
+
 ```
 envr sync [flags]
 ```
