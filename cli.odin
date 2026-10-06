@@ -25,6 +25,7 @@ Flags :: struct {
 	output:      Output_Format `args:"short=o" usage:"the format of output data" default:"table" completion:"output"`,
 	color:       Color_Mode `usage:"Whether or not to colorize output" default:"auto" completion:"color"`,
 	force:       bool `args:"short=f" usage:"Overwrite existing config"`,
+	stdout:      bool `args:"short=p" usage:"Print file contents directly to stdout instead of using a pager"`,
 }
 
 Flag_Type :: enum {
@@ -33,6 +34,7 @@ Flag_Type :: enum {
 	Output,
 	Color,
 	Force,
+	Stdout,
 }
 
 Output_Format :: enum {
@@ -114,6 +116,7 @@ key somewhere, otherwise your data could be lost forever.`,
 		name = "list",
 		usage = "envr list",
 		short = "View your tracked files",
+		long = "Table output is sorted by stored path and numbered from 1. Use 'envr view <number>' to view the contents of a backup.",
 		flags = GLOBAL_FLAGS + {.Output},
 	},
 	{
@@ -135,6 +138,21 @@ key somewhere, otherwise your data could be lost forever.`,
 				name = "path",
 				optional = true,
 				desc = "Path to check (defaults to current directory)",
+			},
+		},
+	},
+	{
+		name = "view",
+		usage = "envr view [path]",
+		short = "View a backed-up .env file",
+		long = "If no path is provided, the user will be asked to select one from a list. You may also pass the number from the \"#\" column of `envr list` instead of the full path. If a partial path is passed, the closest match will be opened.",
+		flags = GLOBAL_FLAGS + {.Stdout},
+		args = {
+			{
+				name = "path",
+				completion = "tracked-paths",
+				optional = true,
+				desc = "Path or substring, or number of a backed-up file.",
 			},
 		},
 	},
@@ -485,3 +503,4 @@ delete_command :: proc(cmd: ^Command) {
 	bufio.writer_destroy(cmd.out_buf)
 	free(cmd.out_buf)
 }
+

@@ -2,8 +2,6 @@
 
 Generate shell completion scripts
 
-### Synopsis
-
 Supported shells:
 
   nushell
@@ -13,7 +11,7 @@ Supported shells:
 envr completion <shell> [flags]
 ```
 
-**Arguments:**
+### Arguments
 
 * `shell` — Shell to generate completions for
 

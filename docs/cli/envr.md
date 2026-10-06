@@ -51,6 +51,7 @@ at before, restore your backup with:
 * [envr list](envr_list.md)	 - View your tracked files
 * [envr remove](envr_remove.md)	 - Remove a .env file from your database
 * [envr check](envr_check.md)	 - Check if files are backed up
+* [envr view](envr_view.md)	 - View a backed-up .env file
 * [envr version](envr_version.md)	 - Show envr's version
 * [envr edit-config](envr_edit-config.md)	 - Edit your config with your default editor
 * [envr completion](envr_completion.md)	 - Generate shell completion scripts

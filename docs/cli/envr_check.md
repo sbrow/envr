@@ -6,7 +6,7 @@ Check if files are backed up
 envr check [path] [flags]
 ```
 
-**Arguments:**
+### Arguments
 
 * `path` — Path to check (defaults to current directory) (optional)
 

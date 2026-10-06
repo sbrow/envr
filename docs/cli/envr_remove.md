@@ -6,7 +6,7 @@ Remove a .env file from your database
 envr remove <path> [flags]
 ```
 
-**Arguments:**
+### Arguments
 
 * `path` — Path to .env file to remove
 

@@ -32,18 +32,19 @@ cmd_list :: proc(cmd: ^Command) {
 		table.aligned_header_of_values(
 			&t,
 			.Center,
+			colorize(.Table_Heading, "#"),
 			colorize(.Table_Heading, "Directory"),
 			colorize(.Table_Heading, "Path"),
 		)
 
-		for row in rows {
+		for row, i in rows {
 			dir_str := strings.concatenate(
 				{row.dir, os.Path_Separator_String},
 				context.temp_allocator,
 			)
 			filename := filepath.base(row.path)
 
-			table.row(&t, dir_str, filename)
+			table.row(&t, fmt.tprintf("%d", i + 1), dir_str, filename)
 		}
 
 		table.write_decorated_table(cmd.out, &t, decorations, ansi_aware_width)
@@ -73,4 +74,3 @@ cmd_list :: proc(cmd: ^Command) {
 		fmt.wprintln(cmd.out, string(data), flush = false)
 	}
 }
-

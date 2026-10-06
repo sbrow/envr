@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+import "core:os"
 import "core:strings"
 import "core:sys/posix"
 import "core:terminal/ansi"
@@ -27,6 +28,71 @@ Raw_State :: struct {
 }
 
 MAX_VISIBLE :: 7
+
+// Returns the index of the chosen option, or -1 on cancellation or terminal error.
+single_select :: proc(prompt: string, options: []string) -> int {
+	if len(options) == 0 do return -1
+
+	filter: [dynamic]u8
+	defer delete(filter)
+	filtered: [dynamic]int
+	defer delete(filtered)
+	rebuild_filtered(options, filter[:], &filtered)
+
+	raw, ok := enable_raw_mode(posix.STDIN_FILENO)
+	if !ok do return -1
+	defer disable_raw_mode(&raw)
+
+	cursor, scroll_offset := 0, 0
+	fmt.fprintf(os.stderr, ansi.CSI + ansi.DECTCEM_HIDE)
+	visible := render_single_options(prompt, options, filtered[:], "", cursor, scroll_offset)
+	defer fmt.fprintf(os.stderr, ansi.CSI + "%d" + ansi.CUU + ansi.CSI + ansi.ED + ansi.CSI + ansi.DECTCEM_SHOW, visible + 1)
+
+	for {
+		key, ch := read_key()
+		switch key {
+		case .Char:
+			append(&filter, u8(ch))
+			rebuild_filtered(options, filter[:], &filtered)
+			cursor = clamp(cursor, 0, max(0, len(filtered) - 1))
+		case .Backspace:
+			if len(filter) > 0 {
+				pop(&filter)
+				rebuild_filtered(options, filter[:], &filtered)
+				cursor = clamp(cursor, 0, max(0, len(filtered) - 1))
+			}
+		case .Up:
+			if cursor > 0 do cursor -= 1
+		case .Down:
+			if cursor < len(filtered) - 1 do cursor += 1
+		case .Enter:
+			if len(filtered) > 0 do return filtered[cursor]
+		case .Escape:
+			return -1
+		case .Unknown:
+			return -1
+		case .Space:
+		}
+
+		scroll_offset = max(0, min(cursor - MAX_VISIBLE / 2, len(filtered) - MAX_VISIBLE))
+		fmt.fprintf(os.stderr, ansi.CSI + "%d" + ansi.CUU + ansi.CSI + ansi.RESET + ansi.ED, visible + 1)
+		visible = render_single_options(prompt, options, filtered[:], string(filter[:]), cursor, scroll_offset)
+	}
+}
+
+render_single_options :: proc(prompt: string, options: []string, filtered: []int, filter_text: string, cursor, scroll_offset: int) -> int {
+	fmt.fprintf(os.stderr, "%s (type to filter, ↑/↓ move, enter select, esc cancel)\r\n", prompt)
+	fmt.fprintf(os.stderr, "filter: %s\r\n", filter_text)
+	if len(filtered) == 0 {
+		fmt.fprintf(os.stderr, "  No matches\r\n")
+		return 2
+	}
+	end := min(scroll_offset + MAX_VISIBLE, len(filtered))
+	for i in scroll_offset ..< end {
+		fmt.fprintf(os.stderr, "%s %s\r\n", i == cursor ? ">" : " ", options[filtered[i]])
+	}
+	return 1 + end - scroll_offset
+}
 
 // Caller is responsible for deleting the responses.
 multi_select :: proc(
@@ -263,4 +329,3 @@ read_key :: proc() -> (key: Key, ch: rune) {
 		return .Unknown, 0
 	}
 }
-

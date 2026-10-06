@@ -2,8 +2,6 @@
 
 Set up envr
 
-### Synopsis
-
 The init command generates your initial config and saves it to
 ~/.envr/config in JSON format.\n\nDuring setup, you will be prompted to select one or more ssh keys with which to
 encrypt your databse. **Make 100% sure** that you have **a remote copy** of this
