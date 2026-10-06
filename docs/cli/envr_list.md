@@ -2,6 +2,8 @@
 
 View your tracked files
 
+Table output is sorted by stored path and numbered from 1. Use 'envr view <number>' to view the contents of a backup.
+
 ```
 envr list [flags]
 ```

@@ -201,7 +201,6 @@ generate_md_command :: proc(c: ^CommandInfo) {
 	fmt.sbprintf(&sb, "%s\n\n", c.short)
 
 	if len(c.long) > 0 {
-		fmt.sbprintf(&sb, "### Synopsis\n\n")
 		fmt.sbprint(&sb, c.long)
 		fmt.sbprintf(&sb, "\n\n")
 	}
@@ -209,7 +208,7 @@ generate_md_command :: proc(c: ^CommandInfo) {
 	fmt.sbprintf(&sb, "```\n%s [flags]\n```\n\n", c.usage)
 
 	if len(c.args) > 0 {
-		fmt.sbprintf(&sb, "**Arguments:**\n\n")
+		fmt.sbprintf(&sb, "### Arguments\n\n")
 		for arg in c.args {
 			optional := arg.optional ? " (optional)" : ""
 			fmt.sbprintf(&sb, "* `%s` — %s%s\n", arg.name, arg.desc, optional)
@@ -286,4 +285,3 @@ write_file :: proc(path: string, content: string) {
 		fmt.eprintf("Error writing %s: %v\n", path, err)
 	}
 }
-

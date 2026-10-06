@@ -74,6 +74,8 @@ when !#config(GENDOCS, false) {
 			cmd_edit_config(&cmd)
 		case "check":
 			cmd_check(&cmd)
+		case "view":
+			if !cmd_view(&cmd) do os.exit(1)
 		case "scan":
 			cmd_scan(&cmd)
 		case "sync":

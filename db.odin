@@ -213,7 +213,7 @@ db_list :: proc(db: ^Db) -> ([]EnvFile, bool) {
 	stmt: sqlite.Stmt
 	rc := sqlite.prepare_v2(
 		db.conn,
-		"SELECT path, remotes, sha256, contents FROM envr_env_files",
+		"SELECT path, remotes, sha256, contents FROM envr_env_files ORDER BY path COLLATE BINARY",
 		-1,
 		&stmt,
 		nil,

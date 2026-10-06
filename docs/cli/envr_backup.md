@@ -6,7 +6,7 @@ Import a .env file into envr
 envr backup <path> [flags]
 ```
 
-**Arguments:**
+### Arguments
 
 * `path` — Path to .env file to backup
 

@@ -6,7 +6,7 @@ Restore a .env file from the database
 envr restore <path> [flags]
 ```
 
-**Arguments:**
+### Arguments
 
 * `path` — Path to .env file to restore
 

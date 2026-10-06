@@ -80,9 +80,12 @@ test_cmd_list_output_table :: proc(t: ^testing.T) {
 	db, db_ok := db_open(cfg_path)
 	testing.expect(t, db_ok, "db should open")
 	if !db_ok do return
-	f := make_test_env_file("/project/.env", "abc123", "SECRET=value")
-	defer delete(f.remotes)
-	testing.expect(t, db_insert(&db, f), "insert should succeed")
+	paths := []string{"/zeta/.env", "/alpha/.env", "/middle/.env"}
+	for path in paths {
+		f := make_test_env_file(path, "abc123", "SECRET=value")
+		defer delete(f.remotes)
+		testing.expect(t, db_insert(&db, f), "insert should succeed")
+	}
 	db_close(&db)
 
 	out_b: strings.Builder
@@ -106,6 +109,20 @@ test_cmd_list_output_table :: proc(t: ^testing.T) {
 	output := strings.to_string(out_b)
 
 	testing.expect(t, strings.contains(output, "│"), "table output should contain border chars")
+	testing.expect(t, strings.contains(output, "#"), "table output should show a number header")
+	alpha := strings.index(output, "/alpha/")
+	middle := strings.index(output, "/middle/")
+	zeta := strings.index(output, "/zeta/")
+	testing.expect(
+		t,
+		alpha >= 0 && alpha < middle && middle < zeta,
+		"table should be sorted by full stored path",
+	)
+	testing.expect(
+		t,
+		strings.contains(output, "│ 1 │ /alpha/"),
+		"first path should be numbered 1",
+	)
 	testing.expect(
 		t,
 		strings.contains(output, "Directory"),
