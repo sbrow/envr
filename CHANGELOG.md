@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0](https://github.com/sbrow/envr/compare/v1.0.0...v1.1.0) (2026-10-15)
+
+
+### Features
+
+* Added `view` command for opening files. ([d4c4ed8](https://github.com/sbrow/envr/commit/d4c4ed8468ab975db1f22ff862fcb2eea475ae6e))
+* Added support for remote files (via ssh). ([e0e9c93](https://github.com/sbrow/envr/commit/e0e9c93577250fe8d486cd0909bbe6909fb97c75))
+
 ## [1.0.0](https://github.com/sbrow/envr/compare/v0.4.0...v1.0.0) (2026-07-27)
 
 
